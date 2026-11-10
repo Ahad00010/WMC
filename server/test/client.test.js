@@ -31,3 +31,12 @@ test('active client keeps race connection when host leaving deletes the lobby',a
  w.WMCGame={inSession:()=>true,network(){},input:()=>({}),authoritativeReceive(){received++}};w.eval(lobbyScript);await until(()=>instance?.ready);
  active=false;w.dispatchEvent(new w.Event('wmc-lobby-open'));await sleep(50);assert.equal(instance.closed,false);instance.handlers.snapshot({phase:'complete',players:[]});assert.equal(received,1);
 });
+
+test('chat arriving just before the first match snapshot is shown once the game enters',async t=>{
+ const dom=new JSDOM(html,{url:'http://test.local',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());let instance,inSession=false,received=[];
+ const lobby={id:'l',mode:'race',host_id:'a',members:[{id:'b',display_name:'B',username:'b',number:66,color:'blue'}]};
+ w.WMC_RACE_SERVER_URL='ws://test.local';w.WMCRaceTransport=class{constructor(url,handlers){instance=this;this.handlers=handlers}connect(){this.ws={};this.ready=true}close(){this.ws=null}send(){}};
+ w.WMCAuth={client:{auth:{getSession:async()=>({data:{session:{access_token:'b'}}})},rpc:async name=>({data:name==='wmc_lobby_snapshot'?{user_id:'b',lobby,invites:[],server_time:new Date().toISOString()}:[],error:null})}};
+ w.WMCGame={inSession:()=>inSession,network(){},input:()=>({}),authoritativeReceive(){inSession=true},receiveChat(m){received.push(m)}};w.eval(lobbyScript);await until(()=>instance?.ready);
+ const message={id:'a',name:'A',text:'hello',number:13,color:'red'};instance.handlers.chat(message);assert.equal(received.length,0);instance.handlers.snapshot({phase:'race',players:[]});assert.equal(received.length,1);assert.equal(received[0].text,'hello');instance.handlers.snapshot({phase:'race',players:[]});assert.equal(received.length,1);
+});
