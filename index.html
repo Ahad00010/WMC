@@ -104,6 +104,31 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .qual-banner.show{opacity:1;transform:translate(-50%,0)}.qual-banner-head{display:flex;align-items:center;background:#050505;padding:5px 8px;font-weight:700;font-size:14px}.qual-banner-head span:first-child{flex:1}.qual-number{background:#e4202c;color:#090909;min-width:38px;text-align:center;font:800 18px/1 var(--display)}
 .qual-banner-body{padding:6px 8px 9px}.qual-readout{display:flex;align-items:baseline;justify-content:space-between;gap:5px}.qual-delta{font:800 27px/1 var(--display);color:#ff8a00;font-variant-numeric:tabular-nums}.qual-banner.live .qual-time{color:#929b9d;font-weight:600}.qual-banner.flash .qual-banner-body{background:#f32829}.qual-banner.flash .qual-time{color:white;font-size:clamp(38px,6vw,65px);text-align:center}.qual-banner.flash .qual-message,.qual-banner.flash .qual-delta,.qual-banner.flash .qual-sectors{display:none}.qual-message{font:700 12px/1.1 var(--ui);letter-spacing:.05em;color:#fff}.qual-time{font:800 35px/1 var(--display);font-variant-numeric:tabular-nums;color:#ff8a00}.qual-banner.invalid .qual-time,.qual-banner.invalid .qual-message{color:#fff}.qual-banner.fast .qual-time{color:#ff8a00}.qual-banner.record .qual-time{color:#f02d39}.qual-banner.slow .qual-time{color:#f4f4f4}
 .qual-sectors{display:flex;position:relative;gap:3px;margin-top:9px}.qual-sectors i{height:3px;flex:1;background:#535353}.qual-sectors i.best{background:#ff8a00}.qual-sectors i.slow{background:#f4f4f4}.qual-sectors i.bad{background:#535353}.qual-marker{position:absolute;top:-4px;left:0;width:2px;height:11px;background:#ff8a00;box-shadow:0 0 4px #000;transition:left .12s linear}
+
+/* Broadcast timing states: live, split, estimate, finish and cancellation. */
+.qual-banner{overflow:hidden}.qual-rank{font-weight:800;margin-right:7px}
+.qual-banner-body{position:relative;min-height:68px;padding:6px 9px 12px}
+.qual-banner .qual-time,.qual-banner .qual-delta{transition:font-size .28s ease,color .22s ease;white-space:nowrap}
+.qual-banner.live .qual-time{font:500 35px/1 var(--ui);color:#929b9d}
+.qual-banner.live.has-delta .qual-time{font-size:16px;align-self:flex-start}
+.qual-banner.live .qual-delta{font:600 35px/1 var(--ui);color:var(--split-color,#fff)}
+.qual-banner.split .qual-time{font:600 32px/1 var(--ui);color:var(--split-color,#fff)}
+.qual-banner.split .qual-delta{font:600 15px/1 var(--ui);color:#fff;align-self:flex-start}
+.qual-banner.estimate .qual-readout{justify-content:center;align-items:center;gap:8px}
+.qual-banner.estimate .qual-message{display:none}.qual-banner.estimate .qual-time{font:500 23px/1 var(--ui);color:#eee}
+.qual-banner.estimate .qual-delta{font:800 42px/1 var(--display);color:var(--split-color,#ff8a00)}
+.qual-banner.flash .qual-banner-body{background:var(--flash-color,#f32829)}.qual-banner.flash.wipe .qual-banner-body{animation:qual-wipe .32s ease-out both}
+.qual-banner.flash .qual-readout{justify-content:center}.qual-banner.flash .qual-time{font:800 clamp(42px,6vw,65px)/1 var(--display);letter-spacing:.02em;color:white;text-align:center}
+.qual-banner.finish .qual-readout{justify-content:center}.qual-banner.finish .qual-time{font:800 39px/1 var(--display);color:var(--flash-color,#f32829)}
+.qual-banner.finish .qual-delta,.qual-banner.finish .qual-sectors,.qual-banner.finish .qual-message{display:none}
+.qual-banner.cancel .qual-readout{justify-content:center}.qual-banner.cancel .qual-message{text-align:center;font-size:15px}
+.qual-banner.cancel .qual-time{font:700 30px/1 var(--display);text-align:center;color:#fff}
+.qual-banner.cancel.outline .qual-time{color:transparent;-webkit-text-stroke:1px #fff}
+.qual-banner.cancel.reason .qual-time{color:#fff;font-size:26px;-webkit-text-stroke:0}
+.qual-banner.cancel .qual-sectors,.qual-banner.cancel .qual-delta{display:none}
+@keyframes qual-wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@media(prefers-reduced-motion:reduce){.qual-banner-body{animation:none!important}.qual-banner .qual-time,.qual-banner .qual-delta{transition:none}}
+
 .mode-buttons{display:flex;gap:10px;flex-wrap:wrap}.mode-buttons button{font-size:20px;padding:10px 24px}.mode-buttons .secondary{background:#30353d}
 .session-end{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.7);z-index:5}.session-end .card{background:#101216;padding:26px;border-left:4px solid #e4202c}.session-end h2{margin:0;font:800 42px/1 var(--display)}
 @media(max-width:700px){.qual-tower{width:150px}.qual-brand{font-size:24px}.qual-row{font-size:11px;gap:4px}.qual-banner{bottom:calc(var(--gb) + 85px)}}
@@ -125,7 +150,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
     <div class="qual-row"><span class="qual-position">1</span><span class="qual-name">D EFA</span><span class="qual-stripe"></span><span class="qual-best" id="qualBest">--:--.---</span></div>
     <div class="qual-row"><span class="qual-name" id="qualStatus">OUT LAP</span><span id="qualLapTime" style="font-variant-numeric:tabular-nums">--:--.---</span></div><div class="qual-footer">#MalaysianGP</div>
   </div>
-  <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span>D EFA</span><span class="qual-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-readout"><div class="qual-time" id="qualTime"></div><div class="qual-delta" id="qualDelta"></div></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i><span class="qual-marker" id="qualMarker"></span></div></div></div>
+  <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span><b class="qual-rank">1</b> D EFA</span><span class="qual-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-readout"><div class="qual-time" id="qualTime"></div><div class="qual-delta" id="qualDelta"></div></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i><span class="qual-marker" id="qualMarker"></span></div></div></div>
   <canvas id="map" width="300" height="300"></canvas>
   <div class="lights" id="lights" hidden><i></i><i></i><i></i><i></i><i></i></div>
   <div class="toast" id="toast"></div>
@@ -484,7 +509,7 @@ var pos=new THREE.Vector3(),h=0,v=0,steer=0,lean=0,pitch=0;
 var idx=0,total=0,lat=0,lapNo=1,raceTime=0,lapStart=0,bestLap=null,lastLap=null;
 var QUAL_DURATION=600000,QUAL_MAX_LAPS=5;
 var mode='race',qualBest=null,qualFlying=false,qualInvalid=false,qualSector=0,qualLine=0,qualDeadline=0,qualExpired=false,qualBannerTimer=0;
-var qualSectorBest=[null,null,null,null],qualSectorTimes=[],qualSectorColors=[],qualLastSplit=0,qualAnnouncement=false,qualLastResult='',qualAttempts=0,qualSequenceTimer=0,qualFinishTimer=0;
+var qualSectorBest=[null,null,null,null],qualSectorTimes=[],qualSectorColors=[],qualLastSplit=0,qualAnnouncement=false,qualLastResult='',qualAttempts=0,qualSequenceTimer=0,qualFinishTimer=0,qualDeltaText='',qualDeltaColour='#fff';
 var state='menu',cdT=0,goAt=0,impact=0,wrongT=0,surface='asphalt',rpm=0,throttleNow=0,brakeNow=false;
 var WIN=40;
 var camPos=new THREE.Vector3(),camH=0,shake=new THREE.Vector3(),look=new THREE.Vector3(),tgt=new THREE.Vector3();
@@ -599,7 +624,7 @@ function begin(selected){
   $('qualBanner').classList.remove('show');
   if(mode==='qualifying'){
     qualBest=null;qualFlying=false;qualInvalid=false;qualSector=0;qualLine=0;qualExpired=false;
-    qualSectorBest=[null,null,null,null];qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;qualLastResult='';qualAttempts=0;qualAnnouncement=false;clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);clearTimeout(qualFinishTimer);
+    qualSectorBest=[null,null,null,null];qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;qualLastResult='';qualAttempts=0;qualDeltaText='';qualDeltaColour='#fff';qualAnnouncement=false;clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);clearTimeout(qualFinishTimer);
     qualDeadline=performance.now()+QUAL_DURATION;$('qualBest').textContent=fmt(null);$('qualStatus').textContent='OUT LAP';
     $('qualClock').textContent='10:00';$('qualLapTime').textContent=fmt(null);$('qualLapTime').hidden=false;$('qualProgress').style.transform='scaleX(1)';
     state='racing';elLights.hidden=true;
@@ -636,8 +661,9 @@ function showQual(message,time,invalid,colour,delta){
 function updateQualGraphic(){
   if(!qualFlying||qualInvalid||qualAnnouncement)return;
   var banner=$('qualBanner');
-  banner.className='qual-banner show live';
-  $('qualMessage').textContent='';$('qualDelta').textContent='';
+  banner.className='qual-banner show live'+(qualDeltaText?' has-delta':'');
+  banner.style.setProperty('--split-color',qualDeltaColour);
+  $('qualMessage').textContent='';$('qualDelta').textContent=qualDeltaText;
   $('qualTime').textContent=fmtShort(raceTime-lapStart);
   renderQualSectors((total-qualLine)/N);
 }
@@ -645,7 +671,7 @@ function fmtShort(t){var tenths=Math.floor(Math.max(0,t)*10),m=Math.floor(tenths
 function invalidateQual(){
   if(qualFlying&&!qualInvalid){
     qualInvalid=true;qualSectorColors=qualSectorColors.map(function(){return 'bad'});
-    $('qualLapTime').hidden=true;showQual('LAP CANCELLED','TRACK LIMITS',true);
+    $('qualLapTime').hidden=true;showQualCancellation('TRACK LIMITS');
   }
 }
 function endQualifying(){
@@ -675,13 +701,12 @@ function qualifyingProgress(previous){
       var sectorIndex=qualSector-1;
       var delta=qualSectorBest[sectorIndex]==null?null:qualSectorTimes[sectorIndex]-qualSectorBest[sectorIndex];
       var deltaText=delta==null?'':(delta>=0?'+':'-')+Math.abs(delta).toFixed(3);
-      if(qualSector===3)showQual('ESTIMATED', '1',false,qualSectorColors[sectorIndex]==='slow'?'slow':'fast');
-      else showQual('SECTOR '+qualSector,fmtShort(raceTime-lapStart),false,qualSectorColors[qualSector-1]==='slow'?'slow':'fast',deltaText);
+      showQualSplit(raceTime-lapStart,deltaText,qualSectorColors[sectorIndex],qualSector>=2);
     }
   }
   if(progress>=N&&qualSector===3&&v>0){
     var t=raceTime-lapStart;recordQualSector();qualAttempts++;
-    if(qualInvalid){qualLastResult='Lap cancelled';showQual('LAP CANCELLED','TRACK LIMITS',true)}
+    if(qualInvalid){qualLastResult='Lap cancelled';showQualCancellation('TRACK LIMITS')}
     else{
       var isBest=qualBest==null||t<qualBest;
       if(isBest){qualBest=t;$('qualBest').textContent=fmt(t);}
@@ -692,20 +717,43 @@ function qualifyingProgress(previous){
     if(qualExpired||qualAttempts>=QUAL_MAX_LAPS){
       state='finishing';v=0;throttleNow=0;keys={};
       $('qualStatus').textContent=qualAttempts>=QUAL_MAX_LAPS?'5 LAP LIMIT':'SESSION FINISHED';
-      qualFinishTimer=setTimeout(endQualifying,4000);return;
+      qualFinishTimer=setTimeout(endQualifying,6500);return;
     }
-    qualLine+=N;lapStart=raceTime;qualSector=0;qualInvalid=false;qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;$('qualStatus').textContent='LAP '+(qualAttempts+1)+' / 5';$('qualLapTime').hidden=false;
+    qualLine+=N;lapStart=raceTime;qualSector=0;qualInvalid=false;qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;qualDeltaText='';qualDeltaColour='#fff';$('qualStatus').textContent='LAP '+(qualAttempts+1)+' / 5';$('qualLapTime').hidden=false;
   }
 }
+function showQualSplit(split,delta,colour,estimate){
+  var banner=$('qualBanner');
+  qualDeltaText=delta;qualDeltaColour=colour==='best'?'#ff8a00':'#f4f4f4';
+  showQual('',fmt(split),false,'split',delta);
+  banner.style.setProperty('--split-color',qualDeltaColour);
+  clearTimeout(qualBannerTimer);
+  qualBannerTimer=setTimeout(function(){
+    if(qualInvalid||state!=='racing')return;
+    qualAnnouncement=false;
+    if(estimate){
+      qualSequenceTimer=setTimeout(function(){
+        if(qualInvalid||state!=='racing')return;
+        showQual('','ESTIMATED',false,'estimate','1');
+        banner.style.setProperty('--split-color',qualDeltaColour);
+      },900);
+    }
+  },4500);
+}
+function showQualCancellation(reason){
+  showQual('LAP','CANCELLED',false,'cancel outline');
+  qualSequenceTimer=setTimeout(function(){showQual('LAP CANCELLED',reason,false,'cancel reason')},1500);
+}
 function showFastestLap(time){
-  showQual('', 'FASTEST',false,'flash');
+  var banner=$('qualBanner');banner.style.setProperty('--flash-color','#f32829');
+  showQual('', 'FASTEST',false,'flash wipe');
   qualSequenceTimer=setTimeout(function(){
     showQual('', 'LAP',false,'flash');
-    qualSequenceTimer=setTimeout(function(){showQual('VALID LAP · FASTEST LAP',fmt(time),false,'record')},900);
+    qualSequenceTimer=setTimeout(function(){showQual('',fmt(time),false,'finish')},900);
   },900);
 }
 function resetBike(){
-  if(mode==='qualifying'&&qualFlying){invalidateQual();showQual('LAP CANCELLED','RESET ON TRACK',true)}
+  if(mode==='qualifying'&&qualFlying&&!qualInvalid){invalidateQual();showQualCancellation('RESET ON TRACK')}
   var i=globalNearest();
   idx=i;pos.set(px[i],0,pz[i]);h=Math.atan2(tx[i],tz[i]);v=0;steer=0;lean=0;pitch=0;
   toast('BACK ON TRACK','',900);
