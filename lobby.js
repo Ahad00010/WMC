@@ -2,7 +2,8 @@
   'use strict';
   const $=id=>document.getElementById(id);
   let snapshot=null, checking=null, pending=false, clockOffset=0, leaving=sessionStorage.getItem('wmc-leaving')==='1', leavePromise=null, generation=0;
-  const serverUrl=window.WMC_RACE_SERVER_URL||'';let transport=null, serverSnapshot=null, connecting=false,stats={},statsAt=0,connectionError='';
+  const serverUrl=window.WMC_RACE_SERVER_URL||'';let transport=null, serverSnapshot=null, connecting=false,stats={},statsAt=0,connectionError='',knownMembers=null,lastInvite=null,connected=false;
+  function cue(kind){if(window.WMCGame&&window.WMCGame.matchCue)window.WMCGame.matchCue(kind)}
   async function getClient() {
     const c=window.WMCAuth&&window.WMCAuth.client;
     if(!c)throw new Error('Sign in with Google first.');
@@ -30,6 +31,7 @@
   }
   function render() {
     const lobby=snapshot&&snapshot.lobby;
+    if(lobby){const ids=lobby.members.map(m=>m.id).sort().join('|');if(knownMembers!==null&&ids!==knownMembers&&!$('lobbyPanel').hidden)cue('join');knownMembers=ids}else knownMembers=null;
     $('resumeLobby').hidden=!lobby;
     const inPanel=!$('modeOverlay').hidden&&!$('lobbyPanel').hidden;
     if(inPanel){
@@ -46,7 +48,8 @@
       }
     }
     const invite=snapshot&&snapshot.invites[0],notice=$('inviteNotice');
-    if(!invite){notice.hidden=true;return;}
+    if(!invite){notice.hidden=true;lastInvite=null;return;}
+    if(invite.id!==lastInvite){lastInvite=invite.id;cue('invite')}
     const left=Math.max(0,Math.ceil((Date.parse(invite.expires_at)-(Date.now()+clockOffset))/1000));
     if(left<=0){notice.hidden=true;return;}
     $('inviteText').textContent=invite.sender+' invited you to a lobby';$('inviteRemaining').textContent=left+'s remaining';notice.hidden=false;
@@ -77,7 +80,7 @@
     connecting=true;const currentGeneration=generation;
     try{const c=await getClient(),{data,error}=await c.auth.getSession();if(error||!data.session)throw Error('Sign in first');if(leaving||currentGeneration!==generation||!snapshot||!snapshot.lobby)return;
       if(!transport)transport=new window.WMCRaceTransport(serverUrl,{
-        status:(ok,code,reason)=>{if(ok)connectionError='';else{serverSnapshot=null;connectionError=code===1008?'Race server rejected the connection ('+(reason||'authentication failed')+'). Retrying…':'Race server connection failed. Retrying…'}if(window.WMCGame)window.WMCGame.network(ok);render()},
+        status:(ok,code,reason)=>{if(ok&&!connected)cue('ready');connected=ok;if(ok)connectionError='';else{serverSnapshot=null;connectionError=code===1008?'Race server rejected the connection ('+(reason||'authentication failed')+'). Retrying…':'Race server connection failed. Retrying…'}if(window.WMCGame)window.WMCGame.network(ok);render()},
         error:message=>{$('lobbyMessage').textContent=message},
         snapshot:message=>{if(leaving||currentGeneration!==generation)return;serverSnapshot=message;if(snapshot&&window.WMCGame)window.WMCGame.authoritativeReceive(message,snapshot.user_id,stats);render()}
       });transport.connect(data.session.access_token);
@@ -88,16 +91,16 @@
   function leaveSession(){
     if(leavePromise)return leavePromise;
     leaving=true;generation++;sessionStorage.setItem('wmc-leaving','1');
-    if(transport){transport.send('leave');transport.close();transport=null}serverSnapshot=null;snapshot=null;render();
+    if(transport){transport.send('leave');transport.close();transport=null}connected=false;serverSnapshot=null;snapshot=null;render();
     leavePromise=(async()=>{try{const c=await getClient(),{error}=await c.rpc('wmc_lobby_action',{action:'leave',params:{}});if(error)throw error;leaving=false;sessionStorage.removeItem('wmc-leaving');$('multiMessage').textContent='';return true}
       catch(e){$('multiMessage').textContent='Could not leave the previous session. Retrying; check your connection.';return false}
       finally{leavePromise=null}})();return leavePromise;
   }
-  $('startMultiplayer').onclick=()=>{if(!transport||!transport.send('start'))$('lobbyMessage').textContent='Race server is not connected.'};
+  $('startMultiplayer').onclick=()=>{if(!transport||!transport.send('start'))$('lobbyMessage').textContent='Race server is not connected.';else cue('ready')};
   window.WMCMatch={reset:()=>{if(transport)transport.send('reset')},sendInput,leave:leaveSession};
   $('resumeLobby').onclick=()=>{if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby()}};
-  $('multiRace').onclick=()=>create('race');$('multiQualRace').onclick=()=>create('qualifying_race');
-  $('inviteForm').onsubmit=async e=>{e.preventDefault();const username=$('inviteUsername').value.trim();if(await act('invite',{username})){$('lobbyMessage').textContent='Invite sent (expires in 10 seconds).';$('inviteForm').reset()}};
+  $('multiRace').onclick=()=>{cue('select');create('race')};$('multiQualRace').onclick=()=>{cue('select');create('qualifying_race')};
+  $('inviteForm').onsubmit=async e=>{e.preventDefault();const username=$('inviteUsername').value.trim();if(await act('invite',{username})){cue('join');$('lobbyMessage').textContent='Invite sent (expires in 10 seconds).';$('inviteForm').reset()}};
   $('leaveLobby').onclick=async()=>{if(await leaveSession()){$('multiMessage').textContent='';$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}};
   $('acceptInvite').onclick=async()=>{if(!$('menu')||$('menu').hidden){$('inviteError').textContent='Return to the main menu to accept.';return}const invite=snapshot&&snapshot.invites[0];if(invite&&await act('accept',{invite_id:invite.id})){$('inviteError').textContent='';showLobby()}};
   $('declineInvite').onclick=async()=>{const invite=snapshot&&snapshot.invites[0];if(invite)await act('decline',{invite_id:invite.id})};
