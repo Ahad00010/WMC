@@ -1,5 +1,6 @@
 import {randomUUID,randomInt} from 'node:crypto';
-import {N,px,pz,tx,tz,kerbEdge} from './track.js';
+import {N,length,px,pz,tx,tz,kerbEdge} from './track.js';
+import sectorColor from '../../qualifying-colors.js';
 import {spawn,step,parseInput,neutralInput} from './physics.js';
 export const RACE_LAPS=3,QUALIFYING_ATTEMPTS=3,QUALIFYING=240000;
 const COUNTDOWN=22000,GRACE=30000,RESULT_DELAY=10000;
@@ -46,9 +47,9 @@ export class RaceRoom {
       const provisional=rider.flying&&!rider.invalid?rider.sectorTimes?.[index]:null;
       if(Number.isFinite(provisional))sessionBest=Math.min(sessionBest,provisional);
     }
-    const personal=prior==null||duration<prior,fastest=duration<=sessionBest;
+    const color=sectorColor(duration,prior,sessionBest,length/4);
     p.sectorTimes[index]=duration;p.sectorStart=now;
-    if(emit&&!p.invalid)this.events.push({type:'sector',id:p.profile.id,sector:index+1,split:(now-p.lapStart)/1000,delta:prior==null?null:duration-prior,color:fastest?'record':personal?'best':'slow'});
+    if(emit&&!p.invalid)this.events.push({type:'sector',id:p.profile.id,sector:index+1,split:(now-p.lapStart)/1000,delta:prior==null?null:duration-prior,color});
   }
   qualify(p,result,now){const expired=now>=this.phaseStart+QUALIFYING,s=p.state;
     if(!p.flying){if(expired){p.completed=true;return}if(result.previous<0&&s.total>=0&&s.v>0){p.flying=true;p.lapStart=now;p.sectorStart=now;p.invalid=result.offTrack;if(p.invalid)this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'})}return}

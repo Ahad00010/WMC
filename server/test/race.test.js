@@ -20,19 +20,22 @@ test('explicitly leaving an active race immediately retires the rider',()=>{
  assert.ok(room.events.some(e=>e.type==='dnf'&&e.id==='b'));
 });
 
-test('sector colors compare clean live and completed sectors, removing invalid provisional records',()=>{
+test('sector colors use real benchmarks, sensible margins and exclude invalid laps',()=>{
  const r=room('qualifying_race'),a=r.players.get('a'),b=r.players.get('b');
  for(const p of [a,b]){p.flying=true;p.invalid=false;p.sectorStart=0;p.lapStart=0;p.sectorTimes=[];p.sectorBests=[null,null,null,null]}
- r.events=[];r.recordSector(a,0,12000);assert.equal(r.events.at(-1).color,'record');assert.equal(r.events.at(-1).delta,null);
- r.recordSector(b,0,13000);assert.equal(r.events.at(-1).color,'best','first personal sector is orange if not session fastest');
- b.sectorBests[0]=13;b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,12500);assert.equal(r.events.at(-1).color,'best');assert.equal(r.events.at(-1).delta,-.5);
- b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,13500);assert.equal(r.events.at(-1).color,'slow');
- a.invalid=true;b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,12500);assert.equal(r.events.at(-1).color,'record','invalid flying lap no longer sets the session benchmark');
+ r.events=[];r.recordSector(a,0,50000);assert.equal(r.events.at(-1).color,'slow','first sector is a baseline, not automatic red');
+ r.recordSector(b,0,55000);assert.equal(r.events.at(-1).color,'slow','no personal benchmark is not an automatic best');
+ b.sectorBests[0]=55;b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,54500);assert.equal(r.events.at(-1).color,'best');assert.equal(r.events.at(-1).delta,-.5);
+ b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,49500);assert.equal(r.events.at(-1).color,'best','a small session improvement is orange');
+ b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,48000);assert.equal(r.events.at(-1).color,'record','a competitive session improvement is red');
+ b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,56000);assert.equal(r.events.at(-1).color,'slow');
+ a.invalid=true;b.sectorTimes=[];b.sectorStart=0;r.recordSector(b,0,50000);assert.equal(r.events.at(-1).color,'record','invalid flying lap no longer sets the session benchmark');
+ b.sectorTimes=[];b.sectorBests[0]=100;b.sectorStart=0;r.recordSector(b,0,90000);assert.equal(r.events.at(-1).color,'best','slow sector improvement is orange, not red');
  b.invalid=true;const count=r.events.length;b.sectorStart=0;r.recordSector(b,1,10000);assert.equal(r.events.length,count,'invalid sectors do not emit timing events');
 });
 
 test('fourth clean sector and valid lap are both broadcast',()=>{
- const r=room('qualifying_race'),p=r.players.get('a');p.flying=true;p.state.v=20;p.lapStart=0;p.sectorStart=30000;p.sector=3;p.state.total=p.line+N;r.events=[];
- r.qualify(p,{previous:p.state.total-1,offTrack:false},40000);
+ const r=room('qualifying_race'),p=r.players.get('a');p.flying=true;p.state.v=20;p.lapStart=0;p.sectorStart=0;p.sectorBests[3]=50;p.sector=3;p.state.total=p.line+N;r.events=[];
+ r.qualify(p,{previous:p.state.total-1,offTrack:false},45000);
  assert.deepEqual(r.events.map(e=>e.type),['sector','lap']);assert.equal(r.events[0].sector,4);assert.equal(r.events[0].color,'record');assert.equal(r.events[1].fastest,true);
 });

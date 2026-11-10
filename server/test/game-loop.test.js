@@ -7,8 +7,8 @@ test('actual browser frame keeps the camera behind a smoothly moving server bike
  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}}),measureText:()=>({width:10}),getImageData:()=>({data:new Uint8ClampedArray(64)})},{get:(o,k)=>k in o?o[k]:(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
  w.HTMLCanvasElement.prototype.getContext=()=>ctx;w.matchMedia=()=>({matches:false,addListener(){},removeListener(){}});w.requestAnimationFrame=cb=>{w.__frame=cb};w.fetch=async()=>({ok:false});
  class WebGLRenderer{constructor(){this.shadowMap={};this.capabilities={getMaxAnisotropy:()=>1}}setPixelRatio(){}setSize(){}render(){}}class GLTFLoader{parse(_,__,___,error){error()}}
- w.THREE={...THREE,WebGLRenderer,GLTFLoader};w.eval(readFileSync(new URL('../../race-smoothing.js',import.meta.url),'utf8'));
- const instrumented=script.replace('requestAnimationFrame(frame);\n})();',"window.__state=function(){return {x:pos.x,z:pos.z,cameraX:camera.position.x,cameraZ:camera.position.z,speed:v,steer:steer}};window.__practiceLap=function(best,time){multiplayer=null;state='racing';mode='qualifying';qualFlying=true;qualInvalid=false;qualSector=3;total=N;qualLine=0;v=20;lapStart=0;raceTime=time;qualBest=best;qualSectorBest=[null,null,null,null];qualSectorTimes=[];qualAttempts=0;qualifyingProgress(N-1);return {label:$('qualMessage').textContent,time:$('qualTime').textContent,classes:$('qualBanner').className}};window.__start=startBtn;requestAnimationFrame(frame);\n})();");assert.notEqual(instrumented,script);w.eval(instrumented);await new Promise(r=>setTimeout(r,10));assert.equal(w.__start.disabled,false);
+ w.THREE={...THREE,WebGLRenderer,GLTFLoader};w.eval(readFileSync(new URL('../../race-smoothing.js',import.meta.url),'utf8'));w.eval(readFileSync(new URL('../../qualifying-colors.js',import.meta.url),'utf8'));
+ const instrumented=script.replace('requestAnimationFrame(frame);\n})();',"window.__state=function(){return {x:pos.x,z:pos.z,cameraX:camera.position.x,cameraZ:camera.position.z,speed:v,steer:steer}};window.__practiceSector=function(best,time){multiplayer=null;qualInvalid=false;qualSector=0;qualLastSplit=0;qualSectorBest=[best,null,null,null];qualSectorTimes=[];qualSectorColors=[];lapStart=0;raceTime=time;recordQualSector();return qualSectorColors[0]};window.__practiceLap=function(best,time){multiplayer=null;state='racing';mode='qualifying';qualFlying=true;qualInvalid=false;qualSector=3;total=N;qualLine=0;v=20;lapStart=0;raceTime=time;qualBest=best;qualSectorBest=[null,null,null,null];qualSectorTimes=[];qualAttempts=0;qualifyingProgress(N-1);return {label:$('qualMessage').textContent,time:$('qualTime').textContent,classes:$('qualBanner').className}};window.__start=startBtn;requestAnimationFrame(frame);\n})();");assert.notEqual(instrumented,script);w.eval(instrumented);await new Promise(r=>setTimeout(r,10));assert.equal(w.__start.disabled,false);
  let now=0;Object.defineProperty(w.performance,'now',{value:()=>now});
  const schedule=[0,130,205,330,405,530,605,730,805,930,1005];let next=0,previous=-1;
  for(now=0;now<=1100;now+=5){
@@ -18,6 +18,7 @@ test('actual browser frame keeps the camera behind a smoothly moving server bike
  }
  // Local controls must affect the rendered bike before another server snapshot arrives.
  const before=w.__state();w.document.body.dispatchEvent(new w.KeyboardEvent('keydown',{code:'KeyA',bubbles:true}));now+=16;w.__frame(now);assert.ok(w.__state().steer>before.steer,'steering should respond without waiting for the server');
+ assert.equal(w.__practiceSector(null,100),'slow');assert.equal(w.__practiceSector(100,90),'best');assert.equal(w.__practiceSector(50,49.5),'best');assert.equal(w.__practiceSector(50,48),'record');
  const fastest=w.__practiceLap(null,60);assert.equal(fastest.time,'FASTEST');assert.match(fastest.classes,/flash/);const slower=w.__practiceLap(50,60);assert.equal(slower.time,'1:00.000');assert.equal(slower.label,'');assert.match(slower.classes,/slow/);
 });
 
@@ -32,7 +33,7 @@ test('multiplayer music, synchronized countdown and overtakes use real game UI p
  w.HTMLCanvasElement.prototype.getContext=()=>ctx;w.matchMedia=()=>({matches:false,addListener(){},removeListener(){}});w.requestAnimationFrame=cb=>{w.__frame=cb};w.fetch=async()=>({ok:false});
  w.HTMLElement.prototype.getBoundingClientRect=function(){return {top:Number(this.style.order||0)*29}};w.HTMLElement.prototype.animate=function(frames){animations.push({row:this,frames});return {cancel(){}}};
  class WebGLRenderer{constructor(){this.shadowMap={};this.capabilities={getMaxAnisotropy:()=>1}}setPixelRatio(){}setSize(){}render(){}}class GLTFLoader{parse(_,__,___,error){error()}}
- w.THREE={...THREE,WebGLRenderer,GLTFLoader};w.eval(readFileSync(new URL('../../race-smoothing.js',import.meta.url),'utf8'));
+ w.THREE={...THREE,WebGLRenderer,GLTFLoader};w.eval(readFileSync(new URL('../../race-smoothing.js',import.meta.url),'utf8'));w.eval(readFileSync(new URL('../../qualifying-colors.js',import.meta.url),'utf8'));
  const instrumented=script.replace('requestAnimationFrame(frame);\n})();',"window.__map=mapMarkers;window.__cues=[];var originalCue=playMatchCue;playMatchCue=function(k){window.__cues.push(k);originalCue(k)};requestAnimationFrame(frame);\n})();");w.eval(instrumented);await new Promise(r=>setTimeout(r,10));
  w.document.getElementById('start').dispatchEvent(new w.Event('pointerdown',{bubbles:true}));
  w.document.getElementById('start').click();w.document.getElementById('multiplayerButton').click();now=16;w.__frame(now);

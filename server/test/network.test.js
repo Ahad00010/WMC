@@ -18,7 +18,7 @@ test('remaining client gets an immediate session-ended snapshot when opponent di
 test('server sends the same actual qualifying sector color to both riders',async t=>{
  const lobby={id:'sector-room',host_id:'a',mode:'qualifying_race'};const app=createServer({allowedOrigins:['http://test.local'],authenticate:async token=>({userId:token,lobby,profile:{id:token,username:token,display_name:token,number:1,color:'red'}})});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>app.close());const url=`ws://127.0.0.1:${app.server.address().port}/race`;
  function client(id){const ws=new WebSocket(url,{origin:'http://test.local'}),messages=[];ws.on('message',v=>messages.push(JSON.parse(v)));ws.on('open',()=>ws.send(JSON.stringify({type:'auth',token:id})));return {ws,messages}}const a=client('a'),b=client('b');await until(()=>a.messages.some(m=>m.type==='ready')&&b.messages.some(m=>m.type==='ready'));a.ws.send(JSON.stringify({type:'start'}));await until(()=>a.messages.some(m=>m.type==='snapshot'&&m.phase==='qualifying'));
- const room=app.rooms.get('sector-room'),rider=room.players.get('a');rider.flying=true;rider.sectorStart=room.phaseStart;rider.lapStart=room.phaseStart;room.recordSector(rider,0,room.phaseStart+12000);
+ const room=app.rooms.get('sector-room'),rider=room.players.get('a');rider.flying=true;rider.sectorStart=room.phaseStart;rider.lapStart=room.phaseStart;rider.sectorBests[0]=50;room.recordSector(rider,0,room.phaseStart+45000);
  for(const c of [a,b]){const snapshot=await until(()=>c.messages.find(m=>m.type==='snapshot'&&m.events.some(e=>e.type==='sector')));assert.equal(snapshot.events.find(e=>e.type==='sector').color,'record')}
  a.ws.close();b.ws.close();
 });
