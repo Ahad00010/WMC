@@ -1,12 +1,12 @@
 import {randomUUID,randomInt} from 'node:crypto';
-import {N,length,px,pz,tx,tz,kerbEdge} from './track.js';
+import defaultTrack from './track.js';
 import sectorColor from '../../qualifying-colors.js';
-import {spawn,step,parseInput,neutralInput} from './physics.js';
-import {aiInput} from './ai.js';
+import {createPhysics,parseInput,neutralInput} from './physics.js';
+import {createAI} from './ai.js';
 export const RACE_LAPS=3,QUALIFYING_ATTEMPTS=3,QUALIFYING=240000;
 const COUNTDOWN=22000,GRACE=30000,RESULT_DELAY=10000,QUALIFYING_RESULTS_DELAY=15000,GRID_COUNTDOWN=15000;
 export class RaceRoom {
-  constructor(lobby){this.id=lobby.id;this.host=lobby.host_id;this.mode=lobby.mode;this.phase='lobby';this.players=new Map();this.events=[];this.matchId=null;this.phaseStart=0;this.resultsAt=null;this.endReason=null;this.fillAI=false}
+  constructor(lobby,track=defaultTrack){this.track=track;this.physics=createPhysics(track);this.aiInput=createAI(track);this.id=lobby.id;this.host=lobby.host_id;this.mode=lobby.mode;this.phase='lobby';this.players=new Map();this.events=[];this.matchId=null;this.phaseStart=0;this.resultsAt=null;this.endReason=null;this.fillAI=false}
   join(profile,now){let p=this.players.get(profile.id);if(p){if(p.dnf)throw Error('Rider has retired');p.connected=true;p.disconnectedAt=null;p.input=neutralInput();p.inputAt=now;return}
     if(this.phase!=='lobby')throw Error('Race already started');if(this.players.size>=15)throw Error('Lobby full');
     this.players.set(profile.id,{profile,connected:true,disconnectedAt:null,input:neutralInput(),inputAt:now,grid:0,state:null,best:null,attempts:0,flying:false,invalid:false,completed:false,dnf:false,finishAt:null,lap:1,lapStart:0,sector:0,line:0});}
@@ -22,18 +22,18 @@ export class RaceRoom {
     if(text.length>180)return null;const clean=text.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,' ').replace(/\s+/g,' ').trim();
     if(!clean||p.chatAt!=null&&now-p.chatAt<1000)return null;p.chatAt=now;return {type:'chat',id:p.profile.id,name:p.profile.display_name,number:p.profile.number,color:p.profile.color,text:clean};
   }
-  reset(id){const p=this.players.get(id);if(!p||!p.connected||!p.state||!['race','qualifying'].includes(this.phase))return;let s=p.state;const i=s.idx;s.x=px[i];s.z=pz[i];s.h=Math.atan2(tx[i],tz[i]);s.v=0;s.steer=0;s.lean=0;s.pitch=0;if(this.phase==='qualifying'&&p.flying&&!p.completed&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id,reason:'RESET ON TRACK'})}}
+  reset(id){const p=this.players.get(id);if(!p||!p.connected||!p.state||!['race','qualifying'].includes(this.phase))return;let s=p.state;const {px,pz,tx,tz}=this.track,i=s.idx;s.x=px[i];s.z=pz[i];s.h=Math.atan2(tx[i],tz[i]);s.v=0;s.steer=0;s.lean=0;s.pitch=0;if(this.phase==='qualifying'&&p.flying&&!p.completed&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id,reason:'RESET ON TRACK'})}}
   setAI(id,enabled){if(id!==this.host||this.phase!=='lobby'||typeof enabled!=='boolean')throw Error('Only the host can change AI in the lobby');this.fillAI=enabled}
   start(id,now){if(id!==this.host)throw Error('Only the host can start');if(this.phase!=='lobby')throw Error('Match already started');if(this.players.size<2||this.players.size>15)throw Error('2–15 connected riders required');
     if(this.fillAI){const colors=['blue','red','yellow','orange','green','cyan','purple','pink','white','black','silver'];for(let i=this.players.size;i<15;i++){const profile={id:'ai-'+(i+1),username:'ai'+(i+1),display_name:'AI Rider '+(i+1),number:10+i,color:colors[i%colors.length]};this.join(profile,now);this.players.get(profile.id).ai=true}}
     const order=[...this.players.values()];for(let i=order.length-1;i>0;i--){let j=randomInt(i+1);[order[i],order[j]]=[order[j],order[i]]}order.forEach((p,i)=>p.grid=i+1);this.matchId=randomUUID();this.startPhase(this.mode==='race'?'race':'qualifying',now,COUNTDOWN)}
-  startPhase(phase,now,delay){this.phase=phase;this.phaseStart=now+delay;this.resultsAt=null;for(const p of this.players.values()){p.state=spawn(p.grid);p.emote=null;p.emoteAt=null;p.completed=p.dnf;p.finishAt=null;p.input=neutralInput();p.inputAt=now;p.lap=1;p.lapStart=this.phaseStart;p.raceBest=null;p.lastLap=null;p.flying=false;p.invalid=false;p.line=0;p.sector=0;p.sectorStart=this.phaseStart;p.sectorTimes=[];if(phase==='qualifying'){p.best=null;p.attempts=0;p.sectorBests=[null,null,null,null]}}this.events.push({type:'phase',phase})}
+  startPhase(phase,now,delay){this.phase=phase;this.phaseStart=now+delay;this.resultsAt=null;for(const p of this.players.values()){p.state=this.physics.spawn(p.grid);p.emote=null;p.emoteAt=null;p.completed=p.dnf;p.finishAt=null;p.input=neutralInput();p.inputAt=now;p.lap=1;p.lapStart=this.phaseStart;p.raceBest=null;p.lastLap=null;p.flying=false;p.invalid=false;p.line=0;p.sector=0;p.sectorStart=this.phaseStart;p.sectorTimes=[];if(phase==='qualifying'){p.best=null;p.attempts=0;p.sectorBests=[null,null,null,null]}}this.events.push({type:'phase',phase})}
   advance(now,dt){if(this.phase==='lobby'||this.phase==='complete')return;
     for(const p of this.players.values())if(!p.connected&&!p.dnf&&p.disconnectedAt!==null&&now-p.disconnectedAt>=GRACE&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id:p.profile.id})}
     if(now>=this.phaseStart){for(const p of this.players.values()){
-      if(p.dnf)continue;const input=p.ai?aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput(),result=step(p.state,input,dt);
+      if(p.dnf)continue;const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput(),result=this.physics.step(p.state,input,dt);
       if(p.completed)continue;
-      if(this.phase==='race'){if(p.state.total>=N*p.lap&&p.state.v>0){p.lastLap=(now-p.lapStart)/1000;p.raceBest=p.raceBest===null?p.lastLap:Math.min(p.raceBest,p.lastLap);p.lap++;p.lapStart=now;if(p.lap>RACE_LAPS){p.completed=true;p.finishAt=now;this.events.push({type:'finish',id:p.profile.id})}}}
+      if(this.phase==='race'){if(p.state.total>=this.track.N*p.lap&&p.state.v>0){p.lastLap=(now-p.lapStart)/1000;p.raceBest=p.raceBest===null?p.lastLap:Math.min(p.raceBest,p.lastLap);p.lap++;p.lapStart=now;if(p.lap>RACE_LAPS){p.completed=true;p.finishAt=now;this.events.push({type:'finish',id:p.profile.id})}}}
       else this.qualify(p,result,now);
     }
       // Separate overlapping bikes; both riders remain in the authoritative simulation.
@@ -59,11 +59,11 @@ export class RaceRoom {
       const provisional=rider.flying&&!rider.invalid?rider.sectorTimes?.[index]:null;
       if(Number.isFinite(provisional))sessionBest=Math.min(sessionBest,provisional);
     }
-    const color=sectorColor(duration,prior,sessionBest,length/4);
+    const color=sectorColor(duration,prior,sessionBest,this.track.length/4);
     p.sectorTimes[index]=duration;p.sectorStart=now;
     if(emit&&!p.invalid)this.events.push({type:'sector',id:p.profile.id,sector:index+1,split:(now-p.lapStart)/1000,delta:prior==null?null:duration-prior,color});
   }
-  qualify(p,result,now){const expired=now>=this.phaseStart+QUALIFYING,s=p.state;
+  qualify(p,result,now){const expired=now>=this.phaseStart+QUALIFYING,s=p.state,{N,kerbEdge}=this.track;
     if(!p.flying){if(expired){p.completed=true;return}if(result.previous<0&&s.total>=0&&s.v>0){p.flying=true;p.lapStart=now;p.sectorStart=now;p.invalid=result.offTrack;if(p.invalid)this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'})}return}
     if(result.offTrack&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'})}
     while(p.sector<3&&s.total-p.line>=N*(p.sector+1)/4){this.recordSector(p,p.sector,now);p.sector++}
