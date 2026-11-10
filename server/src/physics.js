@@ -19,12 +19,12 @@ function step(s,input,dt){
   const al=Math.abs(s.lat),grip=al>kerbEdge(s.idx)?.5:al>roadHalfWidth(s.idx)?.92:1,maxV=al>kerbEdge(s.idx)?VMAX*.36:VMAX;
   const thr=input.up?1:0,brk=input.down,hard=input.brake;let a=0;
   if(thr){a=17*(1-Math.pow(Math.max(s.v,0)/maxV,1.6));if(s.v<0)a=22}
-  if(brk||hard){if(s.v>.4)a=-(hard?40:30)*grip;else if(!thr){a=-9;if(s.v< -9)a=0}}
+  if(brk||hard){if(hard)a=s.v>0?-40*grip:s.v<0?40*grip:0;else if(s.v>.4)a=-30*grip;else if(!thr){a=-9;if(s.v< -9)a=0}}
   if(!thr&&!(brk||hard))a=-(1.3+.0007*s.v*s.v)*Math.sign(s.v||1);
   if(s.v>maxV)a-=Math.min(40,(s.v-maxV)*3+8);
   a-=2.2*Math.abs(s.steer)*(Math.abs(s.v)/VMAX)*Math.sign(s.v||1);
-  const old=s.v;s.v+=a*dt;if(!thr&&!(brk||hard)&&old*s.v<0)s.v=0;
-  const target=(input.left?1:0)-(input.right?1:0);s.steer+=(target-s.steer)*Math.min(1,dt*(target===0?9:5.5));
+  const old=s.v;s.v+=a*dt;if((hard||!thr&&!(brk||hard))&&old*s.v<=0)s.v=0;
+  const target=(input.left?1:0)-(input.right?1:0);s.steer+=(target-s.steer)*Math.min(1,dt*(target===0?(brk||hard?16:9):5.5));
   const av=Math.abs(s.v),yaw=s.steer*Math.min(1.9,18*grip/Math.max(av,.01))*Math.min(1,av/4)*(s.v>=0?1:-.7);
   s.h+=yaw*dt;s.x+=Math.sin(s.h)*s.v*dt;s.z+=Math.cos(s.h)*s.v*dt;nearest(s);
   const offTrack=Math.abs(s.lat)>kerbEdge(s.idx),wall=wallEdge(s.idx);
