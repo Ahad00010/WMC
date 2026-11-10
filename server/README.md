@@ -34,3 +34,7 @@ The host may fill unused slots with server-controlled AI before starting. Bots u
 ## Circuit selection
 
 The selectable tracks are approximate centreline traces based on the supplied reference diagrams; they are not surveyed recreations, and their scenery uses the existing generic environment. The browser and server use the same circuit data. The host chooses before creating a lobby, and the server waits for all connected riders to load that circuit before starting. Switching circuits reloads the page; a guest returns to the lobby afterward. Per-circuit practice best laps are stored separately. All six layouts and AI behavior should be playtested on real desktop and Android devices. Deploy the website and race server from the same revision.
+
+## Full-grid performance
+
+Touch devices use a shared low-poly remote rider mesh and create remote riders over several frames. Their map markers represent actual rider positions, so close riders can overlap at small map scales. Remote visuals interpolate server snapshots and predict at most 100 ms when a snapshot is late; this does not affect authoritative physics or timing. AI curvature is precomputed and common snapshots are serialized once per broadcast. These measures reduce work but do not guarantee 60 FPS on every device or eliminate freezes caused by network/server stalls; profile a real mobile device with a full grid.

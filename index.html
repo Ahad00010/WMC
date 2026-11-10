@@ -390,7 +390,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=chat-emotes-1" defer></script>
 <script src="circuits.js?v=1"></script>
-<script src="race-smoothing.js?v=prediction-1"></script>
+<script src="race-smoothing.js?v=remote-2"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=circuits-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -879,25 +879,21 @@ var mapBase=mkCanvas(mapC.width,mapC.height);
   g.strokeStyle='rgba(255,255,255,.2)';g.lineWidth=15;g.stroke();
   g.strokeStyle='#eef0f2';g.lineWidth=6;g.stroke();
 })();
-// Project actual rider positions onto the circuit. Slightly separate markers
-// which overlap on the grid so all riders remain visible at this map scale.
+// Project the riders at their actual world positions. Close riders may overlap
+// on this small map; do not invent a ring or change their apparent order.
 function mapMarkers(now){
   var markers=[];
   if(multiplayer&&multiplayer.members){multiplayer.members.forEach(function(m){
-    var own=m.id===multiplayer.user_id,sample=!own&&opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now);
+    var own=m.id===multiplayer.user_id,sample=!own&&opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now,100);
     var x=own?pos.x:sample?sample.x:m.x,z=own?pos.z:sample?sample.z:m.z;
     if(!Number.isFinite(x)||!Number.isFinite(z))return;var point=mp(x,z);
     markers.push({id:m.id,x:point[0],y:point[1],color:riderColors[m.color]||'#aaa',own:own});
   })}else{var p=mp(pos.x,pos.z),number=$('ownRaceRow').querySelector('.rider-number');markers.push({id:'own',x:p[0],y:p[1],color:number.style.backgroundColor||'#b2b9bb',own:true})}
-  var groups=[];markers.forEach(function(marker){var group=groups.find(function(g){return g.some(function(other){return Math.hypot(marker.x-other.x,marker.y-other.y)<16})});if(group)group.push(marker);else groups.push([marker])});
-  groups.forEach(function(group){if(group.length<2)return;var cx=0,cy=0;group.forEach(function(m){cx+=m.x;cy+=m.y});cx/=group.length;cy/=group.length;
-    group.sort(function(a,b){return String(a.id).localeCompare(String(b.id))});var radius=Math.max(11,group.length*3.2);cx=Math.max(radius+12,Math.min(mapC.width-radius-12,cx));cy=Math.max(radius+12,Math.min(mapC.height-radius-12,cy));
-    group.forEach(function(m,i){var a=2*Math.PI*i/group.length-Math.PI/2;m.x=cx+Math.cos(a)*radius;m.y=cy+Math.sin(a)*radius})
-  });return markers;
+  return markers;
 }
 function drawMap(){
   mx.clearRect(0,0,mapC.width,mapC.height);mx.drawImage(mapBase,0,0);
-  mapMarkers(performance.now()).forEach(function(marker){mx.fillStyle=marker.color;mx.beginPath();mx.arc(marker.x,marker.y,8,0,6.283);mx.fill();mx.strokeStyle='#0c0e11';mx.lineWidth=6;mx.stroke();mx.strokeStyle='#fff';mx.lineWidth=2;mx.stroke()});
+  mapMarkers(performance.now()).sort(function(a,b){return Number(a.own)-Number(b.own)}).forEach(function(marker){mx.fillStyle=marker.color;mx.beginPath();mx.arc(marker.x,marker.y,5,0,6.283);mx.fill();mx.strokeStyle='#0c0e11';mx.lineWidth=2;mx.stroke()});
 }
 
 /* ---------- flow ---------- */
@@ -1309,7 +1305,7 @@ function frame(now){
     if(state==='racing'||state==='finishing'){elCur.textContent=fmt(raceTime-lapStart);if(state==='racing'&&mode==='race')$('raceProgress').style.transform='scaleX('+Math.max(0,Math.min(1,(total-(lapNo-1)*N)/N))+')';if(state==='racing'&&mode==='qualifying'&&qualFlying){$('qualLapTime').textContent=fmt(raceTime-lapStart);updateQualGraphic()}}
     mapT+=dt;if(mapT>0.04){mapT=0;drawMap()}
   }
-  renderSharedQual(now);
+  if(!mobileRender||now-lastSharedQualRender>=50){lastSharedQualRender=now;renderSharedQual(now)}
   if(multiplayer)drawMultiplayerBikes(dt);
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
@@ -1318,6 +1314,7 @@ function frame(now){
 function shortRider(name){var parts=name.trim().split(/\s+/);return (parts[0][0]+' '+parts[parts.length-1].slice(0,3)).toUpperCase()}
 function formatMatchTime(t){return t==null?'--:--.---':fmt(t)}
 function renderMatchIntro(match,remaining){
+  if(mobileRender&&!mobileOpponentGeometry&&!opponentWarmupScheduled){opponentWarmupScheduled=true;var warm=function(){if(!mobileOpponentGeometry)mobileOpponentMesh()};if(window.requestIdleCallback)window.requestIdleCallback(warm,{timeout:500});else setTimeout(warm,0)}
   $('sessionTools').hidden=false;$('chatButton').hidden=false;$('matchIntro').hidden=false;$('matchIntro').classList.toggle('match-intro-exit',match.phase==='race'&&remaining<=5.5);$('menu').hidden=false;$('menu').inert=true;$('modeOverlay').hidden=true;
   var first=remaining>18&&match.phase==='qualifying'||remaining>18&&match.mode==='race';
   var stage=match.id+':'+match.phase+':'+(first?'connecting':'grid');
@@ -1334,14 +1331,38 @@ function renderMatchIntro(match,remaining){
     stats.textContent=match.phase==='race'&&match.mode==='qualifying_race'?formatMatchTime(m.best):m.wins==null?'Stats unavailable':m.wins+' wins · '+Math.max(0,m.podiums-m.wins)+' 2nd/3rd · '+m.races+' races';row.append(name,stats);box.appendChild(row);
   });
 }
+// One shared low-poly mesh per remote bike on touch devices. The local bike and
+// cosmetic effects remain unchanged. Combining parts avoids hundreds of draw
+// calls and shadow casters when the grid is full.
+var mobileOpponentGeometry=null,mobileOpponentMaterial=null,opponentWarmupScheduled=false,lastSharedQualRender=-Infinity;
+function mobileOpponentMesh(){
+  if(!mobileOpponentGeometry){
+    var positions=[],normals=[],colors=[];
+    function part(geometry,color,x,y,z,rx,ry,rz){
+      var matrix=new THREE.Matrix4(),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0));matrix.compose(new THREE.Vector3(x,y,z),q,new THREE.Vector3(1,1,1));
+      var g=geometry.index?geometry.toNonIndexed():geometry.clone();g.applyMatrix4(matrix);var p=g.getAttribute('position'),n=g.getAttribute('normal'),c=new THREE.Color(color);
+      for(var i=0;i<p.count;i++){positions.push(p.getX(i),p.getY(i),p.getZ(i));normals.push(n.getX(i),n.getY(i),n.getZ(i));colors.push(c.r,c.g,c.b)}g.dispose();geometry.dispose();
+    }
+    part(new THREE.CylinderGeometry(.32,.32,.18,10),0x14161a,0,.335,-.72,0,0,Math.PI/2);
+    part(new THREE.CylinderGeometry(.32,.32,.14,10),0x14161a,0,.335,.72,0,0,Math.PI/2);
+    part(new THREE.BoxGeometry(.42,.38,.95),0xd7151f,0,.62,.05);
+    part(new THREE.BoxGeometry(.32,.25,.50),0xd7151f,0,.98,.49,.3);
+    part(new THREE.BoxGeometry(.25,.15,.58),0xd7151f,0,1,-.54,-.18);
+    part(new THREE.BoxGeometry(.34,.25,.50),0xe9e9e9,0,1.15,-.07,.42);
+    part(new THREE.SphereGeometry(.17,8,6),0xf3f3f3,0,1.32,.25);
+    mobileOpponentGeometry=new THREE.BufferGeometry();mobileOpponentGeometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));mobileOpponentGeometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));mobileOpponentGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));mobileOpponentGeometry.computeBoundingSphere();
+    mobileOpponentMaterial=new THREE.MeshLambertMaterial({vertexColors:true});
+  }
+  return new THREE.Mesh(mobileOpponentGeometry,mobileOpponentMaterial);
+}
 function drawMultiplayerBikes(dt){
   if(!multiplayer||!multiplayer.members)return;
-  var visible={};multiplayer.members.forEach(function(m){
+  var visible={},created=0,now=performance.now(),creationBudget=mobileRender?3:5;multiplayer.members.forEach(function(m){
     if(m.id===multiplayer.user_id||m.x==null||m.z==null)return;
     visible[m.id]=true;var obj=mpOpponentMeshes[m.id];
-    if(!obj){obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group(),base=bike.gen.clone(true),rider=bike.rider.clone(true);pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);base.visible=true;assembly.add(base);rider.position.set(0,.9,0);assembly.add(rider);obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
-    var emote=m.emote;obj.userData.pivot.rotation.x=emote&&emote.kind==='wheelie'?-.45*emoteLevel(emote,performance.now()):0;drawNitro(obj.userData.nitro,emote,performance.now());
-    var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(performance.now());if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h}
+    if(!obj){if(created>=creationBudget)return;created++;obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group();pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);if(mobileRender)assembly.add(mobileOpponentMesh());else{var base=bike.gen.clone(true),rider=bike.rider.clone(true);base.visible=true;assembly.add(base);rider.position.set(0,.9,0);assembly.add(rider)}obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.userData.spawnAt=now;obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
+    var grow=Math.min(1,Math.max(.01,(now-obj.userData.spawnAt)/200));obj.scale.setScalar(grow);var emote=m.emote;obj.userData.pivot.rotation.x=emote&&emote.kind==='wheelie'?-.45*emoteLevel(emote,now):0;drawNitro(obj.userData.nitro,emote,now);
+    var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now,100);if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h}
   });
   Object.keys(mpOpponentMeshes).forEach(function(id){if(!visible[id]){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id];delete opponentSmoothers[id]}});
 }
@@ -1413,7 +1434,9 @@ function renderSharedQual(now){
 // Keep one DOM row per rider so an authoritative position change can animate.
 function updateTower(box,own,sorted,match,kind){
   var rows=new Map(),old=new Map(),reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  Array.prototype.forEach.call(box.children,function(row){if(row.dataset.riderId){rows.set(row.dataset.riderId,row);old.set(row.dataset.riderId,row.getBoundingClientRect().top)}});
+  Array.prototype.forEach.call(box.children,function(row){if(row.dataset.riderId)rows.set(row.dataset.riderId,row)});
+  var orderChanged=!reduced&&sorted.some(function(m,i){var row=rows.get(m.id);return row&&row.dataset.previousOrder!==undefined&&row.dataset.previousOrder!==String(i)});
+  if(orderChanged)rows.forEach(function(row,id){old.set(id,row.getBoundingClientRect().top)});
   var seen=new Set();
   sorted.forEach(function(m,i){
     var row=rows.get(m.id);seen.add(m.id);
@@ -1425,7 +1448,7 @@ function updateTower(box,own,sorted,match,kind){
       }
       box.appendChild(row);
     }
-    row.style.order=i;row.querySelector(kind==='race'?'.race-position':'.qual-position').textContent=i+1;
+    if(row.style.order!==String(i))row.style.order=i;var position=row.querySelector(kind==='race'?'.race-position':'.qual-position');if(position.textContent!==String(i+1))position.textContent=i+1;
     var finished=m.finish_at!=null&&!m.dnf;row.classList.toggle('finished',finished);if(kind==='qual'){var qualFlag=row.querySelector('.qual-flag');qualFlag.textContent=finished?'⚑':'';qualFlag.hidden=!finished}
     if(kind==='qual'){var stripe=row.querySelector('.qual-stripe'),plateColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};stripe.style.backgroundColor=plateColors[m.color]||'#888'}
     if(m.id!==match.user_id){row.querySelector(kind==='race'?'.race-name':'.qual-name').textContent=shortRider(m.display_name);
