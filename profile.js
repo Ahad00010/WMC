@@ -12,6 +12,8 @@
     return (words[0].charAt(0) + ' ' + words[words.length - 1].slice(0, 3)).toUpperCase();
   }
   function applyProfile(profile) {
+    // The in-world tag uses the full profile name, not the abbreviated tower label.
+    window.WMCRiderProfile = {display_name:profile.display_name, number:profile.rider_number, color:profile.plate_color};
     document.querySelectorAll('.rider-short').forEach(el => { el.textContent = riderLabel(profile.display_name); });
     document.querySelectorAll('.rider-number').forEach(el => {
       el.textContent = profile.rider_number;
@@ -20,6 +22,7 @@
     });
   }
   function resetRider() {
+    window.WMCRiderProfile = null;
     document.querySelectorAll('.rider-short').forEach(el => { el.textContent = 'D EFA'; });
     document.querySelectorAll('.rider-number').forEach(el => { el.textContent = '0'; el.style.backgroundColor=''; el.style.color=''; });
   }
@@ -37,7 +40,7 @@
     if (problem) { status.textContent = 'Could not load profile. Try again.'; return; }
     account.textContent = 'Edit profile'; out.hidden = false;
     if (data) { applyProfile(data); status.textContent = '@' + data.username; account.onclick = () => edit(data); }
-    else { status.textContent = 'Complete your rider profile'; account.onclick = () => edit(null); edit(null); }
+    else { resetRider(); status.textContent = 'Complete your rider profile'; account.onclick = () => edit(null); edit(null); }
   }
   window.wmcAuthCallback = async function (code, authError) {
     if (!client) { status.textContent = 'Sign-in is not configured.'; return; }
@@ -81,5 +84,6 @@
   client.auth.onAuthStateChange((_event, session) => {
     user = session && session.user;
     if (user) setTimeout(loadProfile, 0);
+    else resetRider();
   });
 })();

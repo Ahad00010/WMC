@@ -39,6 +39,13 @@ body{
 }
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--asphalt)}
 #hud{position:fixed;inset:0;pointer-events:none}
+/* Screen-space tags share the HUD layer, never intercept controls, and do not
+   add one transparent WebGL draw call or texture per rider. */
+#riderTags{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.rider-tag{position:absolute;top:0;left:0;display:flex;align-items:center;white-space:nowrap;border:1px solid #ffffff80;border-radius:3px;background:#101419eF;color:white;font:700 13px/1.15 system-ui,-apple-system,sans-serif;box-shadow:0 1px 2px #0008;pointer-events:none}
+.rider-tag[hidden]{display:none}.rider-tag-name{max-width:130px;overflow:hidden;text-overflow:ellipsis;padding:3px 6px}.rider-tag-plate{min-width:29px;padding:3px 4px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums;border-radius:2px 0 0 2px}
+.rider-tag-stem{position:absolute;top:100%;left:50%;width:1px;height:var(--stem,0px);background:#fff9;pointer-events:none}
+
 .timing{position:absolute;top:var(--gt);left:var(--gl);background:var(--panel);backdrop-filter:blur(6px);border-radius:4px;padding:8px 12px;min-width:176px;display:grid;gap:3px}
 .timing .row{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
 .timing .k{font-size:11px;letter-spacing:.16em;color:var(--dim);font-weight:700}
@@ -238,6 +245,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <canvas id="gl"></canvas>
 
 <div id="hud" hidden>
+  <div id="riderTags" aria-label="Rider nameplates"></div>
   <div class="race-tower" id="raceTiming" aria-label="Race standings">
     <div class="race-head"><div class="race-brand">WMC</div><div class="race-label">RACE</div>
       <div class="race-progress"><span id="raceProgress"></span></div>
@@ -392,7 +400,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 
 <script src="auth-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="profile.js"></script>
+<script src="profile.js?v=rider-tags-1"></script>
 <script src="friends.js" defer></script>
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=reconnect-2" defer></script>
@@ -987,7 +995,7 @@ function togglePause(){
 }
 function returnToMenu(){
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
-  resetSessionTools();clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';$('ownRaceRow').querySelector('.race-gap').hidden=true;$('ownRaceRow')._gapTrend=null;Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
+  clearRiderTags();resetSessionTools();clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';$('ownRaceRow').querySelector('.race-gap').hidden=true;$('ownRaceRow')._gapTrend=null;Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
   clearInputs();$('pauseOverlay').hidden=true;$('sessionEnd').hidden=true;$('hud').hidden=true;$('touch').hidden=true;$('menu').hidden=false;
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
@@ -1330,6 +1338,7 @@ function frame(now){
   }
   if(!mobileRender||now-lastSharedQualRender>=50){lastSharedQualRender=now;renderSharedQual(now)}
   if(multiplayer)drawMultiplayerBikes(dt);
+  drawRiderTags();
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
@@ -1390,6 +1399,46 @@ function drawMultiplayerBikes(dt){
   Object.keys(mpOpponentMeshes).forEach(function(id){if(!visible[id]){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id];delete opponentSmoothers[id]}});
 }
 var riderColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};
+// Tags are DOM text rather than per-rider canvas textures or 3D meshes. Reuse
+// nodes and a projection vector; only visible nearby bikes update transforms.
+var riderTags=new Map(),tagPoint=new THREE.Vector3();
+function clearRiderTags(){riderTags.clear();$('riderTags').replaceChildren();$('riderTags').hidden=true}
+function riderTag(key,member){
+  var tag=riderTags.get(key);
+  if(!tag){var el=document.createElement('div'),plate=document.createElement('span'),name=document.createElement('span'),stem=document.createElement('i');el.className='rider-tag';el.hidden=true;plate.className='rider-tag-plate';name.className='rider-tag-name';stem.className='rider-tag-stem';stem.setAttribute('aria-hidden','true');el.append(plate,name,stem);$('riderTags').appendChild(el);tag={el:el,name:name,plate:plate};riderTags.set(key,tag)}
+  var text=typeof member.display_name==='string'&&member.display_name.trim()?member.display_name.trim().slice(0,40):'Rider';
+  var number=Number.isInteger(member.number)?String(member.number):'–',color=Object.prototype.hasOwnProperty.call(riderColors,member.color)?member.color:'red';
+  if(tag.text!==text){tag.text=text;tag.name.textContent=text}
+  if(tag.number!==number){tag.number=number;tag.plate.textContent=number}
+  if(tag.color!==color){tag.color=color;tag.plate.style.backgroundColor=riderColors[color];tag.plate.style.color=['yellow','white','silver','cyan'].includes(color)?'#111':'#fff'}
+  return tag;
+}
+function drawRiderTags(){
+  var layer=$('riderTags');
+  if(!['countdown','racing','finishing'].includes(state)||!$('matchIntro').hidden||!bike.root.visible){layer.hidden=true;return}
+  layer.hidden=false;camera.updateMatrixWorld();var seen=new Set(),candidates=[],w=window.innerWidth,h=window.innerHeight;
+  function place(key,member,position,own){
+    seen.add(key);var tag=riderTag(key,member);var dx=position.x-camera.position.x,dz=position.z-camera.position.z,distance2=dx*dx+dz*dz;
+    if(!own&&distance2>350*350){if(!tag.el.hidden)tag.el.hidden=true;return}
+    tagPoint.set(position.x,2.35,position.z).project(camera);
+    if(tagPoint.z< -1||tagPoint.z>1||tagPoint.x< -1.08||tagPoint.x>1.08||tagPoint.y< -1.08||tagPoint.y>1.08){if(!tag.el.hidden)tag.el.hidden=true;return}
+    candidates.push({tag:tag,x:(tagPoint.x*.5+.5)*w,y:(.5-tagPoint.y*.5)*h,distance:own?-1:distance2,key:key,width:Math.min(165,Math.max(68,tag.text.length*8+36))});
+  }
+  var me=multiplayer&&multiplayer.members.find(function(m){return m.id===multiplayer.user_id});
+  place('self',me||window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'},pos,true);
+  if(multiplayer)multiplayer.members.forEach(function(m){var obj=mpOpponentMeshes[m.id];if(m.id!==multiplayer.user_id&&obj&&obj.visible)place('r:'+m.id,m,obj.position,false)});
+  riderTags.forEach(function(tag,key){if(!seen.has(key)){tag.el.remove();riderTags.delete(key)}});
+  // Stack nearby overlaps upward while keeping a stem connected to the bike.
+  // Bounded to six slots per tag (15 riders maximum); no layout reads.
+  candidates.sort(function(a,b){return a.distance-b.distance||(a.key<b.key?-1:a.key>b.key?1:0)});var boxes=[];
+  candidates.forEach(function(c){var shift=0,top=c.y-24;for(var slot=0;slot<5;slot++){
+      var conflict=boxes.some(function(b){return Math.abs(c.x-b.x)<(c.width+b.width)/2&&top<b.bottom&&top+22>b.top});
+      if(!conflict||top-24<0)break;top-=24;shift+=24;
+    }
+    boxes.push({x:c.x,width:c.width,top:top,bottom:top+22});var el=c.tag.el,x=Math.round(c.x),y=Math.round(c.y-shift);if(el.hidden)el.hidden=false;if(c.tag.x!==x||c.tag.y!==y){c.tag.x=x;c.tag.y=y;el.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-100%)'}if(c.tag.shift!==shift){c.tag.shift=shift;el.style.setProperty('--stem',shift+'px')}
+  });
+}
+
 // One persistent FIFO per qualifying session. Only real active flying laps
 // enter the queue; a displayed result/cancellation vacates its slot after its
 // animation, letting the next waiting rider in (including the local rider).
