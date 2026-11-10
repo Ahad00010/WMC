@@ -165,6 +165,12 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .pause-button{position:absolute;top:var(--gt);right:calc(var(--gr) + 160px);pointer-events:auto;border:1px solid #ffffff55;border-radius:4px;background:rgba(10,12,16,.8);color:white;padding:8px 13px;font:700 15px var(--ui);cursor:pointer}
 .pause-overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:rgba(0,0,0,.78);pointer-events:auto;touch-action:auto}.pause-overlay .card{width:min(300px,90%);background:#101216;padding:20px;justify-items:center}.pause-overlay h2{margin:0;font:800 38px/1 var(--display)}
 @media(max-width:700px),(max-height:500px){.pause-button{right:calc(var(--gr) + 100px);padding:6px 10px;font-size:13px}}
+
+.mode-overlay{position:fixed;inset:0;z-index:15;display:grid;place-items:center;padding:16px;background:rgba(2,4,7,.84);backdrop-filter:blur(6px);touch-action:pan-y}
+.mode-dialog{width:min(580px,100%);max-height:100%;overflow:auto;background:linear-gradient(145deg,#1d222b,#0c0e12);border:1px solid #ffffff24;border-top:3px solid #e4202c;box-shadow:0 20px 80px #000b;padding:24px;color:#fff}
+.mode-top{display:flex;align-items:start;justify-content:space-between;gap:16px}.mode-kicker{font:700 10px/1.2 var(--ui);letter-spacing:.18em;color:#e4202c}.mode-top h2{margin:8px 0 20px;font:800 34px/.95 var(--display);letter-spacing:.04em}.mode-close{border:0;background:transparent;color:#ccc;font:32px/1 sans-serif;cursor:pointer;padding:0 4px}.mode-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mode-choice{display:grid;align-content:start;gap:8px;min-height:140px;text-align:left;padding:17px;border:1px solid #ffffff25;border-left:3px solid #e4202c;background:#ffffff09;color:#adb4bd;font:500 12px/1.4 var(--ui);cursor:pointer}.mode-choice strong{font:800 27px/1 var(--display);color:#fff;text-transform:uppercase}.choice-label{color:#f14a52;font-size:10px;font-weight:700;letter-spacing:.12em}.mode-choice:hover,.mode-choice:focus-visible{background:#ffffff18;border-color:#f14a52;outline:none}.mode-back{margin-top:16px;background:none;border:0;padding:5px 0;color:#cbd1d8;font:700 13px var(--ui);cursor:pointer}.mode-unavailable{margin-top:14px;border-left:3px solid #f3a525;background:#fff1;padding:12px;font-size:13px}.mode-unavailable p{margin:5px 0 0;color:#bfc6cf}
+@media(max-height:500px){.mode-dialog{padding:14px 18px}.mode-top h2{font-size:27px;margin:5px 0 10px}.mode-choice{min-height:96px;padding:10px}.mode-choice strong{font-size:22px}.mode-back{margin-top:8px}}
+@media(max-width:360px){.mode-choices{grid-template-columns:1fr}.mode-choice{min-height:80px}}
 </style>
 
 <canvas id="gl"></canvas>
@@ -218,10 +224,23 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
     </div>
     <div class="account-actions"><button type="button" id="accountButton">Sign in with Google</button><button type="button" id="signOutButton" hidden>Sign out</button><span id="accountStatus" aria-live="polite"></span></div>
     <button class="go" id="start" autofocus disabled>Loading bike&hellip;</button>
-    <div class="mode-buttons" id="playButtons" hidden><button class="go" id="practiceButton">Practice</button><button class="go secondary" id="multiplayerButton">Multiplayer</button><button class="go secondary" id="playBack">Back</button></div>
-    <p id="multiplayerNotice" class="lede" hidden>Multiplayer is not available yet.</p>
-    <div class="mode-buttons" id="modeButtons" hidden><button class="go" id="raceMode">Race</button><button class="go" id="qualMode">Qualifying</button><button class="go secondary" id="modeBack">Back</button></div>
     <p class="credit">Bike: &ldquo;Ducati Lenovo Team - MotoGP26&rdquo; by <a href="https://sketchfab.com/Kenny3D89" target="_blank" rel="noopener">Kenny3D89</a>, licensed <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Source: <a href="https://sketchfab.com/3d-models/ducati-lenovo-team-motogp26-497ac78767344110a0046a3ab4a5d058" target="_blank" rel="noopener">Sketchfab</a>.</p>
+  </div>
+</div>
+
+<div id="modeOverlay" class="mode-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modeTitle">
+  <div class="mode-dialog">
+    <div class="mode-top"><div><span class="mode-kicker">WORLD MOTORBIKE CHAMPIONSHIP</span><h2 id="modeTitle">CHOOSE YOUR MODE</h2></div><button id="modeClose" class="mode-close" type="button" aria-label="Close">&#215;</button></div>
+    <div id="playButtons" class="mode-choices">
+      <button id="practiceButton" class="mode-choice" type="button"><span class="choice-label">01 / SOLO</span><strong>Practice</strong><span>Race or qualifying on your own.</span></button>
+      <button id="multiplayerButton" class="mode-choice" type="button"><span class="choice-label">02 / ONLINE</span><strong>Multiplayer</strong><span>Race with your friends.</span></button>
+    </div>
+    <div id="modeButtons" class="mode-choices" hidden>
+      <button id="raceMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Race</strong><span>Five laps at Sepang.</span></button>
+      <button id="qualMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Qualifying</strong><span>Set your fastest lap.</span></button>
+    </div>
+    <div id="multiplayerNotice" class="mode-unavailable" hidden><strong>Multiplayer is not ready yet.</strong><p>Online lobbies and racing are still being built.</p></div>
+    <button id="modeBack" class="mode-back" type="button" hidden>&#8592; Back</button>
   </div>
 </div>
 
@@ -628,6 +647,7 @@ var MAP={up:['KeyW','ArrowUp'],down:['KeyS','ArrowDown'],left:['KeyA','ArrowLeft
 var ALL=[].concat(MAP.up,MAP.down,MAP.left,MAP.right,MAP.brake);
 function held(n){return MAP[n].some(function(c){return keys[c]})}
 window.addEventListener('keydown',function(e){
+  if(e.code==='Escape'&&!$('modeOverlay').hidden){closeModes();return}
   if(e.target.matches('input,select,textarea,button'))return;
   if(e.code==='Escape'){togglePause();return}
   if(ALL.indexOf(e.code)>=0)e.preventDefault();
@@ -708,10 +728,14 @@ function drawMap(){
 /* ---------- flow ---------- */
 function showModes(){
   if(state!=='menu'||startBtn.disabled)return;
-  startBtn.hidden=true;$('playButtons').hidden=false;
+  $('modeOverlay').hidden=false;$('playButtons').hidden=false;$('modeButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('menu').inert=true;$('practiceButton').focus();
+}
+function closeModes(){
+  $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.focus();
 }
 function begin(selected){
   if(state!=='menu'||startBtn.disabled)return;
+  closeModes();
   mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;
   clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');elLap.textContent='1/5';$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
   keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume();
@@ -733,10 +757,19 @@ function begin(selected){
 $('start').addEventListener('click',showModes);
 $('raceMode').addEventListener('click',function(){begin('race')});
 $('qualMode').addEventListener('click',function(){begin('qualifying')});
-$('practiceButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeButtons').hidden=false});
+$('practiceButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeButtons').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='PRACTICE';$('raceMode').focus()});
 $('multiplayerButton').addEventListener('click',function(){$('multiplayerNotice').hidden=false});
-$('playBack').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;startBtn.hidden=false});
-$('modeBack').addEventListener('click',function(){$('modeButtons').hidden=true;$('playButtons').hidden=false});
+$('modeClose').addEventListener('click',closeModes);
+$('modeOverlay').addEventListener('click',function(e){if(e.target===this)closeModes()});
+$('modeBack').addEventListener('click',function(){$('modeButtons').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()});
+$('modeOverlay').addEventListener('keydown',function(e){
+  if(e.key!=='Tab')return;
+  var controls=Array.prototype.filter.call(this.querySelectorAll('button'),function(b){return b.offsetParent!==null&&!b.disabled});
+  if(!controls.length)return;
+  var first=controls[0],last=controls[controls.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+});
 var pausedState='',pauseAt=0;
 function clearInputs(){keys={};document.querySelectorAll('.pad').forEach(function(p){p.classList.remove('on')})}
 function togglePause(){
@@ -752,7 +785,7 @@ function togglePause(){
 function returnToMenu(){
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
   clearInputs();$('pauseOverlay').hidden=true;$('sessionEnd').hidden=true;$('hud').hidden=true;$('touch').hidden=true;$('menu').hidden=false;
-  $('modeButtons').hidden=true;$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
+  $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
 }
 $('pauseButton').addEventListener('click',togglePause);
 $('resumeButton').addEventListener('click',togglePause);
