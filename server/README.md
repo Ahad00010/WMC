@@ -30,3 +30,7 @@ Chat and emotes use the authenticated race WebSocket and are broadcast only to c
 ## AI riders
 
 The host may fill unused slots with server-controlled AI before starting. Bots use the same movement physics and track-limit rules, but their pace and qualifying behavior have not been calibrated on real devices. At least two human connections are still required. AI races are excluded from authoritative career stats: the existing results database accepts only real profiles and would otherwise miscount places or reject the result. AI settings live in the race server room and are reset if that server restarts.
+
+## Circuit selection
+
+The selectable tracks are approximate centreline traces based on the supplied reference diagrams; they are not surveyed recreations, and their scenery uses the existing generic environment. The browser and server use the same circuit data. The host chooses before creating a lobby, and the server waits for all connected riders to load that circuit before starting. Switching circuits reloads the page; a guest returns to the lobby afterward. Per-circuit practice best laps are stored separately. All six layouts and AI behavior should be playtested on real desktop and Android devices. Deploy the website and race server from the same revision.
