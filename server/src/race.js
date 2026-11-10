@@ -1,7 +1,8 @@
 import {randomUUID,randomInt} from 'node:crypto';
 import {N,px,pz,tx,tz,kerbEdge} from './track.js';
 import {spawn,step,parseInput,neutralInput} from './physics.js';
-const COUNTDOWN=22000,QUALIFYING=600000,GRACE=30000,RESULT_DELAY=10000;
+export const RACE_LAPS=3,QUALIFYING_ATTEMPTS=3,QUALIFYING=240000;
+const COUNTDOWN=22000,GRACE=30000,RESULT_DELAY=10000;
 export class RaceRoom {
   constructor(lobby){this.id=lobby.id;this.host=lobby.host_id;this.mode=lobby.mode;this.phase='lobby';this.players=new Map();this.events=[];this.matchId=null;this.phaseStart=0;this.resultsAt=null}
   join(profile,now){let p=this.players.get(profile.id);if(p){if(p.dnf)throw Error('Rider has retired');p.connected=true;p.disconnectedAt=null;p.input=neutralInput();p.inputAt=now;return}
@@ -18,7 +19,7 @@ export class RaceRoom {
     if(now>=this.phaseStart){for(const p of this.players.values()){
       if(p.dnf)continue;const input=p.connected&&now-p.inputAt<1000?p.input:neutralInput(),result=step(p.state,input,dt);
       if(p.completed)continue;
-      if(this.phase==='race'){if(p.state.total>=N*p.lap&&p.state.v>0){p.lastLap=(now-p.lapStart)/1000;p.raceBest=p.raceBest===null?p.lastLap:Math.min(p.raceBest,p.lastLap);p.lap++;p.lapStart=now;if(p.lap>5){p.completed=true;p.finishAt=now;this.events.push({type:'finish',id:p.profile.id})}}}
+      if(this.phase==='race'){if(p.state.total>=N*p.lap&&p.state.v>0){p.lastLap=(now-p.lapStart)/1000;p.raceBest=p.raceBest===null?p.lastLap:Math.min(p.raceBest,p.lastLap);p.lap++;p.lapStart=now;if(p.lap>RACE_LAPS){p.completed=true;p.finishAt=now;this.events.push({type:'finish',id:p.profile.id})}}}
       else this.qualify(p,result,now);
     }
       // Separate overlapping bikes; both riders remain in the authoritative simulation.
@@ -40,8 +41,8 @@ export class RaceRoom {
     while(p.sector<3&&s.total-p.line>=N*(p.sector+1)/4){const duration=(now-p.sectorStart)/1000,prior=p.sectorBests[p.sector];p.sectorTimes[p.sector]=duration;p.sectorStart=now;p.sector++;if(!p.invalid)this.events.push({type:'sector',id:p.profile.id,sector:p.sector,split:(now-p.lapStart)/1000,delta:prior===null?null:duration-prior})}
     if(s.total-p.line>=N&&s.v>0){p.attempts++;const duration=(now-p.lapStart)/1000;const personal=!p.invalid&&(p.best===null||duration<p.best);if(!p.invalid){p.sectorTimes[3]=(now-p.sectorStart)/1000;if(personal)p.best=duration;p.sectorTimes.forEach((v,i)=>{if(p.sectorBests[i]===null||v<p.sectorBests[i])p.sectorBests[i]=v})}
       this.events.push({type:'lap',id:p.profile.id,valid:!p.invalid,time:duration,personal,fastest:personal&&[...this.players.values()].every(q=>q.best===null||q.best>=duration)});
-      if(expired||p.attempts>=5){p.completed=true;return}p.line+=N;p.lapStart=now;p.sectorStart=now;p.sector=0;p.sectorTimes=[];p.invalid=Math.abs(s.lat)>kerbEdge(s.idx);if(p.invalid)this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'});
+      if(expired||p.attempts>=QUALIFYING_ATTEMPTS){p.completed=true;return}p.line+=N;p.lapStart=now;p.sectorStart=now;p.sector=0;p.sectorTimes=[];p.invalid=Math.abs(s.lat)>kerbEdge(s.idx);if(p.invalid)this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'});
     }
   }
-  snapshot(now){return {id:this.id,matchId:this.matchId,mode:this.mode,phase:this.phase,phaseStart:this.phaseStart,serverTime:now,players:[...this.players.values()].map(p=>({...p.profile,grid:p.grid,connected:p.connected,completed:p.completed,dnf:p.dnf,finishAt:p.finishAt,best:p.best,attempts:p.attempts,flying:p.flying,invalid:p.invalid,lap:p.lap,lapStart:p.lapStart,raceBest:p.raceBest,lastLap:p.lastLap,sector:p.sector,line:p.line,state:p.state&&{...p.state}})),events:this.events.splice(0)}}
+  snapshot(now){return {id:this.id,matchId:this.matchId,mode:this.mode,phase:this.phase,phaseStart:this.phaseStart,serverTime:now,rules:{raceLaps:RACE_LAPS,qualifyingAttempts:QUALIFYING_ATTEMPTS,qualifyingMs:QUALIFYING},players:[...this.players.values()].map(p=>({...p.profile,grid:p.grid,connected:p.connected,completed:p.completed,dnf:p.dnf,finishAt:p.finishAt,best:p.best,attempts:p.attempts,flying:p.flying,invalid:p.invalid,lap:p.lap,lapStart:p.lapStart,raceBest:p.raceBest,lastLap:p.lastLap,sector:p.sector,line:p.line,state:p.state&&{...p.state}})),events:this.events.splice(0)}}
 }
