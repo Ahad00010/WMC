@@ -154,6 +154,17 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 @media(max-width:700px){.qual-tower{width:150px}.qual-brand{font-size:24px}.qual-row{font-size:11px;gap:4px}.qual-banner{bottom:calc(var(--gb) + 85px)}}
 @media (prefers-reduced-motion:reduce){.toast,.qual-banner{transition:none}}
 
+@media(max-width:700px),(max-height:500px){
+ .qual-banner{width:min(200px,calc(100vw - 32px));bottom:calc(var(--gb) + 78px)}
+ .qual-banner-head{padding:4px 7px;font-size:12px}.qual-banner-body{min-height:52px;padding:5px 7px 8px}
+ .qual-banner.live .qual-time,.qual-banner.live .qual-delta{font-size:27px}.qual-banner.split .qual-time{font-size:25px}
+ .qual-banner.flash .qual-time{font-size:36px}.qual-banner.finish .qual-time{font-size:30px}
+}
+/* Other riders' actual server-reported qualifying laps. */
+.other-qual{position:absolute;top:calc(var(--gt) + 160px);right:var(--gr);width:190px;display:grid;gap:3px;font-family:var(--ui)}
+.other-qual-card{position:relative;height:var(--other-row,36px);min-height:0;display:flex;align-items:center;gap:5px;padding:3px 6px;background:rgba(5,7,8,.88);border-left:3px solid var(--rider-color,#888);font-size:11px}
+.other-qual-sectors{position:absolute;left:6px;right:6px;bottom:2px;height:2px;background:#50555a}.other-qual-sectors span{display:block;height:100%;background:#ff8a00;transform-origin:left}.other-qual-card .other-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.other-qual-card .other-time{font-variant-numeric:tabular-nums;white-space:nowrap;color:#c2c6c8}.other-qual-card .other-time.record{color:#f02d39}.other-qual-card .other-time.fast{color:#ff8a00}.other-qual-card .other-time.slow,.other-qual-card .other-time.invalid{color:#fff}
+@media(max-width:700px),(max-height:500px){.other-qual{top:calc(var(--gt) + 96px);width:155px;gap:2px}.other-qual-card{font-size:10px;padding:2px 4px}}
 /* Keep both towers the same size and leave room for landscape controls. */
 .race-tower{width:192px}.race-head{padding:7px 8px 5px}.race-brand{font-size:29px}.race-label{font-size:20px}
 .race-lap-label{font-size:16px}.race-lap-number{font-size:31px;line-height:1}.race-rider{height:29px;font-size:15px}.race-position{width:45px}.race-number{width:50px;font-size:21px}.race-footer{font-size:14px;padding:6px 9px 8px}
@@ -216,6 +227,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
     </div>
     <div class="qual-row"><span class="qual-name" id="qualStatus">OUT LAP</span><span id="qualLapTime" style="font-variant-numeric:tabular-nums">--:--.---</span></div><div class="qual-footer">#MalaysianGP</div>
   </div>
+  <div id="otherQual" class="other-qual" hidden aria-label="Other riders qualifying lap times"></div>
   <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span><b class="qual-rank">1</b> <span class="rider-short">D EFA</span></span><span class="qual-number rider-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-readout"><div class="qual-time" id="qualTime"></div><div class="qual-delta" id="qualDelta"></div></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i><span class="qual-marker" id="qualMarker"></span></div></div></div>
   <canvas id="map" width="300" height="300"></canvas>
   <div id="matchNetwork" class="match-network" hidden>Connection interrupted · reconnecting…</div>
@@ -348,7 +360,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=diagnostics-1" defer></script>
 <script src="race-smoothing.js?v=prediction-1"></script>
-<script src="lobby.js?v=match-audio-2" defer></script>
+<script src="lobby.js?v=guest-fixes-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -861,7 +873,7 @@ var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={
 var ownSmoother=new WMCSnapshotSmoother(150),opponentSmoothers={},matchIntroStage='',lastCountdownCue=-1,qualCountdownCue=-1,mpStartAt=0;
 // Old servers omit rules. Keep their 5-lap/10-minute HUD until Render updates.
 var mpRaceLaps=5,mpQualDuration=600000,mpQualMax=5;
-var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0;
+var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0,otherQualState=null,otherQualEvents={};
 function clearInputs(){keys={};document.querySelectorAll('.pad').forEach(function(p){p.classList.remove('on')})}
 function togglePause(){
   if(multiplayer){mpMenuOpen=!mpMenuOpen;clearInputs();if(window.WMCMatch)window.WMCMatch.sendInput();$('pauseTitle').textContent='RACE CONTINUES ONLINE';$('pauseOverlay').hidden=!mpMenuOpen;$('touch').hidden=mpMenuOpen;return}
@@ -877,7 +889,7 @@ function togglePause(){
 }
 function returnToMenu(){
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
-  mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
+  otherQualState=null;otherQualEvents={};$('otherQual').hidden=true;$('otherQual').replaceChildren();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
   clearInputs();$('pauseOverlay').hidden=true;$('sessionEnd').hidden=true;$('hud').hidden=true;$('touch').hidden=true;$('menu').hidden=false;
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
@@ -1187,7 +1199,7 @@ function frame(now){
   bike.tailMat.color.setHex(brakeNow&&state==='racing'?0xff2230:0x6a0a10);
   sun.position.set(pos.x+45,70,pos.z+30);sun.target.position.copy(pos);
   updateCamera(dt,clock);
-  audioTick();musicTick();
+  audioTick();musicTick();renderOtherQual(now);
   /* HUD */
   if(state!=='menu'){
     var k=Math.round(av*3.6);
@@ -1233,6 +1245,31 @@ function drawMultiplayerBikes(dt){
   });
   Object.keys(mpOpponentMeshes).forEach(function(id){if(!visible[id]){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id];delete opponentSmoothers[id]}});
 }
+var riderColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};
+function updateOtherQual(raw,userId,now){
+  if(raw.phase!=='qualifying'){otherQualState=null;otherQualEvents={};$('otherQual').hidden=true;return}
+  otherQualState={players:raw.players.filter(function(p){return p.id!==userId}),serverTime:raw.serverTime,received:now,max:mpQualMax};
+  (raw.events||[]).forEach(function(e){if(e.id===userId||!e.id)return;var text='',color='';
+    if(e.type==='invalid'){text='LAP CANCELLED';color='invalid'}
+    else if(e.type==='sector'){text='S'+e.sector+' '+fmt(e.split);color=e.delta!=null&&e.delta<0?'fast':'slow'}
+    else if(e.type==='lap'){text=e.valid?fmt(e.time):'LAP CANCELLED';color=!e.valid?'invalid':e.fastest?'record':e.personal?'fast':'slow'}
+    if(text)otherQualEvents[e.id]={text:text,color:color,until:now+4000};
+  });
+}
+function renderOtherQual(now){
+  var box=$('otherQual');if(!otherQualState||!multiplayer||mpPhase!=='qualifying'){box.hidden=true;return}
+  var data=otherQualState,players=data.players;box.hidden=!players.length;var size=Math.min(36,Math.max(15,(window.innerHeight-120)/Math.max(1,players.length)-2));box.style.setProperty('--other-row',size+'px');
+  var rows=new Map();Array.prototype.forEach.call(box.children,function(row){rows.set(row.dataset.riderId,row)});var keep=new Set();
+  players.forEach(function(p){keep.add(p.id);var row=rows.get(p.id);if(!row){row=document.createElement('div');row.className='other-qual-card';row.dataset.riderId=p.id;var name=document.createElement('span'),time=document.createElement('span');name.className='other-name';time.className='other-time';var bar=document.createElement('div'),progress=document.createElement('span');bar.className='other-qual-sectors';bar.appendChild(progress);row.append(name,time,bar);box.appendChild(row)}
+    row.style.setProperty('--rider-color',riderColors[p.color]||'#888');var progress=p.flying&&p.state?Math.max(0,Math.min(1,(p.state.total-p.line)/N)):0;row.querySelector('.other-qual-sectors span').style.transform='scaleX('+progress+')';row.querySelector('.other-name').textContent=shortRider(p.display_name)+' #'+p.number;
+    var display=row.querySelector('.other-time'),evt=otherQualEvents[p.id];display.className='other-time';
+    if(evt&&evt.until>now){display.textContent=evt.text;display.classList.add(evt.color)}
+    else if(p.dnf){display.textContent='DNF'}else if(p.invalid&&p.flying){display.textContent='LAP CANCELLED';display.classList.add('invalid')}
+    else if(p.completed){display.textContent=p.best==null?'FINISHED':fmt(p.best)}
+    else if(!p.flying){display.textContent='OUT LAP'}
+    else{var elapsed=Math.max(0,(data.serverTime+Math.min(1000,Math.max(0,now-data.received))-p.lapStart)/1000);display.textContent=(p.attempts+1)+'/'+data.max+'  '+fmt(elapsed)}
+  });rows.forEach(function(row,id){if(!keep.has(id))row.remove()});
+}
 // Keep one DOM row per rider so an authoritative position change can animate.
 function updateTower(box,own,sorted,match,kind){
   var rows=new Map(),old=new Map(),reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1244,11 +1281,12 @@ function updateTower(box,own,sorted,match,kind){
       if(row!==own){
         row.className=kind==='race'?'race-rider':'qual-row';
         if(kind==='race'){['race-position','race-name','race-flag','race-number'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
-        else{['qual-position','qual-name','qual-best'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
+        else{['qual-position','qual-name','qual-stripe','qual-best'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
       }
       box.appendChild(row);
     }
     row.style.order=i;row.querySelector(kind==='race'?'.race-position':'.qual-position').textContent=i+1;
+    if(kind==='qual'){var stripe=row.querySelector('.qual-stripe'),plateColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};stripe.style.backgroundColor=plateColors[m.color]||'#888'}
     if(m.id!==match.user_id){row.querySelector(kind==='race'?'.race-name':'.qual-name').textContent=shortRider(m.display_name);
       if(kind==='race'){
         row.querySelector('.race-flag').textContent=m.dnf?'DNF':m.completed?'⚑':'';
@@ -1297,6 +1335,7 @@ function startMultiplayerPhase(match,remaining){
 }
 window.WMCGame={
   matchCue:playMatchCue,
+  inSession:function(){return !!multiplayer},
   network:function(ok){$('matchNetwork').hidden=ok||!multiplayer},
   input:function(){return {up:held('up'),down:held('down'),left:held('left'),right:held('right'),brake:held('brake')}},
   authoritativeReceive:function(raw,userId,stats){
@@ -1304,10 +1343,10 @@ window.WMCGame={
     mpRaceLaps=raw.rules&&Number.isInteger(raw.rules.raceLaps)?raw.rules.raceLaps:5;mpQualDuration=raw.rules&&Number.isFinite(raw.rules.qualifyingMs)?raw.rules.qualifyingMs:600000;mpQualMax=raw.rules&&Number.isInteger(raw.rules.qualifyingAttempts)?raw.rules.qualifyingAttempts:5;
     var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,progress:s.total/N,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
     mpStartAt=performance.now()+raw.phaseStart-raw.serverTime;
-    var match={id:raw.id,mode:raw.mode,phase:raw.phase,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
+    var match={id:raw.id,mode:raw.mode,phase:raw.phase,endReason:raw.endReason,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
     this.receive(match);
     var own=raw.players.find(function(p){return p.id===userId});if(!own||!own.state||mpPhase!==raw.phase)return;
-    var receivedAt=performance.now();ownSmoother.push(own.state,receivedAt,raw.serverTime);raw.players.forEach(function(p){if(p.id===userId||!p.state)return;if(!opponentSmoothers[p.id])opponentSmoothers[p.id]=new WMCSnapshotSmoother(150);opponentSmoothers[p.id].push(p.state,receivedAt,raw.serverTime)});
+    var receivedAt=performance.now();updateOtherQual(raw,userId,receivedAt);ownSmoother.push(own.state,receivedAt,raw.serverTime);raw.players.forEach(function(p){if(p.id===userId||!p.state)return;if(!opponentSmoothers[p.id])opponentSmoothers[p.id]=new WMCSnapshotSmoother(150);opponentSmoothers[p.id].push(p.state,receivedAt,raw.serverTime)});
     authoritativeTarget=own.state;targetReceivedAt=receivedAt;mpDone=own.completed;qualBest=own.best;qualAttempts=own.attempts;qualInvalid=own.invalid;qualFlying=own.flying;qualSector=own.sector;qualLine=own.line;lapNo=Math.min(mpRaceLaps,own.lap);raceTime=Math.max(0,(raw.serverTime-raw.phaseStart)/1000);lapStart=Math.max(0,(own.lapStart-raw.phaseStart)/1000);
     if(raw.phase==='race'){elBest.textContent=fmt(own.raceBest);elLast.textContent=fmt(own.lastLap);if(own.completed){state='finishing';$('raceFinishFlag').hidden=own.dnf}else if(state!=='countdown'){elLap.textContent=lapNo===mpRaceLaps?'LAST LAP':lapNo+'/'+mpRaceLaps;elLap.classList.toggle('race-final-text',lapNo===mpRaceLaps);$('raceLapLabel').hidden=lapNo===mpRaceLaps}}
     if(raw.phase==='qualifying'){var seconds=Math.ceil(Math.max(0,(raw.phaseStart+mpQualDuration-raw.serverTime)/1000));$('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');$('qualProgress').style.transform='scaleX('+(seconds/(mpQualDuration/1000))+')';$('qualBest').textContent=fmt(own.best);$('qualStatus').textContent=own.completed?'WAITING FOR RIDERS':own.flying?'LAP '+(own.attempts+1)+' / '+mpQualMax:'OUT LAP';$('qualLapTime').hidden=own.invalid;if(own.completed)state='finishing'}
@@ -1319,7 +1358,7 @@ window.WMCGame={
     var remaining=(Date.parse(match.phase_start)-Date.parse(match.server_time))/1000;
     if(match.phase==='complete'){
       $('matchIntro').hidden=true;renderRaceRoster(match);
-      if(!mpResultsTimer){mpResultsTimer=setTimeout(function(){state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('sessionMode').textContent='WMC · RACE';var standings=match.members.slice().sort(function(a,b){return Number(!!a.dnf)-Number(!!b.dnf)||String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id)});var place=standings.findIndex(function(m){return m.id===match.user_id})+1;$('sessionResult').textContent=standings[place-1]&&standings[place-1].dnf?'Race complete · DNF':'Race complete · Position '+place+' / '+standings.length;$('sessionEnd').hidden=false},1)}
+      if(!mpResultsTimer){mpResultsTimer=setTimeout(function(){state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('sessionMode').textContent='WMC · RACE';var standings=match.members.slice().sort(function(a,b){return Number(!!a.dnf)-Number(!!b.dnf)||String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id)});var place=standings.findIndex(function(m){return m.id===match.user_id})+1;$('sessionResult').textContent=match.endReason==='opponent_left'?'Session ended · the other rider left.':standings[place-1]&&standings[place-1].dnf?'Race complete · DNF':'Race complete · Position '+place+' / '+standings.length;$('sessionEnd').hidden=false},1)}
       return;
     }
     if(mpPhase!==match.phase){if(remaining>(match.phase==='race'?5:0)){renderMatchIntro(match,remaining);return}startMultiplayerPhase(match,remaining)}
