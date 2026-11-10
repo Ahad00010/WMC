@@ -425,7 +425,7 @@ var mobileRender=window.matchMedia('(pointer:coarse)').matches;
 // Mobile GPUs are often fill-rate limited, especially at native phone DPR.
 // Keep physics/input/network at full rate; scale only the 3D drawing buffer.
 var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:!mobileRender});
-var mobilePixelRatio=Math.min(window.devicePixelRatio||1,.85),mobileMinRatio=Math.min(mobilePixelRatio,.6),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
+var mobilePixelRatio=Math.min(window.devicePixelRatio||1,.75),mobileMinRatio=Math.min(mobilePixelRatio,.5),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
 renderer.setPixelRatio(mobileRender?mobilePixelRatio:Math.min(window.devicePixelRatio||1,2));
 renderer.shadowMap.enabled=!mobileRender;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -631,17 +631,21 @@ ribbon(function(i){return -wallEdge(i)},function(i){return -kerbEdge(i)},10,0.02
 })();
 
 /* ---------- bike ---------- */
+function bikeMaterial(options){
+  if(!mobileRender)return new THREE.MeshStandardMaterial(options);
+  var simple={};Object.keys(options).forEach(function(k){if(k!=='roughness'&&k!=='metalness')simple[k]=options[k]});return new THREE.MeshLambertMaterial(simple);
+}
 var bike=(function(){
   var root=new THREE.Group();
   root.rotation.order='YXZ';
   var pitchG=new THREE.Group();pitchG.position.set(0,0,-0.72);root.add(pitchG);
   var m=new THREE.Group();m.position.z=0.72;pitchG.add(m);
   var gen=new THREE.Group();m.add(gen); /* built-in fallback bike; hidden once the Ducati model loads */
-  var red=new THREE.MeshStandardMaterial({color:0xd7151f,roughness:.35,metalness:.25});
-  var white=new THREE.MeshStandardMaterial({color:0xf3f3f3,roughness:.4,metalness:.1});
-  var black=new THREE.MeshStandardMaterial({color:0x14161a,roughness:.7,metalness:.2});
-  var chrome=new THREE.MeshStandardMaterial({color:0xa4aab2,roughness:.25,metalness:.85});
-  var glass=new THREE.MeshStandardMaterial({color:0x8fb4d8,roughness:.1,metalness:.1,transparent:true,opacity:.45});
+  var red=bikeMaterial({color:0xd7151f,roughness:.35,metalness:.25});
+  var white=bikeMaterial({color:0xf3f3f3,roughness:.4,metalness:.1});
+  var black=bikeMaterial({color:0x14161a,roughness:.7,metalness:.2});
+  var chrome=bikeMaterial({color:0xa4aab2,roughness:.25,metalness:.85});
+  var glass=bikeMaterial({color:0x8fb4d8,roughness:.1,metalness:.1,transparent:true,opacity:.45});
   var lampMat=new THREE.MeshBasicMaterial({color:0xfff6d0});
   var tailMat=new THREE.MeshBasicMaterial({color:0x6a0a10});
   function box(w,h,d,mat,x,y,z,rx,parent){
@@ -686,8 +690,8 @@ var bike=(function(){
   /* rider */
   var rider=new THREE.Group();rider.position.set(0,0.9,0);m.add(rider);
   var R=function(x,y,z){return new THREE.Vector3(x,y-0.9,z)};
-  var suitW=new THREE.MeshStandardMaterial({color:0xf3f3f3,roughness:.6});
-  var suitR=new THREE.MeshStandardMaterial({color:0xd7151f,roughness:.6});
+  var suitW=bikeMaterial({color:0xf3f3f3,roughness:.6});
+  var suitR=bikeMaterial({color:0xd7151f,roughness:.6});
   limb(R(0,.95,-.5),R(0,1.2,.12),.32,suitW,rider);
   box(.34,.1,.4,suitR,0,.32,-.22,.35,rider);
   [-1,1].forEach(function(s){
@@ -719,10 +723,15 @@ function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.tex
   function fallback(){if(done)return;done=true;bikeReady()}
   function onModel(gltf){
     if(done)return;done=true;
-    var model=gltf.scene;
+    var model=gltf.scene,lightMaterials=new Map();
+    function lightweightMaterial(mt){
+      if(!mobileRender||!mt||!mt.isMeshStandardMaterial)return mt;if(lightMaterials.has(mt))return lightMaterials.get(mt);
+      var simple=new THREE.MeshLambertMaterial({color:mt.color,map:mt.map,alphaMap:mt.alphaMap,transparent:mt.transparent,opacity:mt.opacity,side:mt.side,alphaTest:mt.alphaTest,depthWrite:mt.depthWrite,vertexColors:mt.vertexColors,emissive:mt.emissive,emissiveMap:mt.emissiveMap});simple.name=mt.name;lightMaterials.set(mt,simple);return simple;
+    }
     model.traverse(function(o){
       if(!o.isMesh)return;
-      o.castShadow=true;
+      o.castShadow=!mobileRender;
+      if(mobileRender)o.material=Array.isArray(o.material)?o.material.map(lightweightMaterial):lightweightMaterial(o.material);
       var ms=Array.isArray(o.material)?o.material:[o.material];
       ms.forEach(function(mt){
         if(mt.metalness!==undefined)mt.metalness=Math.min(mt.metalness,0.3);
@@ -1264,14 +1273,14 @@ function frame(now){
   var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000);lastT=now;clock+=dt;
   // Sustained slow frames lower resolution gradually. A long pause is not a
   // performance sample; recovery is deliberately slower to avoid oscillation.
-  if(mobileRender&&state!=='menu'&&frameMs>0&&frameMs<250){
+  if(mobileRender&&state!=='menu'&&frameMs>0&&frameMs<1000){
     if(!qualityStarted)qualityStarted=now;qualityFrames++;qualityTime+=frameMs;
-    if(now-qualityStarted>=2000&&qualityFrames>=30){var avg=qualityTime/qualityFrames,next=mobilePixelRatio;
+    if(now-qualityStarted>=2000&&qualityFrames>=5){var avg=qualityTime/qualityFrames,next=mobilePixelRatio;
       if(avg>23&&now-qualityLastChange>=2000)next=Math.max(mobileMinRatio,mobilePixelRatio-.1);
       else if(avg<17.5&&now-qualityLastChange>=6000)next=Math.min(Math.min(window.devicePixelRatio||1,.85),mobilePixelRatio+.05);
       if(Math.abs(next-mobilePixelRatio)>.001){mobilePixelRatio=next;qualityLastChange=now;renderer.setPixelRatio(mobilePixelRatio)}qualityStarted=now;qualityFrames=0;qualityTime=0;
     }
-  }else if(frameMs>=250||state==='menu'){qualityStarted=0;qualityFrames=0;qualityTime=0}
+  }else if(frameMs>=1000||state==='menu'){qualityStarted=0;qualityFrames=0;qualityTime=0}
   if(state==='countdown'){
     if(multiplayer&&mpStartAt)cdT=Math.max(0,goAt-(mpStartAt-now)/1000);else cdT+=dt;
     var on=Math.max(0,Math.min(5,Math.floor((cdT-0.6)/0.8)+1));
@@ -1366,7 +1375,7 @@ function renderMatchIntro(match,remaining){
 // One shared low-poly mesh per remote bike on touch devices. The local bike and
 // cosmetic effects remain unchanged. Combining parts avoids hundreds of draw
 // calls and shadow casters when the grid is full.
-var mobileOpponentGeometry=null,mobileOpponentMaterial=null,opponentWarmupScheduled=false,lastSharedQualRender=-Infinity;
+var mobileOpponentGeometry=null,mobileOpponentMaterial=null,mobileOpponentBatch=null,opponentWarmupScheduled=false,lastSharedQualRender=-Infinity;
 function mobileOpponentMesh(){
   if(!mobileOpponentGeometry){
     var positions=[],normals=[],colors=[];
@@ -1387,22 +1396,32 @@ function mobileOpponentMesh(){
   }
   return new THREE.Mesh(mobileOpponentGeometry,mobileOpponentMaterial);
 }
+// Each opponent retains an individual transform and emote, but mobile submits
+// their shared low-poly bodies in a single instanced draw call.
+function ensureMobileOpponentBatch(){
+  if(!mobileOpponentBatch){mobileOpponentMesh();mobileOpponentBatch=new THREE.InstancedMesh(mobileOpponentGeometry,mobileOpponentMaterial,15);mobileOpponentBatch.frustumCulled=false;mobileOpponentBatch.userData.opponentBatch=true;mobileOpponentBatch.count=0;mobileOpponentBatch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(mobileOpponentBatch)}
+  return mobileOpponentBatch;
+}
 function drawMultiplayerBikes(dt){
   if(!multiplayer||!multiplayer.members)return;
-  var visible={},created=0,now=performance.now(),creationBudget=mobileRender?3:5;multiplayer.members.forEach(function(m){
+  var visible={},created=0,instanceCount=0,now=performance.now(),creationBudget=mobileRender?3:5,batch=mobileRender?ensureMobileOpponentBatch():null;
+  multiplayer.members.forEach(function(m){
     if(m.id===multiplayer.user_id||m.x==null||m.z==null)return;
     visible[m.id]=true;var obj=mpOpponentMeshes[m.id];
-    if(!obj){if(created>=creationBudget)return;created++;obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group();pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);if(mobileRender)assembly.add(mobileOpponentMesh());else{var base=bike.gen.clone(true),rider=bike.rider.clone(true);base.visible=true;assembly.add(base);rider.position.set(0,.9,0);assembly.add(rider)}obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.userData.spawnAt=now;obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
+    if(!obj){if(created>=creationBudget)return;created++;obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group();pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);if(!mobileRender){var base=bike.gen.clone(true),rider=bike.rider.clone(true);base.visible=true;assembly.add(base);rider.position.set(0,.9,0);assembly.add(rider)}obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.userData.bodyMatrix=new THREE.Matrix4();obj.userData.spawnAt=now;obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
     var grow=Math.min(1,Math.max(.01,(now-obj.userData.spawnAt)/200));obj.scale.setScalar(grow);var emote=m.emote;obj.userData.pivot.rotation.x=emote&&emote.kind==='wheelie'?-.45*emoteLevel(emote,now):0;drawNitro(obj.userData.nitro,emote,now);
     var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now,100);if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h}
+    var pivot=obj.userData.pivot,assembly=pivot.children[0];obj.updateMatrix();pivot.updateMatrix();assembly.updateMatrix();obj.userData.bodyMatrix.multiplyMatrices(obj.matrix,pivot.matrix).multiply(assembly.matrix);
+    if(batch&&instanceCount<15)batch.setMatrixAt(instanceCount++,obj.userData.bodyMatrix);
   });
+  if(batch){batch.count=instanceCount;batch.instanceMatrix.needsUpdate=true}
   Object.keys(mpOpponentMeshes).forEach(function(id){if(!visible[id]){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id];delete opponentSmoothers[id]}});
 }
 var riderColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};
 // Tags are DOM text rather than per-rider canvas textures or 3D meshes. Reuse
 // nodes and a projection vector; only visible nearby bikes update transforms.
 var riderTags=new Map(),tagPoint=new THREE.Vector3();
-function clearRiderTags(){riderTags.clear();$('riderTags').replaceChildren();$('riderTags').hidden=true}
+function clearRiderTags(){if(mobileOpponentBatch)mobileOpponentBatch.count=0;riderTags.clear();$('riderTags').replaceChildren();$('riderTags').hidden=true}
 function riderTag(key,member){
   var tag=riderTags.get(key);
   if(!tag){var el=document.createElement('div'),plate=document.createElement('span'),name=document.createElement('span'),stem=document.createElement('i');el.className='rider-tag';el.hidden=true;plate.className='rider-tag-plate';name.className='rider-tag-name';stem.className='rider-tag-stem';stem.setAttribute('aria-hidden','true');el.append(plate,name,stem);$('riderTags').appendChild(el);tag={el:el,name:name,plate:plate};riderTags.set(key,tag)}
@@ -1417,16 +1436,20 @@ function drawRiderTags(){
   var layer=$('riderTags');
   if(!['countdown','racing','finishing'].includes(state)||!$('matchIntro').hidden||!bike.root.visible){layer.hidden=true;return}
   layer.hidden=false;camera.updateMatrixWorld();var seen=new Set(),candidates=[],w=window.innerWidth,h=window.innerHeight;
-  function place(key,member,position,own){
+  function place(key,member,position,own,obj){
     seen.add(key);var tag=riderTag(key,member);var dx=position.x-camera.position.x,dz=position.z-camera.position.z,distance2=dx*dx+dz*dz;
     if(!own&&distance2>350*350){if(!tag.el.hidden)tag.el.hidden=true;return}
-    tagPoint.set(position.x,2.35,position.z).project(camera);
+    // Anchor just above the helmet and follow the actual lean, pitch, wheelie,
+    // heading and (for opponents) interpolated render position every frame.
+    if(own){bike.rider.updateMatrix();bike.m.updateMatrix();bike.pitch.updateMatrix();bike.root.updateMatrix();tagPoint.set(0,.70,.26).applyMatrix4(bike.rider.matrix).applyMatrix4(bike.m.matrix).applyMatrix4(bike.pitch.matrix).applyMatrix4(bike.root.matrix)}
+    else tagPoint.set(0,1.60,.25).applyMatrix4(obj.userData.bodyMatrix);
+    tagPoint.project(camera);
     if(tagPoint.z< -1||tagPoint.z>1||tagPoint.x< -1.08||tagPoint.x>1.08||tagPoint.y< -1.08||tagPoint.y>1.08){if(!tag.el.hidden)tag.el.hidden=true;return}
     candidates.push({tag:tag,x:(tagPoint.x*.5+.5)*w,y:(.5-tagPoint.y*.5)*h,distance:own?-1:distance2,key:key,width:Math.min(165,Math.max(68,tag.text.length*8+36))});
   }
   var me=multiplayer&&multiplayer.members.find(function(m){return m.id===multiplayer.user_id});
-  place('self',me||window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'},pos,true);
-  if(multiplayer)multiplayer.members.forEach(function(m){var obj=mpOpponentMeshes[m.id];if(m.id!==multiplayer.user_id&&obj&&obj.visible)place('r:'+m.id,m,obj.position,false)});
+  place('self',me||window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'},pos,true,bike.root);
+  if(multiplayer)multiplayer.members.forEach(function(m){var obj=mpOpponentMeshes[m.id];if(m.id!==multiplayer.user_id&&obj&&obj.visible)place('r:'+m.id,m,obj.position,false,obj)});
   riderTags.forEach(function(tag,key){if(!seen.has(key)){tag.el.remove();riderTags.delete(key)}});
   // Stack nearby overlaps upward while keeping a stem connected to the bike.
   // Bounded to six slots per tag (15 riders maximum); no layout reads.
@@ -1572,7 +1595,7 @@ function renderRaceRoster(match){
 function startMultiplayerPhase(match,remaining){
   var target=match.phase;
   if(mpPhase===target)return;
-  lastTowerUpdate=-Infinity;Array.prototype.forEach.call($('raceRoster').children,function(row){row._gapTrend=null;var gap=row.querySelector('.race-gap');if(gap)gap.hidden=true});clearSharedQual();predictionReady=false;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
+  if(mobileOpponentBatch)mobileOpponentBatch.count=0;lastTowerUpdate=-Infinity;Array.prototype.forEach.call($('raceRoster').children,function(row){row._gapTrend=null;var gap=row.querySelector('.race-gap');if(gap)gap.hidden=true});clearSharedQual();predictionReady=false;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
   Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   if(target==='qualifying'&&qualCountdownCue!==-1)playMatchCue('go');
   lastCountdownCue=-1;state='menu';begin(target==='qualifying'?'qualifying':'race');$('pauseButton').hidden=false;$('matchIntro').hidden=true;
