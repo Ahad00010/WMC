@@ -103,3 +103,23 @@ test('precomputed AI curvature preserves the original driving decisions',async()
  const {circuits,getTrack}=await import('../src/track.js');const {createAI}=await import('../src/ai.js');const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
  for(const id of Object.keys(circuits)){const t=getTrack(id),ai=createAI(t);for(let idx=0;idx<t.N;idx+=19){const s={idx,x:t.px[idx]+1,z:t.pz[idx]-1,h:Math.atan2(t.tx[idx],t.tz[idx])+.02,v:idx%60},skill=idx%5-2,look=Math.max(5,Math.min(22,Math.round(5+Math.abs(s.v)*.08))),j=(idx+look)%t.N,angle=wrap(Math.atan2(t.px[j]-s.x,t.pz[j]-s.z)-s.h);let curve=0;for(let k=4;k<look+16;k+=4){const a=(idx+k)%t.N,b=(a+5)%t.N;curve=Math.max(curve,Math.abs(wrap(Math.atan2(t.tx[b],t.tz[b])-Math.atan2(t.tx[a],t.tz[a]))))}const cap=Math.max(13,Math.min(49+skill*2,60/(1+curve*4)));assert.deepEqual(ai(s,skill),{up:s.v<cap-1,down:s.v>cap+2,left:angle>.035,right:angle<-.035,brake:false},id)}}
 });
+
+test('race gaps measure real elapsed time at the same track position',()=>{
+ const r=room(),a=r.players.get('a'),b=r.players.get('b'),t=r.phaseStart;assert.equal(r.snapshot(t-1).players.every(p=>p.gap===null),true,'no gap before the start');
+ a.state.total=101;a.state.v=20;a.gapIndex=100;a.gapCrossings=new Map([[100,t]]);r.recordGapCrossings(a,t+2000,1/60);
+ b.state.total=101;b.state.v=20;b.gapIndex=100;b.gapCrossings=new Map([[100,t]]);r.recordGapCrossings(b,t+3500,1/60);a.state.total=102;r.recordGapCrossings(a,t+3600,1/60);
+ let snap=r.snapshot(t+3600),gap=snap.players.find(p=>p.id==='b').gap;assert.equal(gap.ahead,'a');assert.ok(Math.abs(gap.seconds-1.5)<.001);assert.equal(snap.players.find(p=>p.id==='a').gap,null);
+ b.state.v=0;gap=r.snapshot(t+4500).players.find(p=>p.id==='b').gap;assert.ok(Math.abs(gap.seconds-2.5)<.001,'gap grows if the trailing rider stops');
+ b.state.total=102;b.state.v=20;r.recordGapCrossings(b,t+4700,1/60);a.state.total=103;r.recordGapCrossings(a,t+4750,1/60);gap=r.snapshot(t+4700).players.find(p=>p.id==='b').gap;assert.ok(Math.abs(gap.seconds-1.1)<.001,'gap can close');
+ b.state.total=104;r.recordGapCrossings(b,t+4800,1/60);assert.equal(r.snapshot(t+4800).players.find(p=>p.id==='a').gap,null,'no fabricated gap after overtake until both cross the same point');
+ a.state.total=103+N;gap=r.snapshot(t+4900).players.find(p=>p.id==='b').gap;assert.ok(!gap||gap.laps===0,'less than one full lap apart is not a lap gap');a.state.total=104+N;gap=r.snapshot(t+4900).players.find(p=>p.id==='b').gap;assert.equal(gap.laps,1);
+ a.completed=b.completed=true;a.finishAt=t+10000;b.finishAt=t+12000;gap=r.snapshot(t+12000).players.find(p=>p.id==='b').gap;assert.equal(gap.seconds,2,'finished riders use actual finish times');b.dnf=true;assert.equal(r.snapshot(t+12000).players.find(p=>p.id==='b').gap,null);
+});
+
+test('race timing history stays bounded and qualifying does not report race gaps',()=>{
+ const r=room(),p=r.players.get('a');for(let i=0;i<r.track.N+200;i++){p.state.total=p.gapIndex+1;r.recordGapCrossings(p,r.phaseStart+i*100,1/60)}assert.ok(p.gapCrossings.size<=r.track.N+80);const q=room('qualifying');assert.ok(q.snapshot(q.phaseStart+10000).players.every(p=>p.gap===null));
+});
+
+test('reversing or teleporting cannot reuse stale crossing timestamps',()=>{
+ const r=room(),p=r.players.get('a');p.gapIndex=10;p.gapCrossings=new Map([[8,100],[9,200],[10,300]]);p.state.total=9;r.recordGapCrossings(p,400,1/60);assert.equal(p.gapIndex,9);assert.equal(p.gapCrossings.has(9),false);assert.equal(p.gapCrossings.has(10),false);p.state.total=10;r.recordGapCrossings(p,500,1/60);assert.equal(p.gapCrossings.get(10),500);p.state.total=300;r.recordGapCrossings(p,600,1/60);assert.equal(p.gapCrossings.size,0,'teleports must not invent crossing times');
+});
