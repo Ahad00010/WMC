@@ -704,8 +704,9 @@ var bike=(function(){
   var helmet=new THREE.Mesh(new THREE.SphereGeometry(.17,16,12),white);helmet.scale.set(1,1,1.18);helmet.position.set(0,.4,.26);rider.add(helmet);
   box(.2,.07,.1,black,0,.4,.41,0,rider);
   box(.05,.02,.3,red,0,.58,.26,0,rider);
+  var riderFallback=new THREE.Group();while(rider.children.length)riderFallback.add(rider.children[0]);rider.add(riderFallback);
   root.traverse(function(o){if(o.isMesh)o.castShadow=true});
-  return {root:root,pitch:pitchG,rider:rider,fa:fa,rear:rear,front:front,tail:tail,tailMat:tailMat,gen:gen,m:m,rr:.335,fr:.335};
+  return {root:root,pitch:pitchG,rider:rider,riderFallback:riderFallback,fa:fa,rear:rear,front:front,tail:tail,tailMat:tailMat,gen:gen,m:m,rr:.335,fr:.335};
 })();
 // Cosmetic effects are rendered only; they never alter physics or timing.
 var nitroGeometry=new THREE.ConeGeometry(.14,.95,9),nitroOuter=new THREE.MeshBasicMaterial({color:0x1da7ff,transparent:true,opacity:.75,depthWrite:false}),nitroCore=new THREE.MeshBasicMaterial({color:0xe4faff,transparent:true,opacity:.9,depthWrite:false});
@@ -754,6 +755,23 @@ function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.tex
       .catch(fallback);
   }catch(e){fallback()}
   setTimeout(fallback,25000);
+})();
+
+
+// The supplied static Marc rider is a separate optional asset. Keep the
+// procedural rider if loading fails, and retain the existing Ducati and wheels.
+(function(){
+  try{fetch('marc-rider.glb').then(function(r){if(!r.ok)throw new Error('rider '+r.status);return r.arrayBuffer()}).then(function(buffer){
+    new THREE.GLTFLoader().parse(buffer,'',function(gltf){
+      var model=gltf.scene;if(!model||!model.getObjectByName('Pilot_M_Pilot_0'))return;
+      model.traverse(function(o){if(!o.isMesh)return;o.castShadow=!mobileRender;
+        if(mobileRender){var mt=o.material;if(mt&&mt.isMeshStandardMaterial)o.material=new THREE.MeshLambertMaterial({color:mt.color,map:mt.map,transparent:mt.transparent,opacity:mt.opacity,side:mt.side,alphaTest:mt.alphaTest,depthWrite:mt.depthWrite});}
+      });
+      // Source wheels touch y=-0.72374. Rider is inside the existing lean
+      // pivot at y=0.9, so align the source model to the Ducati's ground plane.
+      model.position.y=.72374-.9;bike.rider.add(model);bike.riderFallback.visible=false;
+    },function(){});
+  }).catch(function(){});}catch(e){}
 })();
 
 /* ---------- state ---------- */
@@ -1402,8 +1420,8 @@ function mobileOpponentMesh(){
 var desktopOpponentGeometry=null,desktopOpponentMaterial=null,opponentFrustum=new THREE.Frustum(),opponentProjection=new THREE.Matrix4(),opponentBounds=new THREE.Sphere(new THREE.Vector3(),4);
 function desktopOpponentMesh(){
   if(!desktopOpponentGeometry){
-    var root=new THREE.Group(),base=bike.gen.clone(true),rider=bike.rider.clone(true),positions=[],normals=[],colors=[];
-    base.visible=true;rider.position.set(0,.9,0);rider.rotation.set(0,0,0);
+    var root=new THREE.Group(),base=bike.gen.clone(true),rider=bike.riderFallback.clone(true),positions=[],normals=[],colors=[];
+    base.visible=true;rider.visible=true;rider.position.set(0,.9,0);rider.rotation.set(0,0,0);
     var steering=base.children[bike.gen.children.indexOf(bike.fa)];if(steering)steering.rotation.y=0;
     root.add(base,rider);root.updateMatrixWorld(true);
     root.traverse(function(mesh){if(!mesh.isMesh)return;var source=mesh.geometry,g=source.index?source.toNonIndexed():source.clone();g.applyMatrix4(mesh.matrixWorld);
