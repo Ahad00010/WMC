@@ -660,11 +660,12 @@ function updateCamera(dt,t){
     camH=h;
   }else{
     camH+=wrap(h-camH)*(1-Math.exp(-dt*4.5));
-    var back=8+Math.abs(v)*0.03;
-    tgt.set(pos.x-Math.sin(camH)*back,3.3+Math.abs(v)*0.01,pos.z-Math.cos(camH)*back);
+    /* Stay close to the bike at cruising speed instead of zooming away. */
+    var back=5.8+Math.abs(v)*0.005;
+    tgt.set(pos.x-Math.sin(camH)*back,2.6+Math.abs(v)*0.003,pos.z-Math.cos(camH)*back);
     camPos.lerp(tgt,f);
     look.set(pos.x+Math.sin(camH)*7,1.1,pos.z+Math.cos(camH)*7);
-    camera.fov+=((62+20*Math.min(1,Math.abs(v)/VMAX))-camera.fov)*0.08;
+    camera.fov+=((58+4*Math.min(1,Math.abs(v)/VMAX))-camera.fov)*0.08;
   }
   shake.multiplyScalar(Math.exp(-dt*7));
   camera.updateProjectionMatrix();
