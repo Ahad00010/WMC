@@ -204,6 +204,38 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 
 <div class="session-end" id="sessionEnd" hidden><div class="card"><div class="eyebrow">WMC &middot; QUALIFYING</div><h2>SESSION FINISHED</h2><p class="lede" id="sessionResult"></p><button class="go" id="returnMenu">Main menu</button></div></div>
 
+<div id="updateNotice" hidden role="alertdialog" aria-modal="true" aria-labelledby="updateTitle" style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.9);color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:system-ui,sans-serif;pointer-events:auto;touch-action:auto">
+  <h2 id="updateTitle">The current session is old</h2>
+  <p>Refresh your browser.</p>
+  <button id="updateRefresh" style="padding:12px 26px;font-size:18px;cursor:pointer">Refresh</button>
+</div>
+<script>
+(function(){
+  // Capture the original markup before the game changes it. Compare it and the
+  // scripts with the deployed HTML, so releases need no manually bumped version.
+  function markup(doc){return Array.from(doc.body.children).filter(function(el){return el.tagName!=='SCRIPT'}).map(function(el){return el.outerHTML}).join('')}
+  function scripts(doc){return Array.from(doc.scripts).map(function(el){return (el.getAttribute('src')||'')+'\n'+el.textContent}).join('\n')}
+  var originalMarkup=markup(document), originalScripts, notice=document.getElementById('updateNotice'), checking=false;
+  document.getElementById('updateRefresh').addEventListener('click',function(){
+    var url=new URL(location.href);url.searchParams.set('wmc_refresh',Date.now());location.replace(url.href);
+  });
+  async function check(){
+    if(checking||!notice.hidden||!originalScripts)return;
+    checking=true;
+    try{
+      var url=new URL('index.html',location.href);url.searchParams.set('wmc_check',Date.now());
+      var response=await fetch(url.href,{cache:'no-store'});
+      if(!response.ok)return;
+      var latest=new DOMParser().parseFromString(await response.text(),'text/html');
+      if(markup(latest)!==originalMarkup||scripts(latest)!==originalScripts){notice.hidden=false;document.getElementById('updateRefresh').focus()}
+    }catch(e){/* Offline or temporarily unavailable: try again later. */}
+    finally{checking=false}
+  }
+  document.addEventListener('DOMContentLoaded',function(){originalScripts=scripts(document);check();setInterval(check,60000)});
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)check()});
+})();
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
