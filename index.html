@@ -1446,9 +1446,9 @@ function drawMultiplayerBikes(dt){
   multiplayer.members.forEach(function(m){
     if(m.id===multiplayer.user_id||m.x==null||m.z==null)return;
     visible[m.id]=true;var obj=mpOpponentMeshes[m.id];
-    if(!obj){if(created>=creationBudget)return;created++;obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group();pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.userData.bodyMatrix=new THREE.Matrix4();obj.userData.spawnAt=now;obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
+    if(!obj){if(created>=creationBudget)return;created++;obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group();obj.rotation.order='YXZ';pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.userData.bodyMatrix=new THREE.Matrix4();obj.userData.spawnAt=now;obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
     var grow=Math.min(1,Math.max(.01,(now-obj.userData.spawnAt)/200));obj.scale.setScalar(grow);var emote=m.emote;obj.userData.pivot.rotation.x=emote&&emote.kind==='wheelie'?-.45*emoteLevel(emote,now):0;drawNitro(obj.userData.nitro,emote,now);
-    var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now,100);if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h}
+    var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now,100);if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h;obj.rotation.z=Number.isFinite(sample.lean)?-sample.lean:0}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h;obj.rotation.z=Number.isFinite(m.lean)?-m.lean:0}
     var pivot=obj.userData.pivot,assembly=pivot.children[0];obj.updateMatrix();pivot.updateMatrix();assembly.updateMatrix();obj.userData.bodyMatrix.multiplyMatrices(obj.matrix,pivot.matrix).multiply(assembly.matrix);
     if(!mobileRender)opponentBounds.center.set(obj.position.x,1,obj.position.z);
     if(batch&&instanceCount<15&&(mobileRender||opponentFrustum.intersectsSphere(opponentBounds)))batch.setMatrixAt(instanceCount++,obj.userData.bodyMatrix);
@@ -1459,8 +1459,8 @@ function drawMultiplayerBikes(dt){
 var riderColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};
 // Tags are DOM text rather than per-rider canvas textures or 3D meshes. Reuse
 // nodes and a projection vector; only visible nearby bikes update transforms.
-var riderTags=new Map(),tagPoint=new THREE.Vector3(),lastTagUpdate=-Infinity;
-function clearRiderTags(){lastTagUpdate=-Infinity;if(opponentBatch)opponentBatch.count=0;riderTags.clear();$('riderTags').replaceChildren();$('riderTags').hidden=true}
+var riderTags=new Map(),tagPoint=new THREE.Vector3();
+function clearRiderTags(){if(opponentBatch)opponentBatch.count=0;riderTags.clear();$('riderTags').replaceChildren();$('riderTags').hidden=true}
 function riderTag(key,member){
   var tag=riderTags.get(key);
   if(!tag){var el=document.createElement('div'),plate=document.createElement('span'),name=document.createElement('span'),stem=document.createElement('i');el.className='rider-tag';el.hidden=true;plate.className='rider-tag-plate';name.className='rider-tag-name';stem.className='rider-tag-stem';stem.setAttribute('aria-hidden','true');el.append(plate,name,stem);$('riderTags').appendChild(el);tag={el:el,name:name,plate:plate};riderTags.set(key,tag)}
@@ -1473,21 +1473,21 @@ function riderTag(key,member){
 }
 function drawRiderTags(now){
   var layer=$('riderTags');
-  if(!['countdown','racing','finishing'].includes(state)||!$('matchIntro').hidden||!bike.root.visible){layer.hidden=true;lastTagUpdate=-Infinity;return}
-  // With a busy grid cap DOM projection/collision/style work at 30 Hz; physics,
-  // camera and opponent interpolation continue at the full render rate.
-  if(multiplayer&&multiplayer.members.length>4&&Number.isFinite(now)&&now>=lastTagUpdate&&now-lastTagUpdate<33)return;if(Number.isFinite(now))lastTagUpdate=now;
+  if(!['countdown','racing','finishing'].includes(state)||!$('matchIntro').hidden||!bike.root.visible){layer.hidden=true;riderTags.forEach(function(tag){tag.shiftTime=null;tag.shift=null});return}
+  // Project on every render frame so labels stay attached to their bikes and
+  // camera. Only the overlap displacement is eased; the anchor never lags.
+  if(!Number.isFinite(now))now=performance.now();
   layer.hidden=false;camera.updateMatrixWorld();var seen=new Set(),candidates=[],w=window.innerWidth,h=window.innerHeight;
   function place(key,member,position,own,obj){
     seen.add(key);var tag=riderTag(key,member);var dx=position.x-camera.position.x,dz=position.z-camera.position.z,distance2=dx*dx+dz*dz;
-    if(!own&&distance2>350*350){if(!tag.el.hidden)tag.el.hidden=true;return}
+    if(!own&&distance2>350*350){if(!tag.el.hidden)tag.el.hidden=true;tag.shift=null;tag.shiftTime=null;return}
     // Anchor just above the helmet and follow the actual lean, pitch, wheelie,
     // heading and (for opponents) interpolated render position every frame.
     if(own){bike.rider.updateMatrix();bike.m.updateMatrix();bike.pitch.updateMatrix();bike.root.updateMatrix();tagPoint.set(0,.70,.26).applyMatrix4(bike.rider.matrix).applyMatrix4(bike.m.matrix).applyMatrix4(bike.pitch.matrix).applyMatrix4(bike.root.matrix)}
     else tagPoint.set(0,1.60,.25).applyMatrix4(obj.userData.bodyMatrix);
     tagPoint.project(camera);
-    if(tagPoint.z< -1||tagPoint.z>1||tagPoint.x< -1.08||tagPoint.x>1.08||tagPoint.y< -1.08||tagPoint.y>1.08){if(!tag.el.hidden)tag.el.hidden=true;return}
-    candidates.push({tag:tag,x:(tagPoint.x*.5+.5)*w,y:(.5-tagPoint.y*.5)*h,distance:own?-1:distance2,key:key,width:Math.min(165,Math.max(68,tag.text.length*8+36))});
+    if(tagPoint.z< -1||tagPoint.z>1||tagPoint.x< -1.08||tagPoint.x>1.08||tagPoint.y< -1.08||tagPoint.y>1.08){if(!tag.el.hidden)tag.el.hidden=true;tag.shift=null;tag.shiftTime=null;return}
+    candidates.push({tag:tag,x:(tagPoint.x*.5+.5)*w,y:(.5-tagPoint.y*.5)*h,key:key,width:Math.min(165,Math.max(68,tag.text.length*8+36))});
   }
   var me=multiplayer&&multiplayer.members.find(function(m){return m.id===multiplayer.user_id});
   place('self',me||window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'},pos,true,bike.root);
@@ -1495,12 +1495,18 @@ function drawRiderTags(now){
   riderTags.forEach(function(tag,key){if(!seen.has(key)){tag.el.remove();riderTags.delete(key)}});
   // Stack nearby overlaps upward while keeping a stem connected to the bike.
   // Bounded to six slots per tag (15 riders maximum); no layout reads.
-  candidates.sort(function(a,b){return a.distance-b.distance||(a.key<b.key?-1:a.key>b.key?1:0)});var boxes=[];
+  candidates.sort(function(a,b){return a.key==='self'?-1:b.key==='self'?1:a.key<b.key?-1:a.key>b.key?1:0});var boxes=[];
   candidates.forEach(function(c){var shift=0,top=c.y-24;for(var slot=0;slot<5;slot++){
       var conflict=boxes.some(function(b){return Math.abs(c.x-b.x)<(c.width+b.width)/2&&top<b.bottom&&top+22>b.top});
       if(!conflict||top-24<0)break;top-=24;shift+=24;
     }
-    boxes.push({x:c.x,width:c.width,top:top,bottom:top+22});var el=c.tag.el,x=Math.round(c.x),y=Math.round(c.y-shift);if(el.hidden)el.hidden=false;if(c.tag.x!==x||c.tag.y!==y){c.tag.x=x;c.tag.y=y;el.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-100%)'}if(c.tag.shift!==shift){c.tag.shift=shift;el.style.setProperty('--stem',shift+'px')}
+    boxes.push({x:c.x,width:c.width,top:top,bottom:top+22});var tag=c.tag,el=tag.el;
+    var elapsed=tag.shiftTime==null?0:Math.max(0,Math.min(100,now-tag.shiftTime));tag.shiftTime=now;
+    if(tag.shift==null)tag.shift=shift;else tag.shift+=(shift-tag.shift)*(1-Math.exp(-elapsed/100));
+    if(Math.abs(tag.shift-shift)<.05)tag.shift=shift;
+    // Subpixel placement removes one-pixel stair stepping during camera motion.
+    var stem=Math.round(tag.shift*10)/10,x=Math.round(c.x*10)/10,y=Math.round((c.y-stem)*10)/10;
+    if(el.hidden)el.hidden=false;if(tag.x!==x||tag.y!==y){tag.x=x;tag.y=y;el.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-100%)'}if(tag.stem!==stem){tag.stem=stem;el.style.setProperty('--stem',stem+'px')}
   });
 }
 
@@ -1674,7 +1680,7 @@ window.WMCGame={
   authoritativeReceive:function(raw,userId,stats){
     if(!raw||raw.phase==='lobby'||!Array.isArray(raw.players))return;
     mpRaceLaps=raw.rules&&Number.isInteger(raw.rules.raceLaps)?raw.rules.raceLaps:5;mpQualDuration=raw.rules&&Number.isFinite(raw.rules.qualifyingMs)?raw.rules.qualifyingMs:600000;mpQualMax=raw.rules&&Number.isInteger(raw.rules.qualifyingAttempts)?raw.rules.qualifyingAttempts:5;
-    var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,progress:s.total/N,emote:p.emote&&['wheelie','nitro'].includes(p.emote.kind)?{kind:p.emote.kind,until:performance.now()+Math.max(0,p.emote.until-raw.serverTime)}:null,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,gap:p.gap,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
+    var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,lean:s.lean,progress:s.total/N,emote:p.emote&&['wheelie','nitro'].includes(p.emote.kind)?{kind:p.emote.kind,until:performance.now()+Math.max(0,p.emote.until-raw.serverTime)}:null,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,gap:p.gap,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
     mpStartAt=performance.now()+raw.phaseStart-raw.serverTime;
     var match={id:raw.id,mode:raw.mode,phase:raw.phase,endReason:raw.endReason,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
     this.receive(match);
