@@ -4,3 +4,6 @@ android/**/build/
 android/local.properties
 *.iml
 .idea/
+
+# Race server dependencies
+server/node_modules/
