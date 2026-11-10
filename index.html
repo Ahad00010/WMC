@@ -183,7 +183,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 
 .invite-notice{position:fixed;top:calc(var(--gt) + 8px);right:var(--gr);z-index:30;width:min(310px,calc(100vw - 32px));background:#141820;border-left:3px solid #e4202c;padding:12px;box-shadow:0 8px 25px #000a;font:13px var(--ui);display:grid;gap:7px;touch-action:auto}.invite-notice button{background:#e4202c;color:white;border:0;border-radius:3px;padding:8px;font:700 12px var(--ui);cursor:pointer}.invite-notice button+button{background:#343a43}.invite-notice p{margin:0;color:#ffb6b6}
 
-#raceRoster,#qualRoster{display:flex;flex-direction:column}.match-intro{animation:match-fade .45s ease both;position:fixed;inset:0;z-index:22;background:#05080f;color:#fff;display:grid;place-items:center;padding:18px;overflow:auto;touch-action:pan-y}.match-intro-content{text-align:center;width:min(600px,100%);animation:match-appear .7s ease both}.match-kicker{font:700 11px var(--ui);letter-spacing:.2em;color:#f03843}.match-intro h2{font:800 clamp(30px,5vw,54px)/1 var(--display);margin:12px 0}.match-intro p{font-size:13px;color:#bec7d0}.match-globe{font-size:54px;animation:match-spin 4s linear infinite}.match-roster{max-height:38vh;overflow:auto;text-align:left;display:grid;gap:4px}.match-roster div{padding:7px 10px;background:#ffffff10;font-size:12px}.match-roster b{color:#fff}.match-roster small{float:right;color:#b6bfcc}@keyframes match-fade{from{opacity:0}to{opacity:1}}@keyframes match-spin{to{transform:rotate(360deg)}}@keyframes match-appear{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.match-intro-content,.match-globe{animation:none}}
+#raceRoster,#qualRoster{display:flex;flex-direction:column;overflow:hidden}.race-rider,.qual-row{will-change:transform}.match-intro{animation:match-fade .45s ease both;position:fixed;inset:0;z-index:22;background:#05080f;color:#fff;display:grid;place-items:center;padding:18px;overflow:auto;touch-action:pan-y}.match-intro-content{text-align:center;width:min(600px,100%);animation:match-appear .7s ease both}.match-kicker{font:700 11px var(--ui);letter-spacing:.2em;color:#f03843}.match-intro h2{font:800 clamp(30px,5vw,54px)/1 var(--display);margin:12px 0}.match-intro p{font-size:13px;color:#bec7d0}.match-globe{font-size:54px;animation:match-spin 4s linear infinite}.match-roster{max-height:38vh;overflow:auto;text-align:left;display:grid;gap:4px}.match-roster div{padding:7px 10px;background:#ffffff10;font-size:12px}.match-roster b{color:#fff}.match-roster small{float:right;color:#b6bfcc}@keyframes match-fade{from{opacity:0}to{opacity:1}}@keyframes match-spin{to{transform:rotate(360deg)}}@keyframes match-appear{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.match-intro-content,.match-globe{animation:none}}
 
 .match-network{position:absolute;top:calc(var(--gt) + 45px);left:50%;transform:translateX(-50%);background:#721d22;color:white;padding:7px 12px;border-radius:3px;font:700 12px var(--ui);white-space:nowrap}.mp-tower .race-rider{height:var(--mp-row,25px);font-size:clamp(9px,calc(var(--mp-row,25px) * .55),15px)}.mp-tower .race-number{font-size:clamp(11px,calc(var(--mp-row,25px) * .75),21px)}.mp-qual .qual-row{padding:1px 7px;height:var(--mp-row,25px);font-size:clamp(9px,calc(var(--mp-row,25px) * .52),13px)}
 
@@ -248,7 +248,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <div><kbd>R</kbd> Back on track</div>
       <div><kbd>M</kbd> Sound on / off</div>
     </div>
-    <div class="account-actions"><button type="button" id="accountButton">Sign in with Google</button><button type="button" id="signOutButton" hidden>Sign out</button><span id="accountStatus" aria-live="polite"></span></div>
+    <div class="account-actions"><button type="button" id="soundButton">Sound: on</button><button type="button" id="accountButton">Sign in with Google</button><button type="button" id="signOutButton" hidden>Sign out</button><span id="accountStatus" aria-live="polite"></span></div>
     <button class="go" id="start" autofocus disabled>Loading bike&hellip;</button>
     <p class="credit">Bike: &ldquo;Ducati Lenovo Team - MotoGP26&rdquo; by <a href="https://sketchfab.com/Kenny3D89" target="_blank" rel="noopener">Kenny3D89</a>, licensed <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Source: <a href="https://sketchfab.com/3d-models/ducati-lenovo-team-motogp26-497ac78767344110a0046a3ab4a5d058" target="_blank" rel="noopener">Sketchfab</a>.</p>
   </div>
@@ -256,7 +256,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 
 <div id="modeOverlay" class="mode-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modeTitle">
   <div class="mode-dialog">
-    <div class="mode-top"><div><span class="mode-kicker">WORLD MOTORBIKE CHAMPIONSHIP</span><h2 id="modeTitle">CHOOSE YOUR MODE</h2></div><button id="modeClose" class="mode-close" type="button" aria-label="Close">&#215;</button></div>
+    <div class="mode-top"><div><span class="mode-kicker">WORLD MOTORBIKE CHAMPIONSHIP</span><h2 id="modeTitle">CHOOSE YOUR MODE</h2></div><button id="modeSound" class="mode-back" type="button">Sound: on</button><button id="modeClose" class="mode-close" type="button" aria-label="Close">&#215;</button></div>
     <div id="playButtons" class="mode-choices">
       <button id="practiceButton" class="mode-choice" type="button"><span class="choice-label">01 / SOLO</span><strong>Practice</strong><span>Race or qualifying on your own.</span></button>
       <button id="multiplayerButton" class="mode-choice" type="button"><span class="choice-label">02 / ONLINE</span><strong>Multiplayer</strong><span>Race with your friends.</span></button>
@@ -348,7 +348,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=diagnostics-1" defer></script>
 <script src="race-smoothing.js?v=prediction-1"></script>
-<script src="lobby.js?v=prediction-1" defer></script>
+<script src="lobby.js?v=match-audio-2" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -723,26 +723,48 @@ function bindPad(id,code){
 bindPad('pL','KeyA');bindPad('pR','KeyD');bindPad('pG','KeyW');bindPad('pB','KeyS');
 
 /* ---------- audio ---------- */
-var actx=null,o1,o2,eg,ef,muted=false;
+var actx=null,o1,o2,eg,ef,matchMaster,musicBus,muted=false,musicStep=0,nextMusicTime=0;
 function startAudio(){
   if(actx)return;
   try{
-    var AC=window.AudioContext||window.webkitAudioContext;actx=new AC();
-    o1=actx.createOscillator();o1.type='sawtooth';
-    o2=actx.createOscillator();o2.type='square';
+    var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;actx=new AC();
+    o1=actx.createOscillator();o1.type='sawtooth';o2=actx.createOscillator();o2.type='square';
     ef=actx.createBiquadFilter();ef.type='lowpass';ef.frequency.value=700;
-    eg=actx.createGain();eg.gain.value=0;
-    o1.connect(ef);o2.connect(ef);ef.connect(eg);eg.connect(actx.destination);
+    eg=actx.createGain();eg.gain.value=0;matchMaster=actx.createGain();matchMaster.gain.value=muted?0:1;musicBus=actx.createGain();musicBus.gain.value=0;
+    o1.connect(ef);o2.connect(ef);ef.connect(eg);eg.connect(actx.destination);matchMaster.connect(actx.destination);musicBus.connect(matchMaster);
     o1.start();o2.start();
-  }catch(e){actx=null}
+  }catch(e){if(actx&&actx.close)actx.close();actx=null}
 }
-function toggleMute(){muted=!muted}
-// Short synthesised cues: no downloaded assets or simulated queue sounds.
+function toggleMute(){muted=!muted;['soundButton','modeSound'].forEach(function(id){$(id).textContent=muted?'Sound: off':'Sound: on';$(id).setAttribute('aria-pressed',String(!muted))});if(actx&&matchMaster)matchMaster.gain.setTargetAtTime(muted?0:1,actx.currentTime,.02);if(!muted)unlockMatchAudio()}
+$('soundButton').addEventListener('click',toggleMute);$('modeSound').addEventListener('click',toggleMute);
+// AudioContext must be resumed by a real user gesture, including an invited rider.
+function unlockMatchAudio(){startAudio();if(actx&&actx.state==='suspended')actx.resume().catch(function(){})}
+document.addEventListener('pointerdown',unlockMatchAudio,true);document.addEventListener('keydown',unlockMatchAudio,true);
+function tone(frequency,when,duration,volume,type,bus){
+  var osc=actx.createOscillator(),gain=actx.createGain();osc.type=type;osc.frequency.setValueAtTime(frequency,when);
+  gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(volume,when+.015);gain.gain.exponentialRampToValueAtTime(.0001,when+duration);
+  osc.connect(gain);gain.connect(bus);osc.start(when);osc.stop(when+duration+.01);osc.onended=function(){osc.disconnect();gain.disconnect()};
+}
 function playMatchCue(kind){
   if(!actx||actx.state!=='running'||muted)return;
-  try{var now=actx.currentTime,osc=actx.createOscillator(),gain=actx.createGain();osc.type='sine';osc.frequency.setValueAtTime(kind==='ready'?660:kind==='grid'?520:kind==='go'?880:440,now);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.025,now+.02);gain.gain.exponentialRampToValueAtTime(.0001,now+.22);osc.connect(gain);gain.connect(actx.destination);osc.start(now);osc.stop(now+.23);osc.onended=function(){osc.disconnect();gain.disconnect()}}catch(e){}
+  try{var t=actx.currentTime;
+    if(kind==='go'){tone(880,t,.38,.16,'triangle',matchMaster);tone(1320,t+.08,.45,.09,'sine',matchMaster)}
+    else if(kind==='tick')tone(660,t,.22,.14,'square',matchMaster);
+    else if(kind==='ready'||kind==='grid'){tone(kind==='ready'?523:392,t,.20,.09,'triangle',matchMaster);tone(kind==='ready'?784:587,t+.12,.30,.09,'triangle',matchMaster)}
+    else if(kind==='join'||kind==='invite'){tone(660,t,.15,.1,'sine',matchMaster);tone(880,t+.10,.25,.1,'sine',matchMaster)}
+    else tone(480,t,.13,.08,'triangle',matchMaster);
+  }catch(e){}
 }
-function unlockMatchAudio(){startAudio();if(actx&&actx.state==='suspended')actx.resume().catch(function(){})}
+// Original looping, synthesized electronic theme, only while in the online lobby/intro.
+function musicTick(){
+  if(!actx||actx.state!=='running'||!musicBus)return;
+  var active=!$('matchIntro').hidden||(!$('modeOverlay').hidden&&(!$('lobbyPanel').hidden||!$('multiModes').hidden));
+  var t=actx.currentTime;musicBus.gain.setTargetAtTime(active&&!muted?.55:0,t,.12);
+  if(!active||muted){nextMusicTime=0;return}
+  if(!nextMusicTime||nextMusicTime<t-.5)nextMusicTime=t+.03;
+  var melody=[330,392,440,494,440,392,330,294,330,392,494,587,523,494,440,392],bass=[110,110,98,98,87.31,87.31,98,98];
+  while(nextMusicTime<t+.12){var n=musicStep%16;tone(melody[n],nextMusicTime,.20,.045,'triangle',musicBus);if(n%2===0)tone(bass[(musicStep/2|0)%8],nextMusicTime,.35,.08,'sine',musicBus);if(n%4===0)tone(65,nextMusicTime,.12,.06,'sine',musicBus);musicStep++;nextMusicTime+=.25}
+}
 
 function audioTick(){
   if(!actx)return;
@@ -800,7 +822,7 @@ function begin(selected){
   closeModes();
   mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;
   clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');elLap.textContent='1/'+RACE_LAPS;$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
-  keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume();
+  keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume().catch(function(){});
   $('menu').hidden=true;$('hud').hidden=false;$('touch').hidden=false;$('pauseButton').hidden=false;
   $('raceTiming').hidden=mode==='qualifying';$('qualTower').hidden=mode!=='qualifying';
   $('qualBanner').classList.remove('show');
@@ -836,7 +858,7 @@ $('modeOverlay').addEventListener('keydown',function(e){
   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
 });
 var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={},authoritativeTarget=null;
-var ownSmoother=new WMCSnapshotSmoother(150),opponentSmoothers={},matchIntroStage='',lastCountdownCue=-1;
+var ownSmoother=new WMCSnapshotSmoother(150),opponentSmoothers={},matchIntroStage='',lastCountdownCue=-1,qualCountdownCue=-1,mpStartAt=0;
 // Old servers omit rules. Keep their 5-lap/10-minute HUD until Render updates.
 var mpRaceLaps=5,mpQualDuration=600000,mpQualMax=5;
 var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0;
@@ -855,7 +877,7 @@ function togglePause(){
 }
 function returnToMenu(){
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
-  mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
+  mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
   clearInputs();$('pauseOverlay').hidden=true;$('sessionEnd').hidden=true;$('hud').hidden=true;$('touch').hidden=true;$('menu').hidden=false;
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
@@ -1114,9 +1136,9 @@ var lastT=performance.now(),clock=0,kmhShown=-1,gearShown='',mapT=0;
 function frame(now){
   var dt=Math.min(0.05,(now-lastT)/1000);lastT=now;clock+=dt;
   if(state==='countdown'){
-    cdT+=dt;
-    if(multiplayer){var cue=Math.ceil(goAt-cdT);if(cue>=1&&cue<=3&&cue!==lastCountdownCue){lastCountdownCue=cue;playMatchCue('tick')}}
+    if(multiplayer&&mpStartAt)cdT=Math.max(0,goAt-(mpStartAt-now)/1000);else cdT+=dt;
     var on=Math.max(0,Math.min(5,Math.floor((cdT-0.6)/0.8)+1));
+    if(multiplayer&&on>lastCountdownCue&&on>0){lastCountdownCue=on;playMatchCue('tick')}
     if(cdT>=goAt){
       state='racing';raceTime=0;lapStart=0;elLights.hidden=true;if(multiplayer)playMatchCue('go');toast('GO','go',900);
     }else{
@@ -1165,7 +1187,7 @@ function frame(now){
   bike.tailMat.color.setHex(brakeNow&&state==='racing'?0xff2230:0x6a0a10);
   sun.position.set(pos.x+45,70,pos.z+30);sun.target.position.copy(pos);
   updateCamera(dt,clock);
-  audioTick();
+  audioTick();musicTick();
   /* HUD */
   if(state!=='menu'){
     var k=Math.round(av*3.6);
@@ -1193,6 +1215,7 @@ function renderMatchIntro(match,remaining){
   $('matchGlobe').hidden=!first;$('matchTitle').textContent=first?'Starting the game...':match.phase==='race'&&match.mode==='qualifying_race'?'STARTING GRID':'WORLD MOTORBIKE CHAMPIONSHIP';
   $('matchTip').textContent=first?'TIP: Brake earlier on the corners to avoid running off track.':match.phase==='race'&&match.mode==='qualifying_race'?'QUALIFYING CLASSIFICATION':'RIDERS & CAREER STATS';
   $('matchCountdown').textContent='Starting in '+Math.max(0,Math.ceil(remaining))+'s';
+  if(match.phase==='qualifying'){var cue=Math.ceil(remaining);if(cue>=1&&cue<=3&&cue!==qualCountdownCue){qualCountdownCue=cue;playMatchCue('tick')}}
   var box=$('matchRoster');if(box.dataset.stage===stage)return;box.dataset.stage=stage;box.replaceChildren();
   if(!first)match.members.slice().sort(function(a,b){if(match.phase==='race'&&match.mode==='qualifying_race')return a.grid-b.grid;return a.id===match.user_id?-1:b.id===match.user_id?1:a.grid-b.grid}).forEach(function(m){
     var row=document.createElement('div'),name=document.createElement('b'),stats=document.createElement('small');
@@ -1210,29 +1233,62 @@ function drawMultiplayerBikes(dt){
   });
   Object.keys(mpOpponentMeshes).forEach(function(id){if(!visible[id]){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id];delete opponentSmoothers[id]}});
 }
+// Keep one DOM row per rider so an authoritative position change can animate.
+function updateTower(box,own,sorted,match,kind){
+  var rows=new Map(),old=new Map(),reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  Array.prototype.forEach.call(box.children,function(row){if(row.dataset.riderId){rows.set(row.dataset.riderId,row);old.set(row.dataset.riderId,row.getBoundingClientRect().top)}});
+  var seen=new Set();
+  sorted.forEach(function(m,i){
+    var row=rows.get(m.id);seen.add(m.id);
+    if(!row){row=m.id===match.user_id?own:document.createElement('div');row.dataset.riderId=m.id;
+      if(row!==own){
+        row.className=kind==='race'?'race-rider':'qual-row';
+        if(kind==='race'){['race-position','race-name','race-flag','race-number'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
+        else{['qual-position','qual-name','qual-best'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
+      }
+      box.appendChild(row);
+    }
+    row.style.order=i;row.querySelector(kind==='race'?'.race-position':'.qual-position').textContent=i+1;
+    if(m.id!==match.user_id){row.querySelector(kind==='race'?'.race-name':'.qual-name').textContent=shortRider(m.display_name);
+      if(kind==='race'){
+        row.querySelector('.race-flag').textContent=m.dnf?'DNF':m.completed?'⚑':'';
+        var number=row.querySelector('.race-number'),colors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};
+        number.textContent=m.number;number.style.backgroundColor=colors[m.color]||'#e4202c';number.style.color=['yellow','white','silver','cyan'].includes(m.color)?'#111':'#fff';
+      }else row.querySelector('.qual-best').textContent=m.completed?'⚑ '+formatMatchTime(m.best):formatMatchTime(m.best);
+    }else if(kind==='race')$('raceFinishFlag').hidden=!m.completed&&!mpDone;
+  });
+  rows.forEach(function(row,id){if(!seen.has(id)){if(row!==own)row.remove();else delete row.dataset.riderId}});
+  // FLIP: animate from the old visual position to the newly sorted layout. Do
+  // not restart animations on the 10 Hz snapshots when the order is unchanged.
+  sorted.forEach(function(m){var row=m.id===match.user_id?own:rows.get(m.id);if(!row||!old.has(m.id))return;
+    var previousOrder=row.dataset.previousOrder,newOrder=row.style.order;
+    if(previousOrder!==undefined&&previousOrder!==newOrder&&!reduced&&row.animate){
+      if(row._towerAnimation)row._towerAnimation.cancel();var delta=old.get(m.id)-row.getBoundingClientRect().top;
+      if(Math.abs(delta)>.5){row._towerAnimation=row.animate([{transform:'translateY('+delta+'px)',filter:'brightness(1.5)'},{transform:'translateY(0)',filter:'brightness(1)'}],{duration:550,easing:'cubic-bezier(.22,.75,.25,1)'})}
+    }
+    row.dataset.previousOrder=newOrder;
+  });
+  // New rows must also record their initial rank; they should not animate in.
+  Array.prototype.forEach.call(box.children,function(row){row.dataset.previousOrder=row.style.order});
+}
 function renderQualRoster(match){
   if(match.phase!=='qualifying')return;
   var sorted=match.members.slice().sort(function(a,b){return (a.best==null?Infinity:a.best)-(b.best==null?Infinity:b.best)||a.grid-b.grid});
-  var box=$('qualRoster'),own=$('qualOwnRow');Array.prototype.slice.call(box.children).forEach(function(el){if(el!==own)el.remove()});
-  sorted.forEach(function(m,i){var row;if(m.id===match.user_id){row=own;row.querySelector('.qual-position').textContent=i+1}else{row=document.createElement('div');var posEl=document.createElement('span'),name=document.createElement('span'),time=document.createElement('span');row.className='qual-row';posEl.className='qual-position';posEl.textContent=i+1;name.className='qual-name';name.textContent=shortRider(m.display_name);time.className='qual-best';time.textContent=m.completed?'⚑ '+formatMatchTime(m.best):formatMatchTime(m.best);row.append(posEl,name,time)}row.style.order=i;box.appendChild(row)});
+  updateTower($('qualRoster'),$('qualOwnRow'),sorted,match,'qual');
 }
 function renderRaceRoster(match){
   if(match.phase!=='race'&&match.phase!=='complete')return;
   if(match.members.some(function(m){return m.id===match.user_id&&m.completed&&!m.dnf})){$('raceTiming').classList.add('finish');$('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='FINISH'}
-  var sorted=match.members.slice().sort(function(a,b){if(a.dnf!==b.dnf)return a.dnf?1:-1;if(a.completed!==b.completed)return a.completed?-1:1;if(a.completed)return String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id);return b.progress-a.progress});
-  var roster=$('raceRoster'),own=$('ownRaceRow');Array.prototype.slice.call(roster.children).forEach(function(el){if(el!==own)el.remove()});
-  sorted.forEach(function(m,i){
-    var row;if(m.id===match.user_id){row=own;row.querySelector('.race-position').textContent=i+1;$('raceFinishFlag').hidden=!m.completed&&!mpDone}
-    else{row=document.createElement('div');row.className='race-rider';var position=document.createElement('span'),name=document.createElement('span'),flag=document.createElement('span'),number=document.createElement('span');position.className='race-position';position.textContent=i+1;name.className='race-name';name.textContent=shortRider(m.display_name);flag.className='race-flag';flag.textContent=m.dnf?'DNF':m.completed?'⚑':'';number.className='race-number';number.textContent=m.number;var colors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};number.style.backgroundColor=colors[m.color]||'#e4202c';number.style.color=['yellow','white','silver','cyan'].includes(m.color)?'#111':'#fff';row.append(position,name,flag,number)}
-    row.style.order=i;roster.appendChild(row);
-  });
+  var sorted=match.members.slice().sort(function(a,b){if(a.dnf!==b.dnf)return a.dnf?1:-1;if(a.completed!==b.completed)return a.completed?-1:1;if(a.completed)return String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id);return b.progress-a.progress||a.grid-b.grid});
+  updateTower($('raceRoster'),$('ownRaceRow'),sorted,match,'race');
 }
 function startMultiplayerPhase(match,remaining){
   var target=match.phase;
   if(mpPhase===target)return;
-  predictionReady=false;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';$('sessionEnd').hidden=true;
+  predictionReady=false;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
   Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
-  state='menu';begin(target==='qualifying'?'qualifying':'race');$('pauseButton').hidden=false;$('matchIntro').hidden=true;
+  if(target==='qualifying'&&qualCountdownCue!==-1)playMatchCue('go');
+  lastCountdownCue=-1;state='menu';begin(target==='qualifying'?'qualifying':'race');$('pauseButton').hidden=false;$('matchIntro').hidden=true;
   if(target==='race'){
     var me=match.members.find(function(m){return m.id===match.user_id}),rank=me?me.grid:1;
     var gi=(N-9-Math.floor((rank-1)/2)*3+N)%N;gridSpot(gi);var lane=(rank%2?1:-1)*2;pos.x+=lx[gi]*lane;pos.z+=lz[gi]*lane;
@@ -1240,12 +1296,14 @@ function startMultiplayerPhase(match,remaining){
   }
 }
 window.WMCGame={
+  matchCue:playMatchCue,
   network:function(ok){$('matchNetwork').hidden=ok||!multiplayer},
   input:function(){return {up:held('up'),down:held('down'),left:held('left'),right:held('right'),brake:held('brake')}},
   authoritativeReceive:function(raw,userId,stats){
     if(!raw||raw.phase==='lobby'||!Array.isArray(raw.players))return;
     mpRaceLaps=raw.rules&&Number.isInteger(raw.rules.raceLaps)?raw.rules.raceLaps:5;mpQualDuration=raw.rules&&Number.isFinite(raw.rules.qualifyingMs)?raw.rules.qualifyingMs:600000;mpQualMax=raw.rules&&Number.isInteger(raw.rules.qualifyingAttempts)?raw.rules.qualifyingAttempts:5;
     var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,progress:s.total/N,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
+    mpStartAt=performance.now()+raw.phaseStart-raw.serverTime;
     var match={id:raw.id,mode:raw.mode,phase:raw.phase,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
     this.receive(match);
     var own=raw.players.find(function(p){return p.id===userId});if(!own||!own.state||mpPhase!==raw.phase)return;
