@@ -121,7 +121,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   </div>
   <div class="qual-tower" id="qualTower" hidden>
     <div class="qual-brand">WMC</div><div class="qual-label">QUALIFYING</div>
-    <div class="qual-progress"><span id="qualProgress"></span></div><div class="qual-clock" id="qualClock">2:00</div>
+    <div class="qual-progress"><span id="qualProgress"></span></div><div class="qual-clock" id="qualClock">10:00</div>
     <div class="qual-row"><span class="qual-position">1</span><span class="qual-name">D EFA</span><span class="qual-stripe"></span><span class="qual-best" id="qualBest">--:--.---</span></div>
     <div class="qual-row"><span class="qual-name" id="qualStatus">OUT LAP</span><span id="qualLapTime" style="font-variant-numeric:tabular-nums">--:--.---</span></div><div class="qual-footer">#MalaysianGP</div>
   </div>
@@ -482,9 +482,9 @@ function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.tex
 /* ---------- state ---------- */
 var pos=new THREE.Vector3(),h=0,v=0,steer=0,lean=0,pitch=0;
 var idx=0,total=0,lat=0,lapNo=1,raceTime=0,lapStart=0,bestLap=null,lastLap=null;
-var QUAL_DURATION=120000,QUAL_MAX_LAPS=5;
+var QUAL_DURATION=600000,QUAL_MAX_LAPS=5;
 var mode='race',qualBest=null,qualFlying=false,qualInvalid=false,qualSector=0,qualLine=0,qualDeadline=0,qualExpired=false,qualBannerTimer=0;
-var qualSectorBest=[null,null,null,null],qualSectorTimes=[],qualSectorColors=[],qualLastSplit=0,qualAnnouncement=false,qualLastResult='',qualAttempts=0,qualBestSplits=null,qualSequenceTimer=0,qualFinishTimer=0;
+var qualSectorBest=[null,null,null,null],qualSectorTimes=[],qualSectorColors=[],qualLastSplit=0,qualAnnouncement=false,qualLastResult='',qualAttempts=0,qualSequenceTimer=0,qualFinishTimer=0;
 var state='menu',cdT=0,goAt=0,impact=0,wrongT=0,surface='asphalt',rpm=0,throttleNow=0,brakeNow=false;
 var WIN=40;
 var camPos=new THREE.Vector3(),camH=0,shake=new THREE.Vector3(),look=new THREE.Vector3(),tgt=new THREE.Vector3();
@@ -599,10 +599,10 @@ function begin(selected){
   $('qualBanner').classList.remove('show');
   if(mode==='qualifying'){
     qualBest=null;qualFlying=false;qualInvalid=false;qualSector=0;qualLine=0;qualExpired=false;
-    qualSectorBest=[null,null,null,null];qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;qualLastResult='';qualAttempts=0;qualBestSplits=null;qualAnnouncement=false;clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);clearTimeout(qualFinishTimer);
+    qualSectorBest=[null,null,null,null];qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;qualLastResult='';qualAttempts=0;qualAnnouncement=false;clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);clearTimeout(qualFinishTimer);
     qualDeadline=performance.now()+QUAL_DURATION;$('qualBest').textContent=fmt(null);$('qualStatus').textContent='OUT LAP';
-    $('qualClock').textContent='2:00';$('qualLapTime').textContent=fmt(null);$('qualProgress').style.transform='scaleX(1)';
-    state='racing';elLights.hidden=true;showQual('OUT LAP','CROSS THE LINE TO START',false);
+    $('qualClock').textContent='10:00';$('qualLapTime').textContent=fmt(null);$('qualLapTime').hidden=false;$('qualProgress').style.transform='scaleX(1)';
+    state='racing';elLights.hidden=true;
   }else{
     state='countdown';cdT=0;goAt=4.6+0.5+Math.random()*1.1;
     elLights.hidden=false;
@@ -645,7 +645,7 @@ function fmtShort(t){var tenths=Math.floor(Math.max(0,t)*10),m=Math.floor(tenths
 function invalidateQual(){
   if(qualFlying&&!qualInvalid){
     qualInvalid=true;qualSectorColors=qualSectorColors.map(function(){return 'bad'});
-    $('qualStatus').textContent='LAP CANCELLED';showQual('LAP CANCELLED','TRACK LIMITS',true);
+    $('qualLapTime').hidden=true;showQual('LAP CANCELLED','TRACK LIMITS',true);
   }
 }
 function endQualifying(){
@@ -656,7 +656,7 @@ function endQualifying(){
 function recordQualSector(){
   var split=raceTime-lapStart,sectorTime=split-qualLastSplit,i=qualSector;
   qualLastSplit=split;qualSectorTimes[i]=sectorTime;
-  qualSectorColors[i]=qualInvalid?'bad':(qualSectorBest[i]==null||sectorTime<qualSectorBest[i]?'best':'slow');
+  qualSectorColors[i]=qualInvalid?'bad':(qualSectorBest[i]!=null&&sectorTime<qualSectorBest[i]?'best':'slow');
   qualSector++;
 }
 function qualifyingProgress(previous){
@@ -672,9 +672,10 @@ function qualifyingProgress(previous){
   while(qualSector<3&&progress>=N*(qualSector+1)/4){
     recordQualSector();
     if(!qualInvalid){
-      var delta=qualBestSplits?(raceTime-lapStart-qualBestSplits[qualSector-1]):null;
+      var sectorIndex=qualSector-1;
+      var delta=qualSectorBest[sectorIndex]==null?null:qualSectorTimes[sectorIndex]-qualSectorBest[sectorIndex];
       var deltaText=delta==null?'':(delta>=0?'+':'-')+Math.abs(delta).toFixed(3);
-      if(qualSector===3)showQual('ESTIMATED', '1',false,'fast');
+      if(qualSector===3)showQual('ESTIMATED', '1',false,qualSectorColors[sectorIndex]==='slow'?'slow':'fast');
       else showQual('SECTOR '+qualSector,fmtShort(raceTime-lapStart),false,qualSectorColors[qualSector-1]==='slow'?'slow':'fast',deltaText);
     }
   }
@@ -683,7 +684,7 @@ function qualifyingProgress(previous){
     if(qualInvalid){qualLastResult='Lap cancelled';showQual('LAP CANCELLED','TRACK LIMITS',true)}
     else{
       var isBest=qualBest==null||t<qualBest;
-      if(isBest){qualBest=t;$('qualBest').textContent=fmt(t);var sum=0;qualBestSplits=qualSectorTimes.map(function(value){sum+=value;return sum})}
+      if(isBest){qualBest=t;$('qualBest').textContent=fmt(t);}
       qualSectorTimes.forEach(function(sectorTime,i){if(qualSectorBest[i]==null||sectorTime<qualSectorBest[i])qualSectorBest[i]=sectorTime});
       qualLastResult='Valid lap: '+fmt(t);
       if(isBest)showFastestLap(t);else showQual('VALID LAP',fmt(t),false,'slow');
@@ -693,7 +694,7 @@ function qualifyingProgress(previous){
       $('qualStatus').textContent=qualAttempts>=QUAL_MAX_LAPS?'5 LAP LIMIT':'SESSION FINISHED';
       qualFinishTimer=setTimeout(endQualifying,4000);return;
     }
-    qualLine+=N;lapStart=raceTime;qualSector=0;qualInvalid=false;qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;$('qualStatus').textContent='LAP '+(qualAttempts+1)+' / 5';
+    qualLine+=N;lapStart=raceTime;qualSector=0;qualInvalid=false;qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;$('qualStatus').textContent='LAP '+(qualAttempts+1)+' / 5';$('qualLapTime').hidden=false;
   }
 }
 function showFastestLap(time){
@@ -835,7 +836,7 @@ function frame(now){
       var remaining=Math.max(0,(qualDeadline-now)/1000),seconds=Math.ceil(remaining);
       $('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
       $('qualProgress').style.transform='scaleX('+(remaining/(QUAL_DURATION/1000))+')';
-      if(remaining<=0&&!qualExpired){qualExpired=true;if(!qualFlying)endQualifying();else $('qualStatus').textContent=qualInvalid?'LAP CANCELLED':'FINISH YOUR LAP'}
+      if(remaining<=0&&!qualExpired){qualExpired=true;if(!qualFlying)endQualifying();else $('qualStatus').textContent='FINISH YOUR LAP'}
     }
     if(state==='racing'){if(mode==='qualifying')raceTime=(now-(qualDeadline-QUAL_DURATION))/1000;else raceTime+=dt;physics(dt)}
   }
