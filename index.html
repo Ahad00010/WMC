@@ -92,6 +92,18 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   .lights{top:calc(var(--gt) + 112px)}
   .lights i{width:20px;height:20px}
 }
+/* Race broadcast tower, based on the supplied timing graphic. */
+.race-tower{position:absolute;top:var(--gt);left:var(--gl);width:218px;color:#fff;background:rgba(7,8,8,.88);font-family:var(--ui);clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%)}
+.race-head{background:#050505;padding:8px 11px 6px}
+.race-brand{font:italic 800 34px/.88 var(--display);letter-spacing:-.04em}
+.race-label{font:500 25px/.95 var(--ui);color:#aaa;letter-spacing:-.04em}
+.race-progress{height:4px;background:#626262;margin:8px 0 5px}.race-progress span{display:block;height:100%;width:100%;background:#ed2c31;transform-origin:left;transform:scaleX(0)}
+.race-lap-label{font:700 20px/.95 var(--ui)}
+.race-lap-number{font:500 42px/.95 var(--ui);font-variant-numeric:tabular-nums}
+.race-rider{height:36px;display:flex;align-items:center;gap:0;background:rgba(18,20,20,.82);font:700 20px/1 var(--ui)}
+.race-position{width:57px;text-align:center}.race-name{flex:1;white-space:nowrap}.race-number{width:60px;text-align:center;background:#e4202c;color:#fff;font:700 25px/1 var(--ui);border-radius:3px 0 0 3px}
+.race-footer{background:#080808;padding:6px 14px 8px;font:700 18px/1 var(--ui)}
+@media(max-width:700px){.race-tower{width:165px}.race-head{padding:7px 8px 5px}.race-brand{font-size:28px}.race-label{font-size:20px}.race-lap-label{font-size:16px}.race-lap-number{font-size:34px}.race-rider{height:30px;font-size:16px}.race-position{width:42px}.race-number{width:46px;font-size:20px}.race-footer{font-size:14px;padding:6px 9px 8px}}
 /* Qualifying broadcast graphics */
 .qual-tower{position:absolute;top:var(--gt);left:var(--gl);width:192px;background:rgba(5,7,8,.88);color:#fff;font-family:var(--ui);box-shadow:0 5px 18px #0004;clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%)}
 .qual-brand{padding:7px 8px 3px;background:#050505;font:italic 800 29px/1 var(--display);letter-spacing:-.04em}
@@ -139,12 +151,15 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <canvas id="gl"></canvas>
 
 <div id="hud" hidden>
-  <div class="timing" id="raceTiming">
-    <div class="row"><span class="k">LAP</span><span class="v" id="lapNo">1</span></div>
-    <div class="row big"><span class="k">TIME</span><span class="v" id="cur">0:00.000</span></div>
-    <div class="row"><span class="k">LAST</span><span class="v" id="last">--:--.---</span></div>
-    <div class="row"><span class="k">BEST</span><span class="v best" id="best">--:--.---</span></div>
+  <div class="race-tower" id="raceTiming" aria-label="Race standings">
+    <div class="race-head"><div class="race-brand">WMC</div><div class="race-label">RACE</div>
+      <div class="race-progress"><span id="raceProgress"></span></div>
+      <div class="race-lap-label">LAP</div><div class="race-lap-number" id="lapNo">1</div>
+    </div>
+    <div class="race-rider"><span class="race-position">1</span><span class="race-name">D EFA</span><span class="race-number">0</span></div>
+    <div class="race-footer">#MalaysianGP</div>
   </div>
+  <div hidden><span id="cur"></span><span id="last"></span><span id="best"></span></div>
   <div class="qual-tower" id="qualTower" hidden>
     <div class="qual-brand">WMC</div><div class="qual-label">QUALIFYING</div>
     <div class="qual-progress"><span id="qualProgress"></span></div><div class="qual-clock" id="qualClock">10:00</div>
@@ -624,7 +639,7 @@ function showModes(){
 function begin(selected){
   if(state!=='menu'||startBtn.disabled)return;
   mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;
-  elLap.textContent='1';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
+  elLap.textContent='1';$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
   keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume();
   $('menu').hidden=true;$('hud').hidden=false;
   $('raceTiming').hidden=mode==='qualifying';$('qualTower').hidden=mode!=='qualifying';
@@ -923,7 +938,7 @@ function frame(now){
     if(gs!==gearShown){gearShown=gs;elGear.textContent=gs}
     var lit=Math.round(rpm*SEG);
     for(var i=0;i<SEG;i++){segs[i].className=i<lit?(i>=SEG-4?'on hot':'on'):''}
-    if(state==='racing'){elCur.textContent=fmt(raceTime-lapStart);if(mode==='qualifying'&&qualFlying){$('qualLapTime').textContent=fmt(raceTime-lapStart);updateQualGraphic()}}
+    if(state==='racing'){elCur.textContent=fmt(raceTime-lapStart);if(mode==='race')$('raceProgress').style.transform='scaleX('+Math.max(0,Math.min(1,(total-(lapNo-1)*N)/N))+')';if(mode==='qualifying'&&qualFlying){$('qualLapTime').textContent=fmt(raceTime-lapStart);updateQualGraphic()}}
     mapT+=dt;if(mapT>0.04){mapT=0;drawMap()}
   }
   renderer.render(scene,camera);
