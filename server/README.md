@@ -15,7 +15,7 @@ This server runs authoritative simulation in one Node process. The GitHub Pages 
 5. The public server address is `wss://YOUR-SERVICE.onrender.com/race`. The site must be configured with that URL before multiplayer can start. Give the developer only the public URL; never share secrets. Use a single server instance: rooms currently live in one process.
 6. For monitoring, create an UptimeRobot HTTP(s) monitor for `https://YOUR-SERVICE.onrender.com/health`, at the free 5-minute interval. This can keep an idle service warm, but cannot prevent outages, restarts or quota limits. It tests HTTP availability, not race correctness.
 
-The authoritative stats migration `202611100004_authoritative_stats.sql` has already been applied to the WMC Supabase project. Do not apply it again to that project. New projects need all migrations in order. The old prototype stats are not included in authoritative stats.
+The authoritative stats migration `202611100004_authoritative_stats.sql` has already been applied to the WMC Supabase project. The `202611100005_ten_rider_limit.sql` migration has also been applied to the WMC project. Do not apply either again to that project. New projects need all migrations in order. The old prototype stats are not included in authoritative stats.
 
 ## Development
 
@@ -29,7 +29,7 @@ Chat and emotes use the authenticated race WebSocket and are broadcast only to c
 
 ## AI riders
 
-The host may fill unused slots with server-controlled AI before starting. Bots use the same movement physics and track-limit rules, but their pace and qualifying behavior have not been calibrated on real devices. At least two human connections are still required. AI races are excluded from authoritative career stats: the existing results database accepts only real profiles and would otherwise miscount places or reject the result. AI settings live in the race server room and are reset if that server restarts.
+Lobbies and race grids are limited to 10 total riders, including AI. The host may fill unused slots with server-controlled AI before starting. Bots use the same movement physics and track-limit rules, but their pace and qualifying behavior have not been calibrated on real devices. At least two human connections are still required. AI races are excluded from authoritative career stats: the existing results database accepts only real profiles and would otherwise miscount places or reject the result. AI settings live in the race server room and are reset if that server restarts.
 
 ## Circuit selection
 
@@ -41,7 +41,7 @@ Desktop batches remote riders using the detailed procedural fallback. On touch d
 
 ### Mobile rendering budget
 
-On coarse-pointer devices the renderer uses antialiasing and adaptive 3D resolution (starting at 1.25, falling no lower than 1 and recovering to at most 1.5 drawing pixels per CSS pixel, capped by device pixel ratio). It retains standard textured materials and the same number of decorative trees as desktop. The dynamic shadow pass remains disabled on mobile; track and barriers are chunk-culled, the minimap updates at 10 Hz and the standings tower at 4 Hz. Physics, input and authoritative snapshots are not rate-limited by these visual settings. `bike-mobile.glb`, derived from the bundled Ducati (Kenny3D89, CC BY 4.0), uses 1024px textures and gentler geometry simplification than the previous version, while retaining named wheels and standard glTF compatibility. To regenerate using glTF Transform 4.5.1, base64-decode `bike-model.txt` and run `gltf-transform optimize input.glb bike-mobile.glb --compress false --flatten false --instance false --join false --palette false --simplify-ratio 0.6 --simplify-error 0.002 --texture-size 1024 --texture-compress auto`. The built-in bike and rider remain available if assets fail to load. These higher-quality settings cost more GPU time and memory; test real mobile appearance and performance, especially with 15 riders.
+On coarse-pointer devices the renderer uses antialiasing and adaptive 3D resolution (starting at 1.25, falling no lower than 1 and recovering to at most 1.5 drawing pixels per CSS pixel, capped by device pixel ratio). It retains standard textured materials and the same number of decorative trees as desktop. The dynamic shadow pass remains disabled on mobile; track and barriers are chunk-culled, the minimap updates at 10 Hz and the standings tower at 4 Hz. Physics, input and authoritative snapshots are not rate-limited by these visual settings. `bike-mobile.glb`, derived from the bundled Ducati (Kenny3D89, CC BY 4.0), uses 1024px textures and gentler geometry simplification than the previous version, while retaining named wheels and standard glTF compatibility. To regenerate using glTF Transform 4.5.1, base64-decode `bike-model.txt` and run `gltf-transform optimize input.glb bike-mobile.glb --compress false --flatten false --instance false --join false --palette false --simplify-ratio 0.6 --simplify-error 0.002 --texture-size 1024 --texture-compress auto`. The built-in bike and rider remain available if assets fail to load. These higher-quality settings cost more GPU time and memory; test real mobile appearance and performance, especially with 10 riders.
 
 ## Race gaps
 

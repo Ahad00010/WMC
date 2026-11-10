@@ -226,7 +226,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .match-network{position:absolute;top:calc(var(--gt) + 45px);left:50%;transform:translateX(-50%);background:#721d22;color:white;padding:7px 12px;border-radius:3px;font:700 12px var(--ui);white-space:nowrap}.mp-tower .race-rider{height:var(--mp-row,25px);font-size:clamp(9px,calc(var(--mp-row,25px) * .55),15px)}.mp-tower .race-number{font-size:clamp(11px,calc(var(--mp-row,25px) * .75),21px)}.mp-qual .qual-row{padding:1px 7px;height:var(--mp-row,25px);font-size:clamp(9px,calc(var(--mp-row,25px) * .52),13px)}
 
 
-/* Two lines stay inside the existing row budget, including a 15-rider mobile grid. */
+/* Two lines stay inside the existing row budget, including a 10-rider mobile grid. */
 .race-details{flex:1;min-width:0}.mp-tower .race-details{display:flex;flex-direction:column;justify-content:center;overflow:hidden;line-height:1}
 .mp-tower .race-details .race-name{flex:none;overflow:hidden;text-overflow:ellipsis;font-size:clamp(7px,calc(var(--mp-row,25px) * .48),14px);line-height:1}
 .race-gap{font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1;color:#c6ccd1;font-size:clamp(5px,calc(var(--mp-row,25px) * .35),10px)}
@@ -333,7 +333,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <p id="lobbyMode" class="friends-intro"></p><label id="aiSettingLabel" class="friends-intro" hidden><input id="fillAI" type="checkbox"> Fill remaining grid with AI riders <small>(AI races do not affect career stats)</small></label><p id="aiSettingInfo" class="friend-note" hidden></p><div id="lobbyMembers" class="friend-list"></div>
       <form id="inviteForm" class="friend-form"><label class="sr-only" for="inviteUsername">Friend username</label><input id="inviteUsername" maxlength="20" placeholder="Friend's username" required><button type="submit">Invite</button></form>
       <p id="lobbyMessage" class="friend-message" aria-live="polite"></p>
-      <button type="button" class="go" id="startMultiplayer" disabled>Start match</button><p id="startHint" class="friend-note">The host can start with 2–15 riders.</p>
+      <button type="button" class="go" id="startMultiplayer" disabled>Start match</button><p id="startHint" class="friend-note">The host can start with 2–10 riders.</p>
       <button id="leaveLobby" class="mode-back" type="button">Leave lobby</button>
     </div>
     <div id="multiplayerNotice" class="friends-panel" hidden>
@@ -407,7 +407,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="circuits.js?v=1"></script>
 <script src="race-smoothing.js?v=remote-2"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
-<script src="lobby.js?v=reconnect-2" defer></script>
+<script src="lobby.js?v=max-riders-10" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -1489,7 +1489,7 @@ function drawRiderTags(now){
   if(multiplayer)multiplayer.members.forEach(function(m){var obj=mpOpponentMeshes[m.id];if(m.id!==multiplayer.user_id&&obj&&obj.visible)place('r:'+m.id,m,obj.position,false,obj)});
   riderTags.forEach(function(tag,key){if(!seen.has(key)){tag.el.remove();riderTags.delete(key)}});
   // Stack nearby overlaps upward while keeping a stem connected to the bike.
-  // Bounded to six slots per tag (15 riders maximum); no layout reads.
+  // Bounded to six slots per tag (10 riders maximum); no layout reads.
   candidates.sort(function(a,b){return a.key==='self'?-1:b.key==='self'?1:a.key<b.key?-1:a.key>b.key?1:0});var boxes=[];
   candidates.forEach(function(c){var shift=0,top=c.y-24;for(var slot=0;slot<5;slot++){
       var conflict=boxes.some(function(b){return Math.abs(c.x-b.x)<(c.width+b.width)/2&&top<b.bottom&&top+22>b.top});

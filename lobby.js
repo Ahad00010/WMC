@@ -40,13 +40,13 @@
     if(inPanel){
       if(!lobby){$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER';}
       else{
-        const trackId=serverSnapshot?.circuit||'sepang',trackName=window.WMCCircuits?.[trackId]?.name||'PETRONAS SEPANG INTERNATIONAL CIRCUIT';$('lobbyMode').textContent=(lobby.mode==='race'?'Race only':'Qualifying + Race')+' · '+lobby.members.length+'/15 riders · '+trackName;
+        const trackId=serverSnapshot?.circuit||'sepang',trackName=window.WMCCircuits?.[trackId]?.name||'PETRONAS SEPANG INTERNATIONAL CIRCUIT';$('lobbyMode').textContent=(lobby.mode==='race'?'Race only':'Qualifying + Race')+' · '+lobby.members.length+'/10 riders · '+trackName;
         const isHost=lobby.host_id===snapshot.user_id;const aiAvailable=!!serverSnapshot&&typeof serverSnapshot.fillAI==='boolean';$('aiSettingLabel').hidden=!isHost||!aiAvailable;$('aiSettingInfo').hidden=isHost||!aiAvailable;$('aiSettingInfo').textContent=serverSnapshot?.fillAI?'AI riders will fill the grid.':'AI riders are off.';if(aiAvailable)$('fillAI').checked=serverSnapshot.fillAI;
         $('inviteForm').hidden=lobby.host_id!==snapshot.user_id;
         $('startMultiplayer').hidden=lobby.host_id!==snapshot.user_id;
         const connected=serverSnapshot?serverSnapshot.players.filter(p=>p.connected).length:0;
-        const waitingCircuit=!!desiredCircuit||!!(serverSnapshot?.circuitConfigured&&serverSnapshot.players.some(p=>p.connected&&!p.circuitReady));$('startMultiplayer').disabled=!serverUrl||!transport||!transport.ready||connected<2||waitingCircuit;
-        $('startHint').textContent=!serverUrl?'Race server not configured yet.':!transport||!transport.ready?(connectionError||'Connecting to race server…'):connected<2?'Waiting for at least two connected riders.':waitingCircuit?'Waiting for riders to load the circuit.':'Ready to start · '+connected+'/15 connected';
+        const overCapacity=lobby.members.length>10;const waitingCircuit=!!desiredCircuit||!!(serverSnapshot?.circuitConfigured&&serverSnapshot.players.some(p=>p.connected&&!p.circuitReady));$('startMultiplayer').disabled=!serverUrl||!transport||!transport.ready||connected<2||waitingCircuit||overCapacity;
+        $('startHint').textContent=!serverUrl?'Race server not configured yet.':!transport||!transport.ready?(connectionError||'Connecting to race server…'):overCapacity?'Lobby exceeds 10 riders; some riders must leave.':connected<2?'Waiting for at least two connected riders.':waitingCircuit?'Waiting for riders to load the circuit.':'Ready to start · '+connected+'/10 connected';
         const list=$('lobbyMembers');list.replaceChildren();
         lobby.members.forEach(member=>{const row=document.createElement('div');row.className='friend-row';const name=document.createElement('div');name.className='friend-row-name';const title=document.createElement('strong');title.textContent=member.display_name+(member.id===lobby.host_id?' · HOST':'');const sub=document.createElement('small');sub.textContent='@'+member.username+' · #'+member.number;name.append(title,sub);row.appendChild(name);list.appendChild(row)});
       }

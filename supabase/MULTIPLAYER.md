@@ -1,3 +1,5 @@
+> Historical prototype notes: the current game uses the authoritative race server; see `server/README.md`. Current lobbies and grids are limited to 10 riders.
+
 # Multiplayer implementation and limitations
 
 The site uses private friend lobbies, not a public matchmaking service or dedicated game server. The host starts a match with 2–15 lobby members. The database schedules the session start, tracks qualifying and race phase transitions, orders qualifying by the submitted best valid lap, assigns a random race-only grid, and records the order in which finish reports arrive. A match remains open until every remaining member reports completion. Closing the host's lobby removes it for everyone.
