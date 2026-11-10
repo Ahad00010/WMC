@@ -3,6 +3,13 @@ plugins { id 'com.android.application' }
 android {
     namespace 'com.wmc.game'
     compileSdk 35
+    // A release-optimized build signed with the debug key for easy device testing.
+    // Replace this with a private release signing config before publishing.
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
     defaultConfig {
         applicationId 'com.wmc.game'
         minSdk 24
