@@ -9,6 +9,7 @@ export class RaceRoom {
     if(this.phase!=='lobby')throw Error('Race already started');if(this.players.size>=15)throw Error('Lobby full');
     this.players.set(profile.id,{profile,connected:true,disconnectedAt:null,input:neutralInput(),inputAt:now,grid:0,state:null,best:null,attempts:0,flying:false,invalid:false,completed:false,dnf:false,finishAt:null,lap:1,lapStart:0,sector:0,line:0});}
   disconnect(id,now){let p=this.players.get(id);if(!p)return;p.connected=false;p.input=neutralInput();p.disconnectedAt=now;if(this.phase==='lobby')this.players.delete(id)}
+  leave(id,now){const p=this.players.get(id);if(!p)return;if(this.phase!=='lobby'&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id})}this.disconnect(id,now)}
   input(id,raw,now){const p=this.players.get(id),input=parseInput(raw);if(!p||!p.connected||!input)return false;p.input=input;p.inputAt=now;return true}
   reset(id){const p=this.players.get(id);if(!p||!p.connected||!p.state||!['race','qualifying'].includes(this.phase))return;let s=p.state;const i=s.idx;s.x=px[i];s.z=pz[i];s.h=Math.atan2(tx[i],tz[i]);s.v=0;s.steer=0;s.lean=0;s.pitch=0;if(this.phase==='qualifying'&&p.flying&&!p.completed&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id,reason:'RESET ON TRACK'})}}
   start(id,now){if(id!==this.host)throw Error('Only the host can start');if(this.phase!=='lobby')throw Error('Match already started');if(this.players.size<2||this.players.size>15)throw Error('2–15 connected riders required');

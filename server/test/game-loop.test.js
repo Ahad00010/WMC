@@ -8,7 +8,7 @@ test('actual browser frame keeps the camera behind a smoothly moving server bike
  w.HTMLCanvasElement.prototype.getContext=()=>ctx;w.matchMedia=()=>({matches:false,addListener(){},removeListener(){}});w.requestAnimationFrame=cb=>{w.__frame=cb};w.fetch=async()=>({ok:false});
  class WebGLRenderer{constructor(){this.shadowMap={};this.capabilities={getMaxAnisotropy:()=>1}}setPixelRatio(){}setSize(){}render(){}}class GLTFLoader{parse(_,__,___,error){error()}}
  w.THREE={...THREE,WebGLRenderer,GLTFLoader};w.eval(readFileSync(new URL('../../race-smoothing.js',import.meta.url),'utf8'));
- const instrumented=script.replace('requestAnimationFrame(frame);\n})();',"window.__state=function(){return {x:pos.x,z:pos.z,cameraX:camera.position.x,cameraZ:camera.position.z,speed:v}};window.__start=startBtn;requestAnimationFrame(frame);\n})();");assert.notEqual(instrumented,script);w.eval(instrumented);await new Promise(r=>setTimeout(r,10));assert.equal(w.__start.disabled,false);
+ const instrumented=script.replace('requestAnimationFrame(frame);\n})();',"window.__state=function(){return {x:pos.x,z:pos.z,cameraX:camera.position.x,cameraZ:camera.position.z,speed:v,steer:steer}};window.__start=startBtn;requestAnimationFrame(frame);\n})();");assert.notEqual(instrumented,script);w.eval(instrumented);await new Promise(r=>setTimeout(r,10));assert.equal(w.__start.disabled,false);
  let now=0;Object.defineProperty(w.performance,'now',{value:()=>now});
  const schedule=[0,130,205,330,405,530,605,730,805,930,1005];let next=0,previous=-1;
  for(now=0;now<=1100;now+=5){
@@ -16,4 +16,6 @@ test('actual browser frame keeps the camera behind a smoothly moving server bike
    w.__frame(now);const frame=w.__state();assert.ok(frame.z>=previous-1e-8,'rendered bike went backwards');previous=frame.z;
    const distance=Math.hypot(frame.x-frame.cameraX,frame.z-frame.cameraZ);assert.ok(distance>=5.7&&distance<=6.4,`camera drifted ${distance} metres from bike`);
  }
+ // Local controls must affect the rendered bike before another server snapshot arrives.
+ const before=w.__state();w.document.body.dispatchEvent(new w.KeyboardEvent('keydown',{code:'KeyA',bubbles:true}));now+=16;w.__frame(now);assert.ok(w.__state().steer>before.steer,'steering should respond without waiting for the server');
 });
