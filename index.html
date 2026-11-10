@@ -406,10 +406,13 @@ window.WMCCurrentCircuit=circuitId;
 
 /* ---------- renderer / scene ---------- */
 var canvas=$('gl');
-var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
 var mobileRender=window.matchMedia('(pointer:coarse)').matches;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,mobileRender?1.25:2));
-renderer.shadowMap.enabled=true;
+// Mobile GPUs are often fill-rate limited, especially at native phone DPR.
+// Keep physics/input/network at full rate; scale only the 3D drawing buffer.
+var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:!mobileRender});
+var mobilePixelRatio=Math.min(window.devicePixelRatio||1,.85),mobileMinRatio=Math.min(mobilePixelRatio,.6),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
+renderer.setPixelRatio(mobileRender?mobilePixelRatio:Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=!mobileRender;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 var scene=new THREE.Scene();
 var HORIZON=0xbcd3e6;
@@ -424,11 +427,11 @@ scene.fog=new THREE.Fog(HORIZON,260,2600);
 var camera=new THREE.PerspectiveCamera(64,1,0.3,4500);
 var hemi=new THREE.HemisphereLight(0xdfeeff,0x4c5b3a,0.85);scene.add(hemi);
 var sun=new THREE.DirectionalLight(0xfff1d6,1.05);
-sun.castShadow=true;sun.shadow.mapSize.set(mobileRender?512:1024,mobileRender?512:1024);
+sun.castShadow=!mobileRender;sun.shadow.mapSize.set(mobileRender?512:1024,mobileRender?512:1024);
 var sc=sun.shadow.camera;sc.left=-22;sc.right=22;sc.top=22;sc.bottom=-22;sc.near=1;sc.far=200;
 sun.shadow.bias=-0.0006;
 scene.add(sun);scene.add(sun.target);
-var maxAniso=renderer.capabilities.getMaxAnisotropy();
+var maxAniso=mobileRender?Math.min(2,renderer.capabilities.getMaxAnisotropy()):renderer.capabilities.getMaxAnisotropy();
 
 function resize(){
   var w=window.innerWidth,h=window.innerHeight;
@@ -510,23 +513,23 @@ function kerbEdge(i){return roadHalfWidth(i)+2.5}
 function wallEdge(i){return roadHalfWidth(i)+10}
 
 function ribbon(latA,latB,vScale,y,map,recv){
-  var pos=[],uv=[],idx=[];
-  for(var i=0;i<=N;i++){
-    var j=i%N,v=i*STEP/vScale;
-    var edgeA=typeof latA==='function'?latA(j):latA,edgeB=typeof latB==='function'?latB(j):latB;
-    pos.push(px[j]+lx[j]*edgeA,y,pz[j]+lz[j]*edgeA, px[j]+lx[j]*edgeB,y,pz[j]+lz[j]*edgeB);
-    uv.push(0,v,1,v);
+  var material=new THREE.MeshLambertMaterial({map:map}),chunk=mobileRender?48:N;
+  // Whole-circuit meshes cannot be culled even when almost all the circuit is
+  // behind the camera. Independent continuous chunks retain identical geometry.
+  for(var first=0;first<N;first+=chunk){
+    var end=Math.min(N,first+chunk),pos=[],uv=[],indices=[];
+    for(var i=first;i<=end;i++){
+      var j=i%N,v=i*STEP/vScale;
+      var edgeA=typeof latA==='function'?latA(j):latA,edgeB=typeof latB==='function'?latB(j):latB;
+      pos.push(px[j]+lx[j]*edgeA,y,pz[j]+lz[j]*edgeA,px[j]+lx[j]*edgeB,y,pz[j]+lz[j]*edgeB);uv.push(0,v,1,v);
+    }
+    for(var k=0;k<end-first;k++){var a=2*k,b=a+1,c=a+2,d=a+3;indices.push(a,c,b,b,c,d)}
+    var geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.setIndex(indices);geometry.computeVertexNormals();geometry.computeBoundingSphere();
+    var mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=!mobileRender;mesh.userData.trackRibbon=true;scene.add(mesh);
   }
-  for(var k=0;k<N;k++){var a=2*k,b=a+1,c=a+2,d=a+3;idx.push(a,c,b,b,c,d)}
-  var g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-  g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
-  g.setIndex(idx);g.computeVertexNormals();
-  var m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({map:map}));
-  m.receiveShadow=true;scene.add(m);return m;
 }
 var ground=new THREE.Mesh(new THREE.PlaneGeometry(7000,7000),new THREE.MeshLambertMaterial({map:grassTex}));
-ground.rotation.x=-Math.PI/2;ground.position.y=-0.05;ground.receiveShadow=true;scene.add(ground);
+ground.rotation.x=-Math.PI/2;ground.position.y=-0.05;ground.receiveShadow=!mobileRender;scene.add(ground);
 ribbon(function(i){return -roadHalfWidth(i)},roadHalfWidth,16,0.04,asphaltTex);
 ribbon(roadHalfWidth,kerbEdge,6,0.05,kerbTex);
 ribbon(function(i){return -kerbEdge(i)},function(i){return -roadHalfWidth(i)},6,0.05,kerbTex);
@@ -537,19 +540,20 @@ ribbon(function(i){return -wallEdge(i)},function(i){return -kerbEdge(i)},10,0.02
 (function(){
   var geo=new THREE.BoxGeometry(0.9,1.1,STEP*1.02);
   var mat=new THREE.MeshLambertMaterial({color:0xffffff});
-  var inst=new THREE.InstancedMesh(geo,mat,N*2);
-  var m4=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),sv=new THREE.Vector3(1,1,1),p=new THREE.Vector3(),col=new THREE.Color();
-  var n=0;
-  for(var i=0;i<N;i++){
-    q.setFromAxisAngle(up,Math.atan2(tx[i],tz[i]));
-    for(var s=-1;s<=1;s+=2){
-      p.set(px[i]+lx[i]*s*(wallEdge(i)+0.6),0.55,pz[i]+lz[i]*s*(wallEdge(i)+0.6));
-      m4.compose(p,q,sv);inst.setMatrixAt(n,m4);
-      inst.setColorAt(n,col.set(Math.floor(i/3)%2?0xd8202b:0xf2f2f2));n++;
+  var m4=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),sv=new THREE.Vector3(1,1,1),p=new THREE.Vector3(),col=new THREE.Color(),chunk=mobileRender?48:N;
+  for(var first=0;first<N;first+=chunk){
+    var end=Math.min(N,first+chunk),cx=0,cz=0;
+    for(var j=first;j<end;j++){cx+=px[j];cz+=pz[j]}cx/=(end-first);cz/=(end-first);
+    var radius=0;for(var j=first;j<end;j++)radius=Math.max(radius,Math.hypot(px[j]-cx,pz[j]-cz)+wallEdge(j)+STEP+3);
+    var sectionGeo=mobileRender?geo.clone():geo;if(mobileRender)sectionGeo.boundingSphere=new THREE.Sphere(new THREE.Vector3(0,0,0),radius);
+    var inst=new THREE.InstancedMesh(sectionGeo,mat,(end-first)*2);inst.position.set(cx,0,cz);inst.frustumCulled=mobileRender;inst.userData.trackBarrier=true;
+    var n=0;
+    for(var i=first;i<end;i++){
+      q.setFromAxisAngle(up,Math.atan2(tx[i],tz[i]));
+      for(var side=-1;side<=1;side+=2){p.set(px[i]+lx[i]*side*(wallEdge(i)+.6)-cx,.55,pz[i]+lz[i]*side*(wallEdge(i)+.6)-cz);m4.compose(p,q,sv);inst.setMatrixAt(n,m4);inst.setColorAt(n,col.set(Math.floor(i/3)%2?0xd8202b:0xf2f2f2));n++}
     }
+    inst.instanceMatrix.needsUpdate=true;if(inst.instanceColor)inst.instanceColor.needsUpdate=true;scene.add(inst);
   }
-  inst.instanceMatrix.needsUpdate=true;if(inst.instanceColor)inst.instanceColor.needsUpdate=true;
-  scene.add(inst);
 })();
 
 /* start / finish */
@@ -585,7 +589,7 @@ ribbon(function(i){return -wallEdge(i)},function(i){return -kerbEdge(i)},10,0.02
 /* trees + distant hills */
 (function(){
   var trunkG=new THREE.CylinderGeometry(0.4,0.55,3,6),crownG=new THREE.ConeGeometry(3.2,9,7);
-  var T=260,tr=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x5a3d28}),T);
+  var T=mobileRender?100:260,tr=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x5a3d28}),T);
   var cr=new THREE.InstancedMesh(crownG,new THREE.MeshLambertMaterial({color:0xffffff}),T);
   var m4=new THREE.Matrix4(),p=new THREE.Vector3(),q=new THREE.Quaternion(),sv=new THREE.Vector3(),col=new THREE.Color();
   var n=0,guard=0;
@@ -716,7 +720,8 @@ function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.tex
     bikeReady();
   }
   try{
-    fetch('bike-model.txt').then(function(r){if(!r.ok)throw new Error('bike-model '+r.status);return r.text()})
+    if(mobileRender)fetch('bike-mobile.glb').then(function(r){if(!r.ok)throw new Error('mobile bike '+r.status);return r.arrayBuffer()}).then(function(buffer){new THREE.GLTFLoader().parse(buffer,'',onModel,fallback)}).catch(fallback);
+    else fetch('bike-model.txt').then(function(r){if(!r.ok)throw new Error('bike-model '+r.status);return r.text()})
       .then(function(b64){
         var bin=atob(b64.trim()),len=bin.length,u8=new Uint8Array(len);
         for(var i=0;i<len;i++)u8[i]=bin.charCodeAt(i);
@@ -955,7 +960,7 @@ $('modeOverlay').addEventListener('keydown',function(e){
   if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
 });
-var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={},authoritativeTarget=null;
+var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={},authoritativeTarget=null,lastTowerUpdate=-Infinity;
 var ownSmoother=new WMCSnapshotSmoother(150),opponentSmoothers={},matchIntroStage='',lastCountdownCue=-1,qualCountdownCue=-1,mpStartAt=0;
 // Old servers omit rules. Keep their 5-lap/10-minute HUD until Render updates.
 var mpRaceLaps=5,mpQualDuration=600000,mpQualMax=5;
@@ -1239,9 +1244,19 @@ function updateCamera(dt,t){
 }
 
 /* ---------- main loop ---------- */
-var lastT=performance.now(),clock=0,kmhShown=-1,gearShown='',mapT=0;
+var lastT=performance.now(),clock=0,kmhShown=-1,gearShown='',mapT=0,lastRpmLit=-1;
 function frame(now){
-  var dt=Math.min(0.05,(now-lastT)/1000);lastT=now;clock+=dt;
+  var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000);lastT=now;clock+=dt;
+  // Sustained slow frames lower resolution gradually. A long pause is not a
+  // performance sample; recovery is deliberately slower to avoid oscillation.
+  if(mobileRender&&state!=='menu'&&frameMs>0&&frameMs<250){
+    if(!qualityStarted)qualityStarted=now;qualityFrames++;qualityTime+=frameMs;
+    if(now-qualityStarted>=2000&&qualityFrames>=30){var avg=qualityTime/qualityFrames,next=mobilePixelRatio;
+      if(avg>23&&now-qualityLastChange>=2000)next=Math.max(mobileMinRatio,mobilePixelRatio-.1);
+      else if(avg<17.5&&now-qualityLastChange>=6000)next=Math.min(Math.min(window.devicePixelRatio||1,.85),mobilePixelRatio+.05);
+      if(Math.abs(next-mobilePixelRatio)>.001){mobilePixelRatio=next;qualityLastChange=now;renderer.setPixelRatio(mobilePixelRatio)}qualityStarted=now;qualityFrames=0;qualityTime=0;
+    }
+  }else if(frameMs>=250||state==='menu'){qualityStarted=0;qualityFrames=0;qualityTime=0}
   if(state==='countdown'){
     if(multiplayer&&mpStartAt)cdT=Math.max(0,goAt-(mpStartAt-now)/1000);else cdT+=dt;
     var on=Math.max(0,Math.min(5,Math.floor((cdT-0.6)/0.8)+1));
@@ -1302,9 +1317,9 @@ function frame(now){
     var gs=v<-0.5?'R':(av<0.5&&!throttleNow?'N':String(g));
     if(gs!==gearShown){gearShown=gs;elGear.textContent=gs}
     var lit=Math.round(rpm*SEG);
-    for(var i=0;i<SEG;i++){segs[i].className=i<lit?(i>=SEG-4?'on hot':'on'):''}
+    if(lit!==lastRpmLit){lastRpmLit=lit;for(var i=0;i<SEG;i++){segs[i].className=i<lit?(i>=SEG-4?'on hot':'on'):''}}
     if(state==='racing'||state==='finishing'){elCur.textContent=fmt(raceTime-lapStart);if(state==='racing'&&mode==='race')$('raceProgress').style.transform='scaleX('+Math.max(0,Math.min(1,(total-(lapNo-1)*N)/N))+')';if(state==='racing'&&mode==='qualifying'&&qualFlying){$('qualLapTime').textContent=fmt(raceTime-lapStart);updateQualGraphic()}}
-    mapT+=dt;if(mapT>0.04){mapT=0;drawMap()}
+    mapT+=dt;if(mapT>(mobileRender?.1:.04)){mapT=0;drawMap()}
   }
   if(!mobileRender||now-lastSharedQualRender>=50){lastSharedQualRender=now;renderSharedQual(now)}
   if(multiplayer)drawMultiplayerBikes(dt);
@@ -1375,7 +1390,7 @@ function clearSharedQual(){
   sharedQual=null;var box=$('qualGraphics');Array.prototype.slice.call(box.children).forEach(function(el){if(el.id!=='qualBanner')el.remove()});$('qualBanner').hidden=false;clearTimeout($('qualBanner')._qualTimer);delete $('qualBanner').dataset.qualAnim;
 }
 function updateSharedQual(raw,userId,now){
-  if(raw.phase!=='qualifying'){clearSharedQual();return}
+  if(raw.phase!=='qualifying'){if(sharedQual)clearSharedQual();return}
   if(!sharedQual)sharedQual={userId:userId,records:{},slots:[],queue:[]};
   var q=sharedQual;q.serverTime=raw.serverTime;q.received=now;q.players=raw.players;
   var ids=new Set(raw.players.map(function(p){return p.id}));
@@ -1488,7 +1503,7 @@ function renderRaceRoster(match){
 function startMultiplayerPhase(match,remaining){
   var target=match.phase;
   if(mpPhase===target)return;
-  clearSharedQual();predictionReady=false;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
+  lastTowerUpdate=-Infinity;clearSharedQual();predictionReady=false;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
   Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   if(target==='qualifying'&&qualCountdownCue!==-1)playMatchCue('go');
   lastCountdownCue=-1;state='menu';begin(target==='qualifying'?'qualifying':'race');$('pauseButton').hidden=false;$('matchIntro').hidden=true;
@@ -1544,7 +1559,7 @@ window.WMCGame={
       return;
     }
     if(mpPhase!==match.phase){if(remaining>(match.phase==='race'?4.9:0)){renderMatchIntro(match,remaining);return}startMultiplayerPhase(match,remaining)}
-    renderQualRoster(match);renderRaceRoster(match);
+    var towerNow=performance.now();if(!mobileRender||towerNow-lastTowerUpdate>=250){lastTowerUpdate=towerNow;renderQualRoster(match);renderRaceRoster(match)}
   }
 };
 try{var pendingPractice=sessionStorage.getItem('wmc-practice-pending');if(pendingPractice==='race'||pendingPractice==='qualifying'){sessionStorage.removeItem('wmc-practice-pending');var practiceWait=setInterval(function(){if(!startBtn.disabled){clearInterval(practiceWait);begin(pendingPractice)}},100)}}catch(e){}
