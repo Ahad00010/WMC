@@ -26,3 +26,7 @@ The race server authenticates through the Supabase lobby RPC using the rider’s
 ## In-session chat and emotes
 
 Chat and emotes use the authenticated race WebSocket and are broadcast only to connected riders in the same room; they do not use the old client-authoritative match RPCs. Chat is ephemeral, is not persisted or replayed on reconnect, is limited to 180 characters and one message per rider per second, and is displayed as text. There is no moderation, reporting, or blocking system. Wheelie and nitro are three-second cosmetic effects; they do not modify server physics or results. Wheelie requires forward movement or throttle. The race server and website must both be updated for these features.
+
+## AI riders
+
+The host may fill unused slots with server-controlled AI before starting. Bots use the same movement physics and track-limit rules, but their pace and qualifying behavior have not been calibrated on real devices. At least two human connections are still required. AI races are excluded from authoritative career stats: the existing results database accepts only real profiles and would otherwise miscount places or reject the result. AI settings live in the race server room and are reset if that server restarts.

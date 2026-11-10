@@ -67,3 +67,12 @@ test('qualifying waits for the last rider then holds final classification for fi
  b.best=75;b.completed=true;b.finishAt=40000;r.advance(40000,1/60);assert.equal(r.resultsAt,55000);assert.equal(r.phase,'qualifying');
  r.advance(54999,1/60);assert.equal(r.phase,'qualifying');r.advance(55000,1/60);assert.equal(r.phase,'race');assert.equal(b.grid,1);assert.equal(a.grid,2);assert.equal(r.phaseStart,70000);
 });
+
+test('host alone controls AI fill, and bots ride through authoritative physics',()=>{
+ const r=new RaceRoom({id:'ai-room',host_id:'a',mode:'qualifying_race'});r.join(profile('a'),0);r.join(profile('b'),0);
+ assert.throws(()=>r.setAI('b',true));assert.throws(()=>r.setAI('a','yes'));r.setAI('a',true);r.start('a',0);
+ assert.equal(r.players.size,15);assert.equal(r.snapshot(0).players.filter(p=>p.ai).length,13);assert.throws(()=>r.setAI('a',false));
+ for(let i=0;i<30000&&r.phase!=='race';i++)r.advance(22000+i*1000/60,1/60);
+ const bots=[...r.players.values()].filter(p=>p.ai);assert.equal(r.phase,'race');assert.ok(bots.filter(p=>p.best!==null).length>=5,'AI riders should complete valid qualifying laps');assert.ok(bots.every(p=>p.state&&Number.isFinite(p.state.x)));
+ r.disconnect('b',600000);assert.equal(r.phase,'complete','AI must not hide the departure of the other human rider');
+});

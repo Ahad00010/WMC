@@ -38,6 +38,7 @@
       if(!lobby){$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER';}
       else{
         $('lobbyMode').textContent=(lobby.mode==='race'?'Race only':'Qualifying + Race')+' · '+lobby.members.length+'/15 riders';
+        const isHost=lobby.host_id===snapshot.user_id;const aiAvailable=!!serverSnapshot&&typeof serverSnapshot.fillAI==='boolean';$('aiSettingLabel').hidden=!isHost||!aiAvailable;$('aiSettingInfo').hidden=isHost||!aiAvailable;$('aiSettingInfo').textContent=serverSnapshot?.fillAI?'AI riders will fill the grid.':'AI riders are off.';if(aiAvailable)$('fillAI').checked=serverSnapshot.fillAI;
         $('inviteForm').hidden=lobby.host_id!==snapshot.user_id;
         $('startMultiplayer').hidden=lobby.host_id!==snapshot.user_id;
         const connected=serverSnapshot?serverSnapshot.players.filter(p=>p.connected).length:0;
@@ -97,6 +98,7 @@
       catch(e){$('multiMessage').textContent='Could not leave the previous session. Retrying; check your connection.';return false}
       finally{leavePromise=null}})();return leavePromise;
   }
+  $('fillAI').onchange=()=>{if(!transport||!transport.send('fill_ai',$('fillAI').checked))$('lobbyMessage').textContent='Race server is not connected.'};
   $('startMultiplayer').onclick=()=>{if(!transport||!transport.send('start'))$('lobbyMessage').textContent='Race server is not connected.';else cue('ready')};
   window.WMCMatch={reset:()=>{if(transport)transport.send('reset')},sendInput,emote:kind=>!!(transport&&transport.send('emote',kind)),chat:text=>!!(transport&&transport.send('chat',text)),leave:leaveSession};
   $('resumeLobby').onclick=()=>{if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby()}};

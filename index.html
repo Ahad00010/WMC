@@ -313,7 +313,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
     </div>
     <p id="multiMessage" class="friend-message" aria-live="polite"></p>
     <div id="lobbyPanel" class="friends-panel" hidden>
-      <p id="lobbyMode" class="friends-intro"></p><div id="lobbyMembers" class="friend-list"></div>
+      <p id="lobbyMode" class="friends-intro"></p><label id="aiSettingLabel" class="friends-intro" hidden><input id="fillAI" type="checkbox"> Fill remaining grid with AI riders <small>(AI races do not affect career stats)</small></label><p id="aiSettingInfo" class="friend-note" hidden></p><div id="lobbyMembers" class="friend-list"></div>
       <form id="inviteForm" class="friend-form"><label class="sr-only" for="inviteUsername">Friend username</label><input id="inviteUsername" maxlength="20" placeholder="Friend's username" required><button type="submit">Invite</button></form>
       <p id="lobbyMessage" class="friend-message" aria-live="polite"></p>
       <button type="button" class="go" id="startMultiplayer" disabled>Start match</button><p id="startHint" class="friend-note">The host can start with 2–15 riders.</p>
@@ -389,7 +389,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-transport.js?v=chat-emotes-1" defer></script>
 <script src="race-smoothing.js?v=prediction-1"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
-<script src="lobby.js?v=chat-broadcast-1" defer></script>
+<script src="lobby.js?v=ai-grid-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>

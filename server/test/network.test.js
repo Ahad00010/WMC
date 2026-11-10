@@ -31,3 +31,10 @@ test('chat and cosmetic emotes reach both authenticated riders without changing 
  b.ws.send(JSON.stringify({type:'chat',input:'<img src=x> hello',name:'spoof',id:'a',number:99,color:'red'}));for(const c of [a,b]){const msg=await until(()=>c.messages.find(m=>m.type==='chat'));assert.equal(msg.name,'Rider b');assert.equal(msg.id,'b');assert.equal(msg.number,66);assert.equal(msg.color,'blue');assert.equal(msg.text,'<img src=x> hello')}
  a.ws.close();b.ws.close();
 });
+
+test('AI grid setting is host-only and synchronizes across real connections',async t=>{
+ const lobby={id:'ai-network',host_id:'a',mode:'race'};const app=createServer({allowedOrigins:['http://test.local'],authenticate:async token=>({userId:token,lobby,profile:{id:token,username:token,display_name:token,number:13,color:'red'}})});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>app.close());const url=`ws://127.0.0.1:${app.server.address().port}/race`;
+ function client(id){const ws=new WebSocket(url,{origin:'http://test.local'}),messages=[];ws.on('message',v=>messages.push(JSON.parse(v)));ws.on('open',()=>ws.send(JSON.stringify({type:'auth',token:id})));return {ws,messages}}const a=client('a'),b=client('b');await until(()=>a.messages.some(m=>m.type==='ready')&&b.messages.some(m=>m.type==='ready'));
+ b.ws.send(JSON.stringify({type:'fill_ai',input:true}));await until(()=>b.messages.some(m=>m.type==='error'));assert.equal(app.rooms.get('ai-network').fillAI,false);
+ a.ws.send(JSON.stringify({type:'fill_ai',input:true}));await until(()=>b.messages.some(m=>m.type==='snapshot'&&m.fillAI));a.ws.send(JSON.stringify({type:'start'}));for(const c of [a,b]){const snap=await until(()=>c.messages.find(m=>m.type==='snapshot'&&m.phase==='race'));assert.equal(snap.players.filter(p=>p.ai).length,13)}a.ws.close();b.ws.close();
+});
