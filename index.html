@@ -92,18 +92,40 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   .lights{top:calc(var(--gt) + 112px)}
   .lights i{width:20px;height:20px}
 }
-@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+/* Qualifying broadcast graphics */
+.qual-tower{position:absolute;top:var(--gt);left:var(--gl);width:192px;background:rgba(5,7,8,.88);color:#fff;font-family:var(--ui);box-shadow:0 5px 18px #0004;clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%)}
+.qual-brand{padding:7px 8px 3px;background:#050505;font:italic 800 29px/1 var(--display);letter-spacing:-.04em}
+.qual-label{padding:0 8px 4px;font:700 13px/1 var(--ui);letter-spacing:.07em;color:#b4b7b7;background:#050505}
+.qual-progress{height:3px;background:#575a5a;margin:0 8px}.qual-progress span{display:block;width:100%;height:100%;background:#ff8a00;transform-origin:left}
+.qual-clock{text-align:right;padding:0 8px;background:#050505;font:600 25px/1 var(--display);font-variant-numeric:tabular-nums}
+.qual-row{display:flex;align-items:center;gap:7px;padding:5px 7px;font-size:13px;font-weight:700}.qual-position{background:#fff;color:#111;padding:0 7px}.qual-name{flex:1}.qual-stripe{height:19px;width:3px;background:#e4202c}.qual-best{font-weight:500;font-variant-numeric:tabular-nums}
+.qual-footer{padding:6px 8px;font-size:11px;font-weight:700;background:#080808}
+.qual-banner{position:absolute;bottom:calc(var(--gb) + 18px);left:50%;width:min(320px,calc(100vw - 180px));min-width:200px;transform:translate(-50%,30px);opacity:0;transition:opacity .25s,transform .35s;pointer-events:none;font-family:var(--ui);clip-path:polygon(0 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%);background:rgba(8,10,11,.88)}
+.qual-banner.show{opacity:1;transform:translate(-50%,0)}.qual-banner-head{display:flex;align-items:center;background:#050505;padding:5px 8px;font-weight:700;font-size:14px}.qual-banner-head span:first-child{flex:1}.qual-number{background:#e4202c;color:#090909;min-width:38px;text-align:center;font:800 18px/1 var(--display)}
+.qual-banner-body{padding:6px 8px 9px}.qual-message{font:700 12px/1.1 var(--ui);letter-spacing:.05em;color:#fff}.qual-time{font:800 35px/1 var(--display);font-variant-numeric:tabular-nums;color:#ff8a00}.qual-banner.invalid .qual-time,.qual-banner.invalid .qual-message{color:#ff343c}.qual-banner.fast .qual-time{color:#ff343c}
+.qual-sectors{display:flex;gap:3px;margin-top:5px}.qual-sectors i{height:3px;flex:1;background:#535353}.qual-sectors i.done{background:#ff8a00}.qual-sectors i.bad{background:#f02d39}
+.mode-buttons{display:flex;gap:10px;flex-wrap:wrap}.mode-buttons button{font-size:20px;padding:10px 24px}.mode-buttons .secondary{background:#30353d}
+.session-end{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.7);z-index:5}.session-end .card{background:#101216;padding:26px;border-left:4px solid #e4202c}.session-end h2{margin:0;font:800 42px/1 var(--display)}
+@media(max-width:700px){.qual-tower{width:150px}.qual-brand{font-size:24px}.qual-row{font-size:11px;gap:4px}.qual-banner{bottom:calc(var(--gb) + 85px)}}
+@media (prefers-reduced-motion:reduce){.toast,.qual-banner{transition:none}}
 </style>
 
 <canvas id="gl"></canvas>
 
 <div id="hud" hidden>
-  <div class="timing">
+  <div class="timing" id="raceTiming">
     <div class="row"><span class="k">LAP</span><span class="v" id="lapNo">1</span></div>
     <div class="row big"><span class="k">TIME</span><span class="v" id="cur">0:00.000</span></div>
     <div class="row"><span class="k">LAST</span><span class="v" id="last">--:--.---</span></div>
     <div class="row"><span class="k">BEST</span><span class="v best" id="best">--:--.---</span></div>
   </div>
+  <div class="qual-tower" id="qualTower" hidden>
+    <div class="qual-brand">WMC</div><div class="qual-label">QUALIFYING</div>
+    <div class="qual-progress"><span id="qualProgress"></span></div><div class="qual-clock" id="qualClock">1:00</div>
+    <div class="qual-row"><span class="qual-position">1</span><span class="qual-name">D EFA</span><span class="qual-stripe"></span><span class="qual-best" id="qualBest">--:--.---</span></div>
+    <div class="qual-footer"><span id="qualStatus">OUT LAP</span> <span id="qualLapTime" style="float:right;font-variant-numeric:tabular-nums">--:--.---</span></div>
+  </div>
+  <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span>D EFA</span><span class="qual-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-time" id="qualTime"></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i></div></div></div>
   <canvas id="map" width="300" height="300"></canvas>
   <div class="lights" id="lights" hidden><i></i><i></i><i></i><i></i><i></i></div>
   <div class="toast" id="toast"></div>
@@ -134,9 +156,12 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <div><kbd>M</kbd> Sound on / off</div>
     </div>
     <button class="go" id="start" autofocus disabled>Loading bike&hellip;</button>
+    <div class="mode-buttons" id="modeButtons" hidden><button class="go" id="raceMode">Race</button><button class="go" id="qualMode">Qualifying</button><button class="go secondary" id="modeBack">Back</button></div>
     <p class="credit">Bike: &ldquo;Ducati Lenovo Team - MotoGP26&rdquo; by <a href="https://sketchfab.com/Kenny3D89" target="_blank" rel="noopener">Kenny3D89</a>, licensed <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Source: <a href="https://sketchfab.com/3d-models/ducati-lenovo-team-motogp26-497ac78767344110a0046a3ab4a5d058" target="_blank" rel="noopener">Sketchfab</a>.</p>
   </div>
 </div>
+
+<div class="session-end" id="sessionEnd" hidden><div class="card"><div class="eyebrow">WMC &middot; QUALIFYING</div><h2>SESSION FINISHED</h2><p class="lede" id="sessionResult"></p><button class="go" id="returnMenu">Main menu</button></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -420,7 +445,7 @@ var bike=(function(){
 scene.add(bike.root);
 bike.root.visible=false;
 var startBtn=$('start');
-function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.textContent='Start race'}
+function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.textContent='Play'}
 /* Ducati model (CC BY 4.0, Kenny3D89): loaded from the bundled bike.glb; the built-in bike is the fallback if it cannot load. */
 (function(){
   var done=false;
@@ -457,6 +482,7 @@ function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.tex
 /* ---------- state ---------- */
 var pos=new THREE.Vector3(),h=0,v=0,steer=0,lean=0,pitch=0;
 var idx=0,total=0,lat=0,lapNo=1,raceTime=0,lapStart=0,bestLap=null,lastLap=null;
+var mode='race',qualBest=null,qualFlying=false,qualInvalid=false,qualSector=0,qualLine=0,qualDeadline=0,qualExpired=false,qualBannerTimer=0;
 var state='menu',cdT=0,goAt=0,impact=0,wrongT=0,surface='asphalt',rpm=0,throttleNow=0,brakeNow=false;
 var WIN=40;
 var camPos=new THREE.Vector3(),camH=0,shake=new THREE.Vector3(),look=new THREE.Vector3(),tgt=new THREE.Vector3();
@@ -485,7 +511,7 @@ window.addEventListener('keydown',function(e){
   keys[e.code]=true;
   if(e.code==='KeyR'&&state==='racing')resetBike();
   if(e.code==='KeyM')toggleMute();
-  if(e.code==='Enter'&&state==='menu')begin();
+  if(e.code==='Enter'&&state==='menu'&&!startBtn.hidden)showModes();
 });
 window.addEventListener('keyup',function(e){keys[e.code]=false});
 window.addEventListener('blur',function(){keys={}});
@@ -519,7 +545,7 @@ function audioTick(){
   var f=48+rpm*190;
   o1.frequency.setTargetAtTime(f,t,.04);o2.frequency.setTargetAtTime(f*.5,t,.04);
   ef.frequency.setTargetAtTime(500+rpm*1400+throttleNow*500,t,.05);
-  var g=(state==='menu'||muted)?0:(0.03+0.05*throttleNow+0.02*rpm);
+  var g=(state==='menu'||state==='finished'||muted)?0:(0.03+0.05*throttleNow+0.02*rpm);
   eg.gain.setTargetAtTime(g,t,.06);
 }
 
@@ -557,16 +583,75 @@ function drawMap(){
 }
 
 /* ---------- flow ---------- */
-function begin(){
+function showModes(){
   if(state!=='menu'||startBtn.disabled)return;
-  startAudio();if(actx&&actx.state==='suspended')actx.resume();
-  $('menu').hidden=true;$('hud').hidden=false;
-  state='countdown';cdT=0;goAt=4.6+0.5+Math.random()*1.1;
-  elLights.hidden=false;
-  Array.prototype.forEach.call(elLights.children,function(i){i.classList.remove('on')});
+  startBtn.hidden=true;$('modeButtons').hidden=false;
 }
-$('start').addEventListener('click',begin);
+function begin(selected){
+  if(state!=='menu'||startBtn.disabled)return;
+  mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;
+  elLap.textContent='1';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
+  keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume();
+  $('menu').hidden=true;$('hud').hidden=false;
+  $('raceTiming').hidden=mode==='qualifying';$('qualTower').hidden=mode!=='qualifying';
+  $('qualBanner').classList.remove('show');
+  if(mode==='qualifying'){
+    qualBest=null;qualFlying=false;qualInvalid=false;qualSector=0;qualLine=0;qualExpired=false;
+    qualDeadline=performance.now()+60000;$('qualBest').textContent=fmt(null);$('qualStatus').textContent='OUT LAP';
+    $('qualClock').textContent='1:00';$('qualLapTime').textContent=fmt(null);$('qualProgress').style.transform='scaleX(1)';
+    state='racing';elLights.hidden=true;showQual('OUT LAP','CROSS THE LINE TO START',false);
+  }else{
+    state='countdown';cdT=0;goAt=4.6+0.5+Math.random()*1.1;
+    elLights.hidden=false;
+    Array.prototype.forEach.call(elLights.children,function(i){i.classList.remove('on')});
+  }
+}
+$('start').addEventListener('click',showModes);
+$('raceMode').addEventListener('click',function(){begin('race')});
+$('qualMode').addEventListener('click',function(){begin('qualifying')});
+$('modeBack').addEventListener('click',function(){$('modeButtons').hidden=true;startBtn.hidden=false});
+$('returnMenu').addEventListener('click',function(){
+  $('sessionEnd').hidden=true;$('hud').hidden=true;$('menu').hidden=false;
+  $('modeButtons').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
+});
+function showQual(message,time,invalid,fast){
+  var banner=$('qualBanner');$('qualMessage').textContent=message;$('qualTime').textContent=time;
+  banner.className='qual-banner show'+(invalid?' invalid':'')+(fast?' fast':'');
+  Array.prototype.forEach.call($('qualSectors').children,function(el,i){el.className=i<qualSector?(qualInvalid?'bad':'done'):''});
+  clearTimeout(qualBannerTimer);qualBannerTimer=setTimeout(function(){banner.classList.remove('show')},3500);
+}
+function invalidateQual(){
+  if(qualFlying&&!qualInvalid){qualInvalid=true;$('qualStatus').textContent='LAP CANCELLED';showQual('LAP CANCELLED','TRACK LIMITS',true)}
+}
+function endQualifying(){
+  state='finished';v=0;throttleNow=0;keys={};$('qualStatus').textContent='SESSION FINISHED';
+  $('sessionResult').textContent=qualBest==null?'No valid flying lap recorded.':'Best lap: '+fmt(qualBest);
+  $('sessionEnd').hidden=false;
+}
+function qualifyingProgress(previous){
+  if(!qualFlying){
+    if(previous<0&&total>=0&&v>0){
+      if(qualExpired){endQualifying();return}
+      qualFlying=true;qualInvalid=false;qualSector=0;qualLine=0;lapStart=raceTime;
+      $('qualStatus').textContent='FLYING LAP';showQual('FLYING LAP','0:00.000',false);if(Math.abs(lat)>KERB)invalidateQual();
+    }
+    return;
+  }
+  var progress=total-qualLine;
+  while(qualSector<3&&progress>=N*(qualSector+1)/4){
+    qualSector++;showQual(qualInvalid?'LAP CANCELLED':'SECTOR '+qualSector,fmt(raceTime-lapStart),qualInvalid);
+  }
+  if(progress>=N&&qualSector===3&&v>0){
+    var t=raceTime-lapStart;qualSector=4;
+    if(qualInvalid){showQual('LAP CANCELLED','TRACK LIMITS',true)}
+    else if(qualBest==null||t<qualBest){qualBest=t;$('qualBest').textContent=fmt(t);showQual('BEST LAP',fmt(t),false,true)}
+    else showQual('LAP TIME',fmt(t),false);
+    if(qualExpired){endQualifying();return}
+    qualLine+=N;lapStart=raceTime;qualSector=0;qualInvalid=false;$('qualStatus').textContent='FLYING LAP';
+  }
+}
 function resetBike(){
+  if(mode==='qualifying'&&qualFlying){qualInvalid=true;$('qualStatus').textContent='LAP CANCELLED';showQual('LAP CANCELLED','RESET ON TRACK',true)}
   var i=globalNearest();
   idx=i;pos.set(px[i],0,pz[i]);h=Math.atan2(tx[i],tz[i]);v=0;steer=0;lean=0;pitch=0;
   toast('BACK ON TRACK','',900);
@@ -596,6 +681,7 @@ function nearest(){
   lat=(pos.x-px[bi])*lx[bi]+(pos.z-pz[bi])*lz[bi];
 }
 function physics(dt){
+  var previous=total;
   nearest();
   var al=Math.abs(lat),grip=1,maxV=VMAX;
   if(al>KERB){surface='gravel';maxV=VMAX*0.36;grip=0.5}
@@ -623,6 +709,7 @@ function physics(dt){
   pos.x+=Math.sin(h)*v*dt;pos.z+=Math.cos(h)*v*dt;
   /* walls */
   nearest();
+  if(mode==='qualifying'&&Math.abs(lat)>KERB)invalidateQual();
   if(Math.abs(lat)>WALL){
     var s=lat>0?1:-1,over=lat-s*WALL;
     pos.x-=lx[idx]*over;pos.z-=lz[idx]*over;
@@ -645,7 +732,8 @@ function physics(dt){
   if((brk||hard)&&v>25)pt=0.06;
   pitch+=(pt-pitch)*Math.min(1,dt*5);
   /* laps */
-  if(total>=N*lapNo)lapDone();
+  if(mode==='qualifying')qualifyingProgress(previous);
+  else if(total>=N*lapNo)lapDone();
 }
 
 /* ---------- camera ---------- */
@@ -689,7 +777,15 @@ function frame(now){
     throttleNow=held('up')?1:0;
     nearest();
   }
-  if(state==='racing'){raceTime+=dt;physics(dt)}
+  if(state==='racing'){
+    if(mode==='qualifying'){
+      var remaining=Math.max(0,(qualDeadline-now)/1000),seconds=Math.ceil(remaining);
+      $('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+      $('qualProgress').style.transform='scaleX('+(remaining/60)+')';
+      if(remaining<=0&&!qualExpired){qualExpired=true;if(!qualFlying)endQualifying();else $('qualStatus').textContent=qualInvalid?'LAP CANCELLED':'FINISH YOUR LAP'}
+    }
+    if(state==='racing'){if(mode==='qualifying')raceTime=(now-(qualDeadline-60000))/1000;else raceTime+=dt;physics(dt)}
+  }
   else if(state==='menu'){throttleNow=0}
   /* rpm */
   var av=Math.abs(v),g=Math.min(6,1+Math.floor(av/14.6)),frac=Math.min(1,(av-(g-1)*14.6)/14.6);
@@ -717,7 +813,7 @@ function frame(now){
     if(gs!==gearShown){gearShown=gs;elGear.textContent=gs}
     var lit=Math.round(rpm*SEG);
     for(var i=0;i<SEG;i++){segs[i].className=i<lit?(i>=SEG-4?'on hot':'on'):''}
-    if(state==='racing')elCur.textContent=fmt(raceTime-lapStart);
+    if(state==='racing'){elCur.textContent=fmt(raceTime-lapStart);if(mode==='qualifying'&&qualFlying)$('qualLapTime').textContent=fmt(raceTime-lapStart)}
     mapT+=dt;if(mapT>0.04){mapT=0;drawMap()}
   }
   renderer.render(scene,camera);
