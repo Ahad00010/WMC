@@ -18,7 +18,7 @@
       snapshot=data;clockOffset=Date.parse(data.server_time)-Date.now();
       render();
     } catch(e) {
-      snapshot=null;$('inviteNotice').hidden=true;
+      snapshot=null;$('inviteNotice').hidden=true;if(window.WMCGame&&window.WMCGame.network)window.WMCGame.network(false);
       if(!$('modeOverlay').hidden&&!$('multiModes').hidden)$('modeTitle').textContent='MULTIPLAYER · SIGN IN REQUIRED';
       if(!$('lobbyPanel').hidden)$('lobbyMessage').textContent=e.message||'Unable to load lobby.';
     } finally {checking=null;finish();}
@@ -30,6 +30,9 @@
       else{
         $('lobbyMode').textContent=(lobby.mode==='race'?'Race only':'Qualifying + Race')+' · '+lobby.members.length+'/15 riders';
         $('inviteForm').hidden=lobby.host_id!==snapshot.user_id;
+        $('startMultiplayer').hidden=lobby.host_id!==snapshot.user_id;
+        $('startMultiplayer').disabled=lobby.members.length<2;
+        $('startHint').textContent=lobby.members.length<2?'At least two riders are needed to start.':'Ready to start · '+lobby.members.length+'/15 riders';
         const list=$('lobbyMembers');list.replaceChildren();
         lobby.members.forEach(member=>{const row=document.createElement('div');row.className='friend-row';const name=document.createElement('div');name.className='friend-row-name';const title=document.createElement('strong');title.textContent=member.display_name+(member.id===lobby.host_id?' · HOST':'');const sub=document.createElement('small');sub.textContent='@'+member.username+' · #'+member.number;name.append(title,sub);row.appendChild(name);list.appendChild(row)});
       }
@@ -56,6 +59,20 @@
     if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby();return;}
     if(await act('create',{mode})){$('multiMessage').textContent='';showLobby();}
   }
+  $('startMultiplayer').onclick=async()=>{
+    try{const c=await getClient();$('startMultiplayer').disabled=true;$('lobbyMessage').textContent='Starting match…';const {error}=await c.rpc('wmc_match_start');if(error)throw error;await matchTick();}
+    catch(e){$('lobbyMessage').textContent=e.message||'Could not start match.';render();}
+  };
+  let ticking=false, leaving=false;
+  async function matchTick(){
+    if(ticking||leaving||!snapshot||!snapshot.lobby||!window.WMCGame)return;
+    ticking=true;
+    try{const c=await getClient();const {data,error}=await c.rpc('wmc_match_tick',{report:window.WMCGame.report()});if(error)throw error;if(window.WMCGame.network)window.WMCGame.network(true);if(!leaving)window.WMCGame.receive(data);}
+    catch(e){if(window.WMCGame.network)window.WMCGame.network(false);if(!$('lobbyPanel').hidden)$('lobbyMessage').textContent=e.message||'Match connection failed.';}
+    finally{ticking=false;}
+  }
+  window.WMCMatch={leave:async()=>{leaving=true;try{await act('leave')}finally{snapshot=null;leaving=false}}};
+  setInterval(matchTick,750);
   $('multiRace').onclick=()=>create('race');$('multiQualRace').onclick=()=>create('qualifying_race');
   $('inviteForm').onsubmit=async e=>{e.preventDefault();const username=$('inviteUsername').value.trim();if(await act('invite',{username})){$('lobbyMessage').textContent='Invite sent (expires in 10 seconds).';$('inviteForm').reset()}};
   $('leaveLobby').onclick=async()=>{if(await act('leave')){$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}};
