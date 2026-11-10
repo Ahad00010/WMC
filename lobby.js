@@ -24,7 +24,9 @@
     } finally {checking=null;finish();}
   }
   function render() {
-    const lobby=snapshot&&snapshot.lobby, inPanel=!$('modeOverlay').hidden&&!$('lobbyPanel').hidden;
+    const lobby=snapshot&&snapshot.lobby;
+    $('resumeLobby').hidden=!lobby;
+    const inPanel=!$('modeOverlay').hidden&&!$('lobbyPanel').hidden;
     if(inPanel){
       if(!lobby){$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER';}
       else{
@@ -56,7 +58,11 @@
   async function create(mode) {
     $('multiMessage').textContent='Connecting…';
     await refresh();
-    if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby();return;}
+    if(snapshot&&snapshot.lobby){
+      if(snapshot.lobby.mode===mode){$('multiMessage').textContent='';showLobby();}
+      else $('multiMessage').textContent='You are already in a '+(snapshot.lobby.mode==='race'?'Race only':'Qualifying + Race')+' lobby. Open it and leave before choosing another mode.';
+      return;
+    }
     if(await act('create',{mode})){$('multiMessage').textContent='';showLobby();}
   }
   $('startMultiplayer').onclick=async()=>{
@@ -73,12 +79,13 @@
   }
   window.WMCMatch={leave:async()=>{leaving=true;try{await act('leave')}finally{snapshot=null;leaving=false}}};
   setInterval(matchTick,750);
+  $('resumeLobby').onclick=()=>{if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby()}};
   $('multiRace').onclick=()=>create('race');$('multiQualRace').onclick=()=>create('qualifying_race');
   $('inviteForm').onsubmit=async e=>{e.preventDefault();const username=$('inviteUsername').value.trim();if(await act('invite',{username})){$('lobbyMessage').textContent='Invite sent (expires in 10 seconds).';$('inviteForm').reset()}};
-  $('leaveLobby').onclick=async()=>{if(await act('leave')){$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}};
+  $('leaveLobby').onclick=async()=>{if(await act('leave')){$('multiMessage').textContent='';$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}};
   $('acceptInvite').onclick=async()=>{if(!$('menu')||$('menu').hidden){$('inviteError').textContent='Return to the main menu to accept.';return}const invite=snapshot&&snapshot.invites[0];if(invite&&await act('accept',{invite_id:invite.id})){$('inviteError').textContent='';showLobby()}};
   $('declineInvite').onclick=async()=>{const invite=snapshot&&snapshot.invites[0];if(invite)await act('decline',{invite_id:invite.id})};
-  window.addEventListener('wmc-lobby-open',async()=>{await refresh();if(snapshot&&snapshot.lobby&&!$('modeOverlay').hidden&&!$('multiModes').hidden)showLobby()});
+  window.addEventListener('wmc-lobby-open',()=>{refresh()});
   window.addEventListener('wmc-auth-ready',refresh);
   setInterval(()=>{if(!document.hidden)refresh()},2000);
   setInterval(render,250);

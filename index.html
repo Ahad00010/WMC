@@ -5,6 +5,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Saira+Condensed:wght@600;800&display=swap" rel="stylesheet">
 <style>
+/* Touch feedback without the browser's blue tap flash or long-press callout. */
+*{-webkit-tap-highlight-color:transparent}
+button{-webkit-touch-callout:none;transition:transform .14s ease,filter .14s ease,background-color .14s ease,border-color .14s ease}
+button:not(:disabled):active{transform:scale(.96);filter:brightness(1.15)}
+.mode-dialog{animation:ui-dialog-in .2s ease-out both}
+@keyframes ui-dialog-in{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){button{transition:none}button:not(:disabled):active{transform:none}.mode-dialog{animation:none}}
 /* Layout: full-bleed 3D chase view; timing tower top-left, circuit map top-right, speedo bottom-right, touch pads on coarse pointers. */
 :root{
   --asphalt:#0c0e11;
@@ -252,6 +259,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
     <div id="multiModes" class="mode-choices" hidden>
       <button id="multiQualRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Qualifying + Race</strong><span>Create a private lobby.</span></button>
       <button id="multiRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Race only</strong><span>Create a private lobby.</span></button>
+      <button id="resumeLobby" class="mode-choice" type="button" hidden><span class="choice-label">CURRENT LOBBY</span><strong>Open lobby</strong><span>Return to your current lobby.</span></button>
       <button id="friendsButton" class="mode-choice" type="button"><span class="choice-label">SOCIAL</span><strong>Friends</strong><span>Add riders and manage requests.</span></button>
     </div>
     <p id="multiMessage" class="friend-message" aria-live="polite"></p>
@@ -793,7 +801,8 @@ $('start').addEventListener('click',showModes);
 $('raceMode').addEventListener('click',function(){begin('race')});
 $('qualMode').addEventListener('click',function(){begin('qualifying')});
 $('practiceButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeButtons').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='PRACTICE';$('raceMode').focus()});
-$('multiplayerButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiModes').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='MULTIPLAYER';window.dispatchEvent(new Event('wmc-lobby-open'))});
+document.addEventListener('contextmenu',function(e){if(e.target.closest('button'))e.preventDefault()});
+$('multiplayerButton').addEventListener('click',function(){$('multiMessage').textContent='';$('playButtons').hidden=true;$('multiModes').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='MULTIPLAYER';window.dispatchEvent(new Event('wmc-lobby-open'))});
 $('friendsButton').addEventListener('click',function(){$('multiModes').hidden=true;$('multiplayerNotice').hidden=false;$('modeTitle').textContent='FRIENDS';window.dispatchEvent(new Event('wmc-friends-open'))});
 $('modeClose').addEventListener('click',closeModes);
 $('modeOverlay').addEventListener('click',function(e){if(e.target===this)closeModes()});
