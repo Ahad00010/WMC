@@ -304,7 +304,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <div><kbd>M</kbd> Sound on / off</div>
       <div><kbd>F</kbd> Emotes</div><div><kbd>T</kbd> Multiplayer chat</div>
     </div>
-    <div class="account-actions"><button type="button" id="soundButton">Sound: on</button><button type="button" id="accountButton">Sign in with Google</button><button type="button" id="signOutButton" hidden>Sign out</button><span id="accountStatus" aria-live="polite"></span></div>
+    <div class="account-actions"><button type="button" id="soundButton">Sound: on</button><button type="button" id="musicStart" hidden>Play music</button><button type="button" id="accountButton">Sign in with Google</button><button type="button" id="signOutButton" hidden>Sign out</button><span id="accountStatus" aria-live="polite"></span></div>
     <button class="go" id="start" autofocus disabled>Loading bike&hellip;</button>
     <p class="credit">Bike: &ldquo;Ducati Lenovo Team - MotoGP26&rdquo; by <a href="https://sketchfab.com/Kenny3D89" target="_blank" rel="noopener">Kenny3D89</a>, licensed <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Source: <a href="https://sketchfab.com/3d-models/ducati-lenovo-team-motogp26-497ac78767344110a0046a3ab4a5d058" target="_blank" rel="noopener">Sketchfab</a>.</p>
   </div>
@@ -407,6 +407,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="circuits.js?v=1"></script>
 <script src="race-smoothing.js?v=remote-2"></script>
 <script src="practice-ai.js?v=1"></script>
+<script src="menu-music.js?v=1"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=max-riders-10" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -850,23 +851,26 @@ $('chatForm').addEventListener('submit',function(e){e.preventDefault();var input
 
 
 /* ---------- audio ---------- */
-var actx=null,o1,o2,eg,ef,matchMaster,musicBus,muted=false,musicStep=0,nextMusicTime=0;
+var actx=null,o1,o2,eg,ef,matchMaster,muted=false,musicSessionStarting=false,musicSessionTimer=0;
+var menuMusic=null;
+try{if(window.WMCMenuMusic){var soundtrack=new Audio('jimgor33-loading-main-menu-145077.mp3');menuMusic=window.WMCMenuMusic.create(soundtrack,function(show){$('musicStart').hidden=!show});menuMusic.tick(performance.now(),true,false)}}catch(e){}
 function startAudio(){
   if(actx)return;
   try{
     var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;actx=new AC();
     o1=actx.createOscillator();o1.type='sawtooth';o2=actx.createOscillator();o2.type='square';
     ef=actx.createBiquadFilter();ef.type='lowpass';ef.frequency.value=700;
-    eg=actx.createGain();eg.gain.value=0;matchMaster=actx.createGain();matchMaster.gain.value=muted?0:1;musicBus=actx.createGain();musicBus.gain.value=0;
-    o1.connect(ef);o2.connect(ef);ef.connect(eg);eg.connect(actx.destination);matchMaster.connect(actx.destination);musicBus.connect(matchMaster);
+    eg=actx.createGain();eg.gain.value=0;matchMaster=actx.createGain();matchMaster.gain.value=muted?0:1;
+    o1.connect(ef);o2.connect(ef);ef.connect(eg);eg.connect(actx.destination);matchMaster.connect(actx.destination);
     o1.start();o2.start();
   }catch(e){if(actx&&actx.close)actx.close();actx=null}
 }
-function toggleMute(){muted=!muted;['soundButton','modeSound'].forEach(function(id){$(id).textContent=muted?'Sound: off':'Sound: on';$(id).setAttribute('aria-pressed',String(!muted))});if(actx&&matchMaster)matchMaster.gain.setTargetAtTime(muted?0:1,actx.currentTime,.02);if(!muted)unlockMatchAudio()}
-$('soundButton').addEventListener('click',toggleMute);$('modeSound').addEventListener('click',toggleMute);
+function toggleMute(){if(!muted&&menuMusic&&!menuMusic.hasStarted()&&state==='menu'&&$('matchIntro').hidden){menuMusic.unlock();return}muted=!muted;['soundButton','modeSound'].forEach(function(id){$(id).textContent=muted?'Sound: off':'Sound: on';$(id).setAttribute('aria-pressed',String(!muted))});if(actx&&matchMaster)matchMaster.gain.setTargetAtTime(muted?0:1,actx.currentTime,.02);musicTick(performance.now());if(!muted){unlockMatchAudio();if(menuMusic)menuMusic.unlock()}}
+$('soundButton').addEventListener('click',toggleMute);$('modeSound').addEventListener('click',toggleMute);$('musicStart').addEventListener('click',function(){if(menuMusic)menuMusic.unlock()});
 // AudioContext must be resumed by a real user gesture, including an invited rider.
 function unlockMatchAudio(){startAudio();if(actx&&actx.state==='suspended')actx.resume().catch(function(){})}
-document.addEventListener('pointerdown',unlockMatchAudio,true);document.addEventListener('keydown',unlockMatchAudio,true);
+function unlockAudioFromGesture(e){unlockMatchAudio();if(menuMusic&&!muted&&e.target.id!=='soundButton'&&e.target.id!=='modeSound')menuMusic.unlock()}
+document.addEventListener('pointerdown',unlockAudioFromGesture,true);document.addEventListener('keydown',unlockAudioFromGesture,true);
 function tone(frequency,when,duration,volume,type,bus){
   var osc=actx.createOscillator(),gain=actx.createGain();osc.type=type;osc.frequency.setValueAtTime(frequency,when);
   gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(volume,when+.015);gain.gain.exponentialRampToValueAtTime(.0001,when+duration);
@@ -882,16 +886,8 @@ function playMatchCue(kind){
     else tone(480,t,.13,.08,'triangle',matchMaster);
   }catch(e){}
 }
-// Original looping, synthesized electronic theme, only while in the online lobby/intro.
-function musicTick(){
-  if(!actx||actx.state!=='running'||!musicBus)return;
-  var active=!$('matchIntro').hidden||(!$('modeOverlay').hidden&&(!$('lobbyPanel').hidden||!$('multiModes').hidden));
-  var t=actx.currentTime;musicBus.gain.setTargetAtTime(active&&!muted?.55:0,t,.12);
-  if(!active||muted){nextMusicTime=0;return}
-  if(!nextMusicTime||nextMusicTime<t-.5)nextMusicTime=t+.03;
-  var melody=[330,392,440,494,440,392,330,294,330,392,494,587,523,494,440,392],bass=[110,110,98,98,87.31,87.31,98,98];
-  while(nextMusicTime<t+.12){var n=musicStep%16;tone(melody[n],nextMusicTime,.20,.045,'triangle',musicBus);if(n%2===0)tone(bass[(musicStep/2|0)%8],nextMusicTime,.35,.08,'sine',musicBus);if(n%4===0)tone(65,nextMusicTime,.12,.06,'sine',musicBus);musicStep++;nextMusicTime+=.25}
-}
+// One track for every menu; fade it away as soon as a session starts.
+function musicTick(now){if(menuMusic)menuMusic.tick(now,state==='menu'&&$('matchIntro').hidden&&!musicSessionStarting,muted)}
 
 function audioTick(){
   if(!actx)return;
@@ -952,6 +948,7 @@ function showModes(){
   $('modeOverlay').hidden=false;$('playButtons').hidden=false;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('circuitPanel').hidden=true;$('multiplayerNotice').hidden=true;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('menu').inert=true;$('practiceButton').focus();
 }
 function closeModes(){
+  cancelPracticeLoad();
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;if($('chatPanel').hidden)startBtn.focus();
 }
 function begin(selected){
@@ -1002,7 +999,8 @@ function openCircuits(from,select){
   });if(box.firstElementChild)box.firstElementChild.focus();
 }
 window.WMCCircuitSelect=openCircuits;
-function startPracticeCircuit(id,selected){practiceFill=$('practiceAI').checked;if(practiceFill&&!window.WMCPracticeAI){$('modeTitle').textContent='AI UNAVAILABLE — RELOAD';return}if(id===circuitId){$('circuitPanel').hidden=true;begin(selected);return}try{sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-practice-pending',selected);sessionStorage.setItem('wmc-practice-ai',practiceFill?'1':'0');location.reload()}catch(e){$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}}
+function cancelPracticeLoad(){if(!musicSessionStarting)return;clearTimeout(musicSessionTimer);musicSessionTimer=0;musicSessionStarting=false;try{sessionStorage.removeItem('wmc-practice-pending');sessionStorage.removeItem('wmc-practice-ai');sessionStorage.setItem('wmc-circuit',circuitId)}catch(e){}}
+function startPracticeCircuit(id,selected){if(musicSessionStarting)return;practiceFill=$('practiceAI').checked;if(practiceFill&&!window.WMCPracticeAI){$('modeTitle').textContent='AI UNAVAILABLE — RELOAD';return}if(id===circuitId){$('circuitPanel').hidden=true;begin(selected);return}try{sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-practice-pending',selected);sessionStorage.setItem('wmc-practice-ai',practiceFill?'1':'0');musicSessionStarting=true;musicSessionTimer=setTimeout(function(){try{location.reload()}catch(e){cancelPracticeLoad();$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}},900)}catch(e){$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}}
 $('start').addEventListener('click',showModes);
 $('raceMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'race')})});
 $('qualMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'qualifying')})});
@@ -1013,7 +1011,7 @@ $('acceptInvite').addEventListener('click',unlockMatchAudio);
 $('friendsButton').addEventListener('click',function(){$('multiModes').hidden=true;$('multiplayerNotice').hidden=false;$('modeTitle').textContent='FRIENDS';window.dispatchEvent(new Event('wmc-friends-open'))});
 $('modeClose').addEventListener('click',closeModes);
 $('modeOverlay').addEventListener('click',function(e){if(e.target===this)closeModes()});
-$('modeBack').addEventListener('click',function(){if(!$('circuitPanel').hidden){$('circuitPanel').hidden=true;if(circuitReturn==='practice'){$('modeButtons').hidden=false;$('modeTitle').textContent='PRACTICE'}else{$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}return}if(!$('multiplayerNotice').hidden||!$('lobbyPanel').hidden){$('multiplayerNotice').hidden=true;$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}else{$('modeButtons').hidden=true;$('multiModes').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()}});
+$('modeBack').addEventListener('click',function(){cancelPracticeLoad();if(!$('circuitPanel').hidden){$('circuitPanel').hidden=true;if(circuitReturn==='practice'){$('modeButtons').hidden=false;$('modeTitle').textContent='PRACTICE'}else{$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}return}if(!$('multiplayerNotice').hidden||!$('lobbyPanel').hidden){$('multiplayerNotice').hidden=true;$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}else{$('modeButtons').hidden=true;$('multiModes').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()}});
 $('modeOverlay').addEventListener('keydown',function(e){
   if(e.key!=='Tab')return;
   var controls=Array.prototype.filter.call(this.querySelectorAll('button,input[type=checkbox]'),function(b){return b.offsetParent!==null&&!b.disabled});
@@ -1041,7 +1039,7 @@ function togglePause(){
   $('touch').hidden=true;$('pauseOverlay').hidden=false;
 }
 function returnToMenu(){
-  practiceAI=null;practiceFill=false;
+  practiceAI=null;practiceFill=false;cancelPracticeLoad();
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
   clearRiderTags();resetSessionTools();clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';$('ownRaceRow').querySelector('.race-gap').hidden=true;$('ownRaceRow')._gapTrend=null;Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
@@ -1380,7 +1378,7 @@ function frame(now){
   bike.tailMat.color.setHex(brakeNow&&state==='racing'?0xff2230:0x6a0a10);
   sun.position.set(pos.x+45,70,pos.z+30);sun.target.position.copy(pos);
   updateCamera(dt,clock);
-  audioTick();musicTick();expireChatBroadcasts(now);
+  audioTick();musicTick(now);expireChatBroadcasts(now);
   /* HUD */
   if(state!=='menu'){
     var k=Math.round(av*3.6);
