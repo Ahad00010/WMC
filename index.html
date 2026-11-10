@@ -163,7 +163,12 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 /* Up to four full qualifying graphics, anchored together at the bottom centre. */
 .qual-graphics{position:absolute;left:50%;bottom:calc(var(--gb) + 12px);transform:translateX(-50%);width:min(510px,calc(100vw - 32px));display:flex;flex-wrap:wrap;justify-content:center;align-items:end;gap:5px;pointer-events:none}
 .qual-graphics .qual-banner{position:relative;left:auto;bottom:auto;transform:translateY(12px);width:calc((100% - 5px)/2);max-width:250px;flex:0 0 calc((100% - 5px)/2)}
-.qual-graphics .qual-banner.show{transform:translateY(0)}.qual-graphics .qual-banner:not(.show){display:none}
+.qual-graphics .qual-banner.show{transform:translateY(0)}.qual-graphics .qual-banner:not(.show):not([data-qual-anim]){display:none}
+.qual-graphics .qual-banner[data-qual-anim="enter"]{animation:sector-open .35s cubic-bezier(.22,.8,.25,1) both}
+.qual-graphics .qual-banner[data-qual-anim="exit"]{animation:sector-close .35s ease-in both}
+@keyframes sector-open{from{opacity:0;transform:translateY(14px) scaleX(.7)}to{opacity:1;transform:translateY(0) scaleX(1)}}
+@keyframes sector-close{from{opacity:1;transform:translateY(0) scaleX(1)}to{opacity:0;transform:translateY(12px) scaleX(.7)}}
+@media(prefers-reduced-motion:reduce){.qual-graphics .qual-banner[data-qual-anim]{animation:none}}
 @media(max-width:700px),(max-height:500px){.qual-graphics{bottom:calc(var(--gb) + 4px);width:min(410px,calc(100vw - 170px))}.qual-graphics .qual-banner{max-width:200px}}
 /* Keep both towers the same size and leave room for landscape controls. */
 .race-tower{width:192px}.race-head{padding:7px 8px 5px}.race-brand{font-size:29px}.race-label{font-size:20px}
@@ -813,13 +818,26 @@ var mapBase=mkCanvas(mapC.width,mapC.height);
   g.beginPath();for(var i=0;i<=N;i+=4){var q=mp(px[i%N],pz[i%N]);if(i)g.lineTo(q[0],q[1]);else g.moveTo(q[0],q[1])}g.closePath();
   g.strokeStyle='rgba(255,255,255,.2)';g.lineWidth=15;g.stroke();
   g.strokeStyle='#eef0f2';g.lineWidth=6;g.stroke();
-  var a=mp(px[0],pz[0]);g.fillStyle='#e4202c';g.beginPath();g.arc(a[0],a[1],9,0,6.283);g.fill();
 })();
+// Project actual rider positions onto the circuit. Slightly separate markers
+// which overlap on the grid so all riders remain visible at this map scale.
+function mapMarkers(now){
+  var markers=[];
+  if(multiplayer&&multiplayer.members){multiplayer.members.forEach(function(m){
+    var own=m.id===multiplayer.user_id,sample=!own&&opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now);
+    var x=own?pos.x:sample?sample.x:m.x,z=own?pos.z:sample?sample.z:m.z;
+    if(!Number.isFinite(x)||!Number.isFinite(z))return;var point=mp(x,z);
+    markers.push({id:m.id,x:point[0],y:point[1],color:riderColors[m.color]||'#aaa',own:own});
+  })}else{var p=mp(pos.x,pos.z),number=$('ownRaceRow').querySelector('.rider-number');markers.push({id:'own',x:p[0],y:p[1],color:number.style.backgroundColor||'#b2b9bb',own:true})}
+  var groups=[];markers.forEach(function(marker){var group=groups.find(function(g){return g.some(function(other){return Math.hypot(marker.x-other.x,marker.y-other.y)<16})});if(group)group.push(marker);else groups.push([marker])});
+  groups.forEach(function(group){if(group.length<2)return;var cx=0,cy=0;group.forEach(function(m){cx+=m.x;cy+=m.y});cx/=group.length;cy/=group.length;
+    group.sort(function(a,b){return String(a.id).localeCompare(String(b.id))});var radius=Math.max(11,group.length*3.2);cx=Math.max(radius+12,Math.min(mapC.width-radius-12,cx));cy=Math.max(radius+12,Math.min(mapC.height-radius-12,cy));
+    group.forEach(function(m,i){var a=2*Math.PI*i/group.length-Math.PI/2;m.x=cx+Math.cos(a)*radius;m.y=cy+Math.sin(a)*radius})
+  });return markers;
+}
 function drawMap(){
   mx.clearRect(0,0,mapC.width,mapC.height);mx.drawImage(mapBase,0,0);
-  var q=mp(pos.x,pos.z);
-  mx.fillStyle='#ffb81c';mx.beginPath();mx.arc(q[0],q[1],11,0,6.283);mx.fill();
-  mx.strokeStyle='#0c0e11';mx.lineWidth=4;mx.stroke();
+  mapMarkers(performance.now()).forEach(function(marker){mx.fillStyle=marker.color;mx.beginPath();mx.arc(marker.x,marker.y,8,0,6.283);mx.fill();mx.strokeStyle='#0c0e11';mx.lineWidth=6;mx.stroke();mx.strokeStyle='#fff';mx.lineWidth=2;mx.stroke()});
 }
 
 /* ---------- flow ---------- */
@@ -904,20 +922,28 @@ function renderQualSectors(progress){
   Array.prototype.forEach.call(bars,function(el,i){el.className=qualSectorColors[i]||''});
   $('qualMarker').style.left=(Math.max(0,Math.min(1,progress))*100)+'%';
 }
+function qualMotionDuration(){return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:350}
+function animateQualBanner(el,direction){
+  clearTimeout(el._qualTimer);el.dataset.qualAnim=direction;
+  if(direction==='enter')el._qualTimer=setTimeout(function(){if(el.dataset.qualAnim==='enter')delete el.dataset.qualAnim},qualMotionDuration());
+}
+function closeQualBanner(el){
+  animateQualBanner(el,'exit');el._qualTimer=setTimeout(function(){el.classList.remove('show');delete el.dataset.qualAnim},qualMotionDuration());
+}
 function showQual(message,time,invalid,colour,delta){
   clearTimeout(qualSequenceTimer);
-  var banner=$('qualBanner');$('qualMessage').textContent=message;$('qualTime').textContent=time;$('qualDelta').textContent=delta||'';
+  var banner=$('qualBanner');if(!multiplayer&&(!banner.classList.contains('show')||banner.dataset.qualAnim==='exit'))animateQualBanner(banner,'enter');$('qualMessage').textContent=message;$('qualTime').textContent=time;$('qualDelta').textContent=delta||'';
   banner.className='qual-banner show'+(invalid?' invalid':colour?' '+colour:'');
   renderQualSectors(qualSector/4);
   qualAnnouncement=true;clearTimeout(qualBannerTimer);
   qualBannerTimer=setTimeout(function(){
     qualAnnouncement=false;
-    if(!qualFlying||qualInvalid||state!=='racing')banner.classList.remove('show');
+    if(!multiplayer&&(!qualFlying||qualInvalid||state!=='racing'))closeQualBanner(banner);
   },3500);
 }
 function updateQualGraphic(){
   if(!qualFlying||qualInvalid||qualAnnouncement)return;
-  var banner=$('qualBanner');
+  var banner=$('qualBanner');if(!multiplayer&&(!banner.classList.contains('show')||banner.dataset.qualAnim==='exit'))animateQualBanner(banner,'enter');
   banner.className='qual-banner show live'+(qualDeltaText?' has-delta':'');
   banner.style.setProperty('--split-color',qualDeltaColour);
   $('qualMessage').textContent='';$('qualDelta').textContent=qualDeltaText;
@@ -1252,7 +1278,7 @@ var riderColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',
 // enter the queue; a displayed result/cancellation vacates its slot after its
 // animation, letting the next waiting rider in (including the local rider).
 function clearSharedQual(){
-  sharedQual=null;var box=$('qualGraphics');Array.prototype.slice.call(box.children).forEach(function(el){if(el.id!=='qualBanner')el.remove()});$('qualBanner').hidden=false;
+  sharedQual=null;var box=$('qualGraphics');Array.prototype.slice.call(box.children).forEach(function(el){if(el.id!=='qualBanner')el.remove()});$('qualBanner').hidden=false;clearTimeout($('qualBanner')._qualTimer);delete $('qualBanner').dataset.qualAnim;
 }
 function updateSharedQual(raw,userId,now){
   if(raw.phase!=='qualifying'){clearSharedQual();return}
@@ -1283,16 +1309,21 @@ function addSharedBanner(){
 function renderSharedQual(now){
   if(!multiplayer||mpPhase!=='qualifying'||!sharedQual){$('qualBanner').hidden=false;return}
   var q=sharedQual;
-  q.slots=q.slots.filter(function(id){var r=q.records[id];if(!r)return false;if(r.terminal&&now>=r.terminal.until){r.terminal=null;return false}return !!r.terminal||r.player.flying&&!r.player.invalid&&!r.player.completed&&!r.player.dnf});
+  q.slots=q.slots.filter(function(id){var r=q.records[id];if(!r)return false;
+    if(r.closingUntil!=null){if(now<r.closingUntil)return true;r.closingUntil=null;r.terminal=null;r.drawn=false;return false}
+    if(r.terminal&&now>=r.terminal.until||!r.terminal&&!(r.player.flying&&!r.player.invalid&&!r.player.completed&&!r.player.dnf)){
+      var duration=qualMotionDuration();if(!duration){r.terminal=null;r.drawn=false;return false}r.closingUntil=now+duration;return true;
+    }return true;
+  });
   q.queue=q.queue.filter(function(id){var r=q.records[id];return r&&r.player.flying&&!r.player.invalid&&!r.player.completed&&!r.player.dnf&&q.slots.indexOf(id)===-1});
   q.players.forEach(function(p){var r=q.records[p.id];if(p.flying&&!p.invalid&&!p.completed&&!p.dnf&&!r.terminal&&q.slots.indexOf(p.id)===-1&&q.queue.indexOf(p.id)===-1)q.queue.push(p.id)});
   while(q.slots.length<4&&q.queue.length)q.slots.push(q.queue.shift());
-  var box=$('qualGraphics'),own=$('qualBanner');own.hidden=q.slots.indexOf(q.userId)===-1;
+  var box=$('qualGraphics'),own=$('qualBanner');own.hidden=q.slots.indexOf(q.userId)===-1;if(own.hidden&&own.dataset.qualAnim==='exit')delete own.dataset.qualAnim;
   Array.prototype.slice.call(box.children).forEach(function(el){if(el!==own&&q.slots.indexOf(el.dataset.riderId)===-1)el.remove()});
   var ranking=q.players.slice().sort(function(a,b){return (a.best==null?Infinity:a.best)-(b.best==null?Infinity:b.best)||a.grid-b.grid});
   q.slots.forEach(function(id,index){
-    var r=q.records[id],p=r.player;if(id===q.userId){own.style.order=index;own.querySelector('.qual-rank').textContent=ranking.findIndex(function(x){return x.id===id})+1;return}
-    var row=Array.prototype.find.call(box.children,function(el){return el.dataset.riderId===id});if(!row){row=addSharedBanner();row.dataset.riderId=id}row.style.order=index;
+    var r=q.records[id],p=r.player;if(id===q.userId){if(!r.drawn){r.drawn=true;animateQualBanner(own,'enter')}if(r.closingUntil!=null&&own.dataset.qualAnim!=='exit')animateQualBanner(own,'exit');own.style.order=index;own.querySelector('.qual-rank').textContent=ranking.findIndex(function(x){return x.id===id})+1;return}
+    var row=Array.prototype.find.call(box.children,function(el){return el.dataset.riderId===id});if(!row){row=addSharedBanner();row.dataset.riderId=id}if(!r.drawn){r.drawn=true;animateQualBanner(row,'enter')}if(r.closingUntil!=null&&row.dataset.qualAnim!=='exit')animateQualBanner(row,'exit');row.style.order=index;
     row.querySelector('.qual-rank').textContent=ranking.findIndex(function(x){return x.id===id})+1;row.querySelector('.shared-name').textContent=shortRider(p.display_name);
     var number=row.querySelector('.qual-number');number.textContent=p.number;number.style.backgroundColor=riderColors[p.color]||'#888';number.style.color=['yellow','white','silver','cyan'].includes(p.color)?'#111':'#fff';
     var message=row.querySelector('.qual-message'),time=row.querySelector('.qual-time'),delta=row.querySelector('.qual-delta'),event=r.terminal&&r.terminal.event;
