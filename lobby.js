@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id);
   let snapshot=null, checking=null, pending=false, clockOffset=0;
-  const serverUrl=window.WMC_RACE_SERVER_URL||'';let transport=null, serverSnapshot=null, connecting=false,stats={},statsAt=0;
+  const serverUrl=window.WMC_RACE_SERVER_URL||'';let transport=null, serverSnapshot=null, connecting=false,stats={},statsAt=0,connectionError='';
   async function getClient() {
     const c=window.WMCAuth&&window.WMCAuth.client;
     if(!c)throw new Error('Sign in with Google first.');
@@ -37,7 +37,7 @@
         $('startMultiplayer').hidden=lobby.host_id!==snapshot.user_id;
         const connected=serverSnapshot?serverSnapshot.players.filter(p=>p.connected).length:0;
         $('startMultiplayer').disabled=!serverUrl||!transport||!transport.ready||connected<2;
-        $('startHint').textContent=!serverUrl?'Race server not configured yet.':!transport||!transport.ready?'Connecting to race server…':connected<2?'Waiting for at least two connected riders.':'Ready to start · '+connected+'/15 connected';
+        $('startHint').textContent=!serverUrl?'Race server not configured yet.':!transport||!transport.ready?(connectionError||'Connecting to race server…'):connected<2?'Waiting for at least two connected riders.':'Ready to start · '+connected+'/15 connected';
         const list=$('lobbyMembers');list.replaceChildren();
         lobby.members.forEach(member=>{const row=document.createElement('div');row.className='friend-row';const name=document.createElement('div');name.className='friend-row-name';const title=document.createElement('strong');title.textContent=member.display_name+(member.id===lobby.host_id?' · HOST':'');const sub=document.createElement('small');sub.textContent='@'+member.username+' · #'+member.number;name.append(title,sub);row.appendChild(name);list.appendChild(row)});
       }
@@ -73,7 +73,7 @@
     connecting=true;
     try{const c=await getClient(),{data,error}=await c.auth.getSession();if(error||!data.session)throw Error('Sign in first');
       if(!transport)transport=new window.WMCRaceTransport(serverUrl,{
-        status:ok=>{if(!ok)serverSnapshot=null;if(window.WMCGame)window.WMCGame.network(ok);render()},
+        status:(ok,code,reason)=>{if(ok)connectionError='';else{serverSnapshot=null;connectionError=code===1008?'Race server rejected the connection ('+(reason||'authentication failed')+'). Retrying…':'Race server connection failed. Retrying…'}if(window.WMCGame)window.WMCGame.network(ok);render()},
         error:message=>{$('lobbyMessage').textContent=message},
         snapshot:message=>{serverSnapshot=message;if(snapshot&&window.WMCGame)window.WMCGame.authoritativeReceive(message,snapshot.user_id,stats);render()}
       });transport.connect(data.session.access_token);
