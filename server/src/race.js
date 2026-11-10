@@ -36,11 +36,25 @@ export class RaceRoom {
       else if(this.resultsAt===null)this.resultsAt=now+RESULT_DELAY;else if(now>=this.resultsAt){this.phase='complete';this.events.push({type:'results'})}
     }
   }
+  // A clean sector on the current flying lap counts provisionally. If the lap
+  // is later invalidated it is excluded; only valid completed laps persist.
+  recordSector(p,index,now,emit=true){
+    const duration=(now-p.sectorStart)/1000,prior=p.sectorBests[index];
+    let sessionBest=Infinity;
+    for(const rider of this.players.values()){
+      const best=rider.sectorBests?.[index];if(Number.isFinite(best))sessionBest=Math.min(sessionBest,best);
+      const provisional=rider.flying&&!rider.invalid?rider.sectorTimes?.[index]:null;
+      if(Number.isFinite(provisional))sessionBest=Math.min(sessionBest,provisional);
+    }
+    const personal=prior==null||duration<prior,fastest=duration<=sessionBest;
+    p.sectorTimes[index]=duration;p.sectorStart=now;
+    if(emit&&!p.invalid)this.events.push({type:'sector',id:p.profile.id,sector:index+1,split:(now-p.lapStart)/1000,delta:prior==null?null:duration-prior,color:fastest?'record':personal?'best':'slow'});
+  }
   qualify(p,result,now){const expired=now>=this.phaseStart+QUALIFYING,s=p.state;
     if(!p.flying){if(expired){p.completed=true;return}if(result.previous<0&&s.total>=0&&s.v>0){p.flying=true;p.lapStart=now;p.sectorStart=now;p.invalid=result.offTrack;if(p.invalid)this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'})}return}
     if(result.offTrack&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'})}
-    while(p.sector<3&&s.total-p.line>=N*(p.sector+1)/4){const duration=(now-p.sectorStart)/1000,prior=p.sectorBests[p.sector];p.sectorTimes[p.sector]=duration;p.sectorStart=now;p.sector++;if(!p.invalid)this.events.push({type:'sector',id:p.profile.id,sector:p.sector,split:(now-p.lapStart)/1000,delta:prior===null?null:duration-prior})}
-    if(s.total-p.line>=N&&s.v>0){p.attempts++;const duration=(now-p.lapStart)/1000;const personal=!p.invalid&&(p.best===null||duration<p.best);if(!p.invalid){p.sectorTimes[3]=(now-p.sectorStart)/1000;if(personal)p.best=duration;p.sectorTimes.forEach((v,i)=>{if(p.sectorBests[i]===null||v<p.sectorBests[i])p.sectorBests[i]=v})}
+    while(p.sector<3&&s.total-p.line>=N*(p.sector+1)/4){this.recordSector(p,p.sector,now);p.sector++}
+    if(s.total-p.line>=N&&s.v>0){p.attempts++;const duration=(now-p.lapStart)/1000;const personal=!p.invalid&&(p.best===null||duration<p.best);if(!p.invalid){this.recordSector(p,3,now);if(personal)p.best=duration;p.sectorTimes.forEach((v,i)=>{if(p.sectorBests[i]===null||v<p.sectorBests[i])p.sectorBests[i]=v})}
       this.events.push({type:'lap',id:p.profile.id,valid:!p.invalid,time:duration,personal,fastest:personal&&[...this.players.values()].every(q=>q.best===null||q.best>=duration)});
       if(expired||p.attempts>=QUALIFYING_ATTEMPTS){p.completed=true;return}p.line+=N;p.lapStart=now;p.sectorStart=now;p.sector=0;p.sectorTimes=[];p.invalid=Math.abs(s.lat)>kerbEdge(s.idx);if(p.invalid)this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'});
     }
