@@ -1,0 +1,8 @@
+{
+  "name": "wmc-race-server",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test"},
+  "dependencies": {"three": "0.128.0"},
+  "engines": {"node": ">=20"}
+}
