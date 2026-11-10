@@ -82,12 +82,12 @@ button.go:disabled{background:#3a3f47;color:#aab0b8;cursor:default}
 .credit a{color:#c5cad1}
 button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
 #touch{position:fixed;inset:0;pointer-events:none;display:none}
-.pad{pointer-events:auto;position:absolute;width:68px;height:68px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(10,12,16,.5);color:var(--fg);font-family:var(--display);font-weight:800;font-size:22px;display:grid;place-items:center;touch-action:none}
+.pad{pointer-events:auto;position:absolute;width:76px;height:76px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(10,12,16,.5);color:var(--fg);font-family:var(--display);font-weight:800;font-size:22px;display:grid;place-items:center;touch-action:none}
 .pad.on{background:rgba(228,32,44,.55)}
 #pL{left:var(--gl);bottom:calc(var(--gb) + 34px)}
-#pR{left:calc(var(--gl) + 84px);bottom:calc(var(--gb) + 34px)}
+#pR{left:calc(var(--gl) + 92px);bottom:calc(var(--gb) + 34px)}
 #pG{right:var(--gr);bottom:calc(var(--gb) + 118px)}
-#pB{right:calc(var(--gr) + 84px);bottom:calc(var(--gb) + 118px)}
+#pB{right:calc(var(--gr) + 92px);bottom:calc(var(--gb) + 118px)}
 @media (pointer:coarse){#touch{display:block}}
 @media (max-width:700px){
   #map{width:104px;height:104px}
@@ -163,7 +163,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .world-title{margin:0;font:700 17px/1.2 var(--ui);letter-spacing:.05em;color:#ddd}
 @media(max-width:700px),(max-height:500px){
  .race-tower,.qual-tower{width:150px}.race-brand{font-size:24px}.race-label{font-size:17px}.race-lap-label{font-size:14px}.race-lap-number{font-size:27px}.race-final-text{font-size:21px}.race-rider{height:25px;font-size:13px}.race-position{width:36px}.race-number{width:42px;font-size:18px}.race-footer{font-size:12px}
- #map{width:90px;height:90px}.kmh b{font-size:48px}.gear{font-size:30px}.rpm i{width:6px;height:9px}.pad{width:54px;height:54px;font-size:17px}#pR{left:calc(var(--gl) + 66px)}#pB{right:calc(var(--gr) + 66px)}#pG,#pB{bottom:calc(var(--gb) + 86px)}
+ #map{width:90px;height:90px}.kmh b{font-size:48px}.gear{font-size:30px}.rpm i{width:6px;height:9px}.pad{width:62px;height:62px;font-size:18px}#pR{left:calc(var(--gl) + 74px)}#pB{right:calc(var(--gr) + 74px)}#pG,#pB{bottom:calc(var(--gb) + 86px)}
  #menu{overflow:auto;place-items:start center;padding-top:12px;padding-bottom:12px;touch-action:pan-y}.card{gap:8px}h1{font-size:52px}.world-title{font-size:14px}.lede{font-size:12px}.keys{gap:3px 10px}.keys div{font-size:11px}.credit{font-size:10px}button.go{font-size:19px;padding:8px 24px}.session-end .card{padding:16px}.session-end h2{font-size:30px}
 }
 
@@ -347,7 +347,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="friends.js" defer></script>
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=diagnostics-1" defer></script>
-<script src="race-smoothing.js"></script>
+<script src="race-smoothing.js?v=server-clock-1"></script>
 <script src="lobby.js?v=diagnostics-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -1094,7 +1094,9 @@ function updateCamera(dt,t){
     /* Stay close to the bike at cruising speed instead of zooming away. */
     var back=5.8+Math.abs(v)*0.005;
     tgt.set(pos.x-Math.sin(camH)*back,2.6+Math.abs(v)*0.003,pos.z-Math.cos(camH)*back);
-    camPos.lerp(tgt,f);
+    // Follow the bike's translation immediately. Smoothing world position made
+    // the camera fall metres behind at speed and rush forward when braking.
+    camPos.x=tgt.x;camPos.z=tgt.z;camPos.y+=(tgt.y-camPos.y)*f;
     look.set(pos.x+Math.sin(camH)*7,1.1,pos.z+Math.cos(camH)*7);
     camera.fov+=((58+4*Math.min(1,Math.abs(v)/VMAX))-camera.fov)*0.08;
   }
@@ -1132,7 +1134,7 @@ function frame(now){
   }
   else if(state==='finishing'&&!multiplayer){physics(dt)}
   else if(state==='menu'||state==='paused'){throttleNow=0}
-  if(multiplayer&&authoritativeTarget&&mpPhase===multiplayer.phase){var target=authoritativeTarget;var visual=ownSmoother.sample(now);if(visual){pos.x=visual.x;pos.z=visual.z;h=visual.h}v=target.v;steer=target.steer;lean=target.lean;pitch=target.pitch;idx=target.idx;total=target.total;lat=target.lat;throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');}
+  if(multiplayer&&authoritativeTarget&&mpPhase===multiplayer.phase){var target=authoritativeTarget;var visual=ownSmoother.sample(now);if(visual){pos.x=visual.x;pos.z=visual.z;h=visual.h}v=visual&&Number.isFinite(visual.v)?visual.v:target.v;steer=visual&&Number.isFinite(visual.steer)?visual.steer:target.steer;lean=visual&&Number.isFinite(visual.lean)?visual.lean:target.lean;pitch=visual&&Number.isFinite(visual.pitch)?visual.pitch:target.pitch;idx=target.idx;total=target.total;lat=target.lat;throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');}
   /* rpm */
   var av=Math.abs(v),g=Math.min(6,1+Math.floor(av/14.6)),frac=Math.min(1,(av-(g-1)*14.6)/14.6);
   var tr=state==='countdown'?(throttleNow?0.8:0.2):(av<0.5&&!throttleNow?0.18:0.3+0.7*frac);
@@ -1234,7 +1236,7 @@ window.WMCGame={
     var match={id:raw.id,mode:raw.mode,phase:raw.phase,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
     this.receive(match);
     var own=raw.players.find(function(p){return p.id===userId});if(!own||!own.state||mpPhase!==raw.phase)return;
-    var receivedAt=performance.now();ownSmoother.push(own.state,receivedAt);raw.players.forEach(function(p){if(p.id===userId||!p.state)return;if(!opponentSmoothers[p.id])opponentSmoothers[p.id]=new WMCSnapshotSmoother(150);opponentSmoothers[p.id].push(p.state,receivedAt)});
+    var receivedAt=performance.now();ownSmoother.push(own.state,receivedAt,raw.serverTime);raw.players.forEach(function(p){if(p.id===userId||!p.state)return;if(!opponentSmoothers[p.id])opponentSmoothers[p.id]=new WMCSnapshotSmoother(150);opponentSmoothers[p.id].push(p.state,receivedAt,raw.serverTime)});
     authoritativeTarget=own.state;mpDone=own.completed;qualBest=own.best;qualAttempts=own.attempts;qualInvalid=own.invalid;qualFlying=own.flying;qualSector=own.sector;qualLine=own.line;lapNo=Math.min(mpRaceLaps,own.lap);raceTime=Math.max(0,(raw.serverTime-raw.phaseStart)/1000);lapStart=Math.max(0,(own.lapStart-raw.phaseStart)/1000);
     if(raw.phase==='race'){elBest.textContent=fmt(own.raceBest);elLast.textContent=fmt(own.lastLap);if(own.completed){state='finishing';$('raceFinishFlag').hidden=own.dnf}else if(state!=='countdown'){elLap.textContent=lapNo===mpRaceLaps?'LAST LAP':lapNo+'/'+mpRaceLaps;elLap.classList.toggle('race-final-text',lapNo===mpRaceLaps);$('raceLapLabel').hidden=lapNo===mpRaceLaps}}
     if(raw.phase==='qualifying'){var seconds=Math.ceil(Math.max(0,(raw.phaseStart+mpQualDuration-raw.serverTime)/1000));$('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');$('qualProgress').style.transform='scaleX('+(seconds/(mpQualDuration/1000))+')';$('qualBest').textContent=fmt(own.best);$('qualStatus').textContent=own.completed?'WAITING FOR RIDERS':own.flying?'LAP '+(own.attempts+1)+' / '+mpQualMax:'OUT LAP';$('qualLapTime').hidden=own.invalid;if(own.completed)state='finishing'}
