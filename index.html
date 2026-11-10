@@ -292,13 +292,19 @@ for(var i=0;i<N;i++){
   tx[i]=dx/l;tz[i]=dz/l;
   lx[i]=tz[i];lz[i]=-tx[i]; /* left of travel */
 }
+/* Approximate Sepang's 16–22 m width with a smooth, symmetric profile.
+   Exact widening locations are not surveyed; all surface and wall edges use the same profile. */
 var HALF=8,KERB=10.5,WALL=18;
+function roadHalfWidth(i){return 8+1.5*(1-Math.cos(2*Math.PI*i/N))}
+function kerbEdge(i){return roadHalfWidth(i)+2.5}
+function wallEdge(i){return roadHalfWidth(i)+10}
 
 function ribbon(latA,latB,vScale,y,map,recv){
   var pos=[],uv=[],idx=[];
   for(var i=0;i<=N;i++){
     var j=i%N,v=i*STEP/vScale;
-    pos.push(px[j]+lx[j]*latA,y,pz[j]+lz[j]*latA, px[j]+lx[j]*latB,y,pz[j]+lz[j]*latB);
+    var edgeA=typeof latA==='function'?latA(j):latA,edgeB=typeof latB==='function'?latB(j):latB;
+    pos.push(px[j]+lx[j]*edgeA,y,pz[j]+lz[j]*edgeA, px[j]+lx[j]*edgeB,y,pz[j]+lz[j]*edgeB);
     uv.push(0,v,1,v);
   }
   for(var k=0;k<N;k++){var a=2*k,b=a+1,c=a+2,d=a+3;idx.push(a,c,b,b,c,d)}
@@ -311,11 +317,11 @@ function ribbon(latA,latB,vScale,y,map,recv){
 }
 var ground=new THREE.Mesh(new THREE.PlaneGeometry(7000,7000),new THREE.MeshLambertMaterial({map:grassTex}));
 ground.rotation.x=-Math.PI/2;ground.position.y=-0.05;ground.receiveShadow=true;scene.add(ground);
-ribbon(-HALF,HALF,16,0.04,asphaltTex);
-ribbon(HALF,KERB,6,0.05,kerbTex);
-ribbon(-KERB,-HALF,6,0.05,kerbTex);
-ribbon(KERB,WALL,10,0.02,gravelTex);
-ribbon(-WALL,-KERB,10,0.02,gravelTex);
+ribbon(function(i){return -roadHalfWidth(i)},roadHalfWidth,16,0.04,asphaltTex);
+ribbon(roadHalfWidth,kerbEdge,6,0.05,kerbTex);
+ribbon(function(i){return -kerbEdge(i)},function(i){return -roadHalfWidth(i)},6,0.05,kerbTex);
+ribbon(kerbEdge,wallEdge,10,0.02,gravelTex);
+ribbon(function(i){return -wallEdge(i)},function(i){return -kerbEdge(i)},10,0.02,gravelTex);
 
 /* barriers */
 (function(){
@@ -327,7 +333,7 @@ ribbon(-WALL,-KERB,10,0.02,gravelTex);
   for(var i=0;i<N;i++){
     q.setFromAxisAngle(up,Math.atan2(tx[i],tz[i]));
     for(var s=-1;s<=1;s+=2){
-      p.set(px[i]+lx[i]*s*(WALL+0.6),0.55,pz[i]+lz[i]*s*(WALL+0.6));
+      p.set(px[i]+lx[i]*s*(wallEdge(i)+0.6),0.55,pz[i]+lz[i]*s*(wallEdge(i)+0.6));
       m4.compose(p,q,sv);inst.setMatrixAt(n,m4);
       inst.setColorAt(n,col.set(Math.floor(i/3)%2?0xd8202b:0xf2f2f2));n++;
     }
@@ -691,7 +697,7 @@ function qualifyingProgress(previous){
     if(previous<0&&total>=0&&v>0){
       if(qualExpired){endQualifying();return}
       qualFlying=true;qualInvalid=false;qualSector=0;qualLine=0;lapStart=raceTime;qualLastSplit=0;
-      $('qualStatus').textContent='LAP 1 / 5';showQual('', '0:00.0',false,'live');if(Math.abs(lat)>KERB)invalidateQual();
+      $('qualStatus').textContent='LAP 1 / 5';showQual('', '0:00.0',false,'live');if(Math.abs(lat)>kerbEdge(idx))invalidateQual();
     }
     return;
   }
@@ -707,7 +713,7 @@ function qualifyingProgress(previous){
   }
   if(progress>=N&&qualSector===3&&v>0){
     var t=raceTime-lapStart;recordQualSector();qualAttempts++;
-    if(qualInvalid){qualLastResult='Lap cancelled';showQualCancellation('TRACK LIMITS')}
+    if(qualInvalid){qualLastResult='Lap cancelled'}
     else{
       var isBest=qualBest==null||t<qualBest;
       if(isBest){qualBest=t;$('qualBest').textContent=fmt(t);}
@@ -787,8 +793,8 @@ function physics(dt){
   var previous=total;
   nearest();
   var al=Math.abs(lat),grip=1,maxV=VMAX;
-  if(al>KERB){surface='gravel';maxV=VMAX*0.36;grip=0.5}
-  else if(al>HALF){surface='kerb';grip=0.92}
+  if(al>kerbEdge(idx)){surface='gravel';maxV=VMAX*0.36;grip=0.5}
+  else if(al>roadHalfWidth(idx)){surface='kerb';grip=0.92}
   else surface='asphalt';
   var thr=held('up')?1:0,brk=held('down'),hard=held('brake');
   throttleNow=thr;brakeNow=brk||hard;
@@ -812,9 +818,10 @@ function physics(dt){
   pos.x+=Math.sin(h)*v*dt;pos.z+=Math.cos(h)*v*dt;
   /* walls */
   nearest();
-  if(mode==='qualifying'&&Math.abs(lat)>KERB)invalidateQual();
-  if(Math.abs(lat)>WALL){
-    var s=lat>0?1:-1,over=lat-s*WALL;
+  if(mode==='qualifying'&&Math.abs(lat)>kerbEdge(idx))invalidateQual();
+  var wall=wallEdge(idx);
+  if(Math.abs(lat)>wall){
+    var s=lat>0?1:-1,over=lat-s*wall;
     pos.x-=lx[idx]*over;pos.z-=lz[idx]*over;
     if(impact<=0){
       if(Math.abs(v)>12){shake.set((Math.random()-.5)*.8,(Math.random()-.5)*.5,(Math.random()-.5)*.8);toast('IMPACT','bad',700)}
