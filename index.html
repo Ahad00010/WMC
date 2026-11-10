@@ -205,6 +205,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 
 .mode-overlay{position:fixed;inset:0;z-index:15;display:grid;place-items:center;padding:16px;background:rgba(2,4,7,.84);backdrop-filter:blur(6px);touch-action:pan-y}
 .mode-dialog{width:min(580px,100%);max-height:100%;overflow:auto;background:linear-gradient(145deg,#1d222b,#0c0e12);border:1px solid #ffffff24;border-top:3px solid #e4202c;box-shadow:0 20px 80px #000b;padding:24px;color:#fff}
+.circuit-question{color:#cbd1d8;font:14px var(--ui);margin:0 0 12px}.circuit-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;max-height:52vh;overflow:auto;touch-action:pan-y}.circuit-choice{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:8px;min-height:124px;padding:9px;background:#ffffff09;border:1px solid #ffffff30;color:white;cursor:pointer;font:700 11px/1.2 var(--ui);text-align:center;touch-action:manipulation}.circuit-choice:hover,.circuit-choice:focus-visible{border-color:#e4202c;background:#ffffff16}.circuit-choice svg{width:100%;height:76px;overflow:visible}.circuit-choice polyline{fill:none;stroke:#fff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}@media(max-height:500px){.circuit-choices{grid-template-columns:repeat(3,minmax(0,1fr));max-height:46vh}.circuit-choice{min-height:82px;padding:5px}.circuit-choice svg{height:45px}}
 .mode-top{display:flex;align-items:start;justify-content:space-between;gap:16px}.mode-kicker{font:700 10px/1.2 var(--ui);letter-spacing:.18em;color:#e4202c}.mode-top h2{margin:8px 0 20px;font:800 34px/.95 var(--display);letter-spacing:.04em}.mode-close{border:0;background:transparent;color:#ccc;font:32px/1 sans-serif;cursor:pointer;padding:0 4px}.mode-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mode-choice{display:grid;align-content:start;gap:8px;min-height:140px;text-align:left;padding:17px;border:1px solid #ffffff25;border-left:3px solid #e4202c;background:#ffffff09;color:#adb4bd;font:500 12px/1.4 var(--ui);cursor:pointer}.mode-choice strong{font:800 27px/1 var(--display);color:#fff;text-transform:uppercase}.choice-label{color:#f14a52;font-size:10px;font-weight:700;letter-spacing:.12em}.mode-choice:hover,.mode-choice:focus-visible{background:#ffffff18;border-color:#f14a52;outline:none}.mode-back{margin-top:16px;background:none;border:0;padding:5px 0;color:#cbd1d8;font:700 13px var(--ui);cursor:pointer}.mode-unavailable{margin-top:14px;border-left:3px solid #f3a525;background:#fff1;padding:12px;font-size:13px}.mode-unavailable p{margin:5px 0 0;color:#bfc6cf}
 @media(max-height:500px){.mode-dialog{padding:14px 18px}.mode-top h2{font-size:27px;margin:5px 0 10px}.mode-choice{min-height:96px;padding:10px}.mode-choice strong{font-size:22px}.mode-back{margin-top:8px}}
 @media(max-width:360px){.mode-choices{grid-template-columns:1fr}.mode-choice{min-height:80px}}
@@ -302,9 +303,10 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <button id="multiplayerButton" class="mode-choice" type="button"><span class="choice-label">02 / ONLINE</span><strong>Multiplayer</strong><span>Race with your friends.</span></button>
     </div>
     <div id="modeButtons" class="mode-choices" hidden>
-      <button id="raceMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Race</strong><span>Three laps at Sepang.</span></button>
+      <button id="raceMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Race</strong><span>Three laps on your chosen circuit.</span></button>
       <button id="qualMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Qualifying</strong><span>Set your fastest lap.</span></button>
     </div>
+    <div id="circuitPanel" hidden><p class="circuit-question">Which circuit do you want to race in?</p><div id="circuitChoices" class="circuit-choices"></div></div>
     <div id="multiModes" class="mode-choices" hidden>
       <button id="multiQualRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Qualifying + Race</strong><span>Create a private lobby.</span></button>
       <button id="multiRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Race only</strong><span>Create a private lobby.</span></button>
@@ -387,9 +389,10 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="friends.js" defer></script>
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=chat-emotes-1" defer></script>
+<script src="circuits.js?v=1"></script>
 <script src="race-smoothing.js?v=prediction-1"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
-<script src="lobby.js?v=ai-grid-1" defer></script>
+<script src="lobby.js?v=circuits-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -397,6 +400,9 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 'use strict';
 var THREE=window.THREE;
 var $=function(id){return document.getElementById(id)};
+var circuits=window.WMCCircuits||{sepang:{name:'PETRONAS SEPANG INTERNATIONAL CIRCUIT',hashtag:'#MalaysianGP'}};
+var circuitId='sepang';try{var savedCircuit=sessionStorage.getItem('wmc-circuit');if(savedCircuit&&Object.prototype.hasOwnProperty.call(circuits,savedCircuit))circuitId=savedCircuit}catch(e){}
+window.WMCCurrentCircuit=circuitId;
 
 /* ---------- renderer / scene ---------- */
 var canvas=$('gl');
@@ -480,12 +486,14 @@ function crowdTex(rx,ry){
 /* Sepang International Circuit, traced from the outline image, in metres (x east, z south). Start line sits on the long straight at the first point. */
 var ctrl=[[-35.3,113.9],[-11.9,109.6],[11.4,105.3],[34.8,101.1],[58.2,96.9],[81.6,92.8],[104.9,88.4],[128.3,84.2],[151.6,79.7],[174.9,75.2],[198.3,70.9],[221.7,66.7],[245.1,62.7],[268.5,58.4],[291.8,54.3],[315.2,50.1],[336.6,45.1],[352.7,38.2],[364.6,30.6],[371.9,22.3],[376.6,13.8],[378.4,5.5],[377.1,-2.6],[372.9,-10.2],[365.8,-17.1],[356.3,-23.3],[342.2,-27.4],[324.1,-29.5],[301.9,-28.8],[278.2,-26.8],[254.5,-25.2],[230.8,-23.6],[207.2,-21.5],[183.5,-19.4],[159.8,-17.6],[136.1,-16.2],[112.4,-14.5],[88.8,-12.4],[65.1,-10.7],[41.4,-9.0],[17.8,-6.9],[-5.9,-5.2],[-29.6,-3.6],[-53.3,-1.7],[-77.0,0.4],[-100.6,2.5],[-124.3,4.4],[-148.0,6.2],[-171.6,8.1],[-195.3,10.2],[-218.9,12.3],[-242.6,14.1],[-266.3,15.8],[-289.9,17.9],[-313.6,20.1],[-337.2,22.4],[-360.9,24.2],[-384.6,26.3],[-408.2,28.2],[-431.9,30.2],[-455.5,32.2],[-473.7,29.2],[-488.7,24.7],[-499.1,18.2],[-505.9,10.6],[-510.4,2.4],[-512.3,-6.3],[-511.9,-15.2],[-509.8,-24.3],[-504.7,-33.8],[-497.3,-43.5],[-489.7,-54.0],[-485.7,-66.6],[-485.6,-81.4],[-489.0,-97.9],[-500.8,-118.5],[-508.5,-140.9],[-512.7,-164.3],[-513.1,-188.0],[-511.0,-211.6],[-507.1,-235.1],[-501.2,-258.1],[-492.7,-280.2],[-480.5,-300.6],[-465.2,-318.8],[-448.1,-335.2],[-429.4,-349.8],[-408.8,-361.7],[-387.0,-370.9],[-364.5,-378.5],[-341.8,-385.6],[-319.3,-393.2],[-296.9,-401.1],[-274.4,-408.8],[-252.0,-416.7],[-229.9,-425.2],[-207.7,-433.7],[-185.6,-442.5],[-163.6,-451.3],[-141.6,-460.3],[-119.6,-469.3],[-97.6,-478.3],[-75.7,-487.4],[-53.5,-495.8],[-30.8,-501.3],[-9.5,-495.6],[3.9,-477.5],[10.2,-454.8],[14.5,-431.4],[18.7,-408.0],[23.2,-384.7],[27.6,-361.4],[32.2,-338.1],[37.2,-314.8],[42.5,-291.7],[48.6,-268.7],[55.9,-246.2],[67.1,-225.3],[83.0,-207.7],[102.1,-193.6],[123.6,-183.7],[146.9,-179.0],[170.6,-178.9],[193.9,-183.1],[215.8,-192.1],[235.6,-205.2],[253.2,-221.2],[270.7,-237.2],[290.0,-250.9],[311.9,-260.0],[335.4,-263.0],[359.0,-260.4],[381.4,-252.7],[401.0,-239.3],[418.1,-222.9],[434.3,-205.6],[450.1,-187.8],[465.8,-169.9],[481.4,-152.1],[497.1,-134.3],[512.8,-116.4],[528.5,-98.6],[544.1,-80.7],[559.7,-62.8],[575.3,-44.8],[590.2,-26.3],[602.1,-5.9],[604.1,17.4],[595.9,39.6],[586.2,61.3],[576.4,82.9],[559.8,99.5],[537.0,105.3],[513.3,107.3],[489.6,109.3],[466.0,111.2],[442.3,112.8],[418.6,114.7],[394.9,116.6],[371.2,118.3],[347.5,119.9],[323.9,121.9],[300.2,123.8],[276.5,125.8],[252.9,128.0],[229.3,130.9],[205.8,134.2],[182.3,137.2],[160.3,141.5],[146.6,149.9],[137.1,159.8],[131.2,170.7],[129.9,182.7],[132.6,195.7],[138.5,209.4],[153.3,224.9],[169.1,242.5],[181.1,262.8],[185.8,286.0],[185.9,309.8],[183.8,333.4],[178.7,356.6],[170.6,378.9],[160.2,400.3],[148.0,420.6],[132.5,438.4],[111.7,448.7],[89.0,444.2],[69.2,431.2],[50.6,416.5],[32.2,401.5],[13.9,386.3],[-4.4,371.1],[-22.6,355.8],[-40.8,340.6],[-59.0,325.3],[-77.2,310.1],[-95.8,295.3],[-114.9,281.2],[-135.2,269.0],[-158.0,262.8],[-181.4,266.2],[-203.3,275.3],[-224.8,285.6],[-246.1,295.9],[-267.8,305.7],[-290.5,312.6],[-314.1,314.9],[-337.8,314.4],[-361.2,310.2],[-383.2,301.5],[-403.7,289.6],[-422.2,274.7],[-438.4,257.3],[-450.4,236.9],[-451.6,213.6],[-438.1,194.5],[-416.7,184.6],[-393.6,179.3],[-370.3,174.6],[-347.0,169.9],[-323.6,165.8],[-300.3,161.4],[-276.9,157.1],[-253.5,153.0],[-230.2,148.5],[-206.8,144.6],[-183.4,140.4],[-160.0,136.2],[-136.6,132.0],[-113.2,127.8],[-89.9,123.6],[-66.5,119.4],[-43.1,115.2]]
   .map(function(p){return new THREE.Vector3(p[0],0,p[1])});
+var sepangOutline=ctrl.map(function(p){return [p.x,p.z]});
+if(circuitId!=='sepang')ctrl=circuits.buildPoints(circuitId,THREE).map(function(p){return new THREE.Vector3(p[0],0,p[1])});
 var curve=new THREE.CatmullRomCurve3(ctrl,true,'centripetal');
 var LEN=curve.getLength();
 var N=Math.round(LEN/5);
 var pts=curve.getSpacedPoints(N);pts.pop();
 var STEP=LEN/N;
-$('eyebrow').textContent='TIME ATTACK · SEPANG INTERNATIONAL CIRCUIT · '+(LEN/1000).toFixed(1)+' KM';
+$('eyebrow').textContent='TIME ATTACK · '+circuits[circuitId].name+' · '+(LEN/1000).toFixed(1)+' KM';document.querySelectorAll('.race-footer,.qual-footer').forEach(function(el){el.textContent=circuits[circuitId].hashtag});
 var px=new Float32Array(N),pz=new Float32Array(N),tx=new Float32Array(N),tz=new Float32Array(N),lx=new Float32Array(N),lz=new Float32Array(N);
 for(var i=0;i<N;i++){
   px[i]=pts[i].x;pz[i]=pts[i].z;
@@ -728,7 +736,7 @@ var qualSectorBest=[null,null,null,null],qualSectorTimes=[],qualSectorColors=[],
 var state='menu',cdT=0,goAt=0,impact=0,wrongT=0,surface='asphalt',rpm=0,throttleNow=0,brakeNow=false;
 var WIN=40;
 var camPos=new THREE.Vector3(),camH=0,shake=new THREE.Vector3(),look=new THREE.Vector3(),tgt=new THREE.Vector3();
-try{var sb=window.localStorage.getItem('apexgp-sepang-best');if(sb){bestLap=parseFloat(sb);if(!(bestLap>0))bestLap=null}}catch(e){}
+try{var sb=window.localStorage.getItem('apexgp-'+circuitId+'-best');if(sb){bestLap=parseFloat(sb);if(!(bestLap>0))bestLap=null}}catch(e){}
 
 function wrap(a){while(a>Math.PI)a-=Math.PI*2;while(a<-Math.PI)a+=Math.PI*2;return a}
 function gridSpot(i0){
@@ -895,7 +903,7 @@ function drawMap(){
 /* ---------- flow ---------- */
 function showModes(){
   if(state!=='menu'||startBtn.disabled)return;
-  $('modeOverlay').hidden=false;$('playButtons').hidden=false;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('multiplayerNotice').hidden=true;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('menu').inert=true;$('practiceButton').focus();
+  $('modeOverlay').hidden=false;$('playButtons').hidden=false;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('circuitPanel').hidden=true;$('multiplayerNotice').hidden=true;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('menu').inert=true;$('practiceButton').focus();
 }
 function closeModes(){
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;if($('chatPanel').hidden)startBtn.focus();
@@ -921,9 +929,20 @@ function begin(selected){
     Array.prototype.forEach.call(elLights.children,function(i){i.classList.remove('on')});
   }
 }
+var circuitReturn='practice';
+function openCircuits(from,select){
+  circuitReturn=from;$('playButtons').hidden=true;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('circuitPanel').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='CIRCUIT';
+  var box=$('circuitChoices');box.replaceChildren();Object.keys(circuits).forEach(function(id){
+    var points=id==='sepang'?sepangOutline:circuits[id].points;if(!points)return;
+    var xs=points.map(function(p){return p[0]}),ys=points.map(function(p){return p[1]}),minx=Math.min.apply(null,xs),maxx=Math.max.apply(null,xs),miny=Math.min.apply(null,ys),maxy=Math.max.apply(null,ys),pad=Math.max(maxx-minx,maxy-miny)*.05;
+    var button=document.createElement('button'),svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),line=document.createElementNS('http://www.w3.org/2000/svg','polyline'),label=document.createElement('span');button.type='button';button.className='circuit-choice';button.dataset.circuit=id;svg.setAttribute('viewBox',[minx-pad,miny-pad,maxx-minx+2*pad,maxy-miny+2*pad].join(' '));svg.setAttribute('aria-hidden','true');line.setAttribute('points',points.concat([points[0]]).map(function(p){return p.join(',')}).join(' '));svg.appendChild(line);label.textContent=circuits[id].name;button.append(svg,label);button.addEventListener('click',function(){select(id)});box.appendChild(button);
+  });if(box.firstElementChild)box.firstElementChild.focus();
+}
+window.WMCCircuitSelect=openCircuits;
+function startPracticeCircuit(id,selected){if(id===circuitId){$('circuitPanel').hidden=true;begin(selected);return}try{sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-practice-pending',selected);location.reload()}catch(e){$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}}
 $('start').addEventListener('click',showModes);
-$('raceMode').addEventListener('click',function(){begin('race')});
-$('qualMode').addEventListener('click',function(){begin('qualifying')});
+$('raceMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'race')})});
+$('qualMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'qualifying')})});
 $('practiceButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeButtons').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='PRACTICE';$('raceMode').focus()});
 document.addEventListener('contextmenu',function(e){if(e.target.closest('button'))e.preventDefault()});
 $('multiplayerButton').addEventListener('click',function(){unlockMatchAudio();$('multiMessage').textContent='';$('playButtons').hidden=true;$('multiModes').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='MULTIPLAYER';window.dispatchEvent(new Event('wmc-lobby-open'))});
@@ -931,7 +950,7 @@ $('acceptInvite').addEventListener('click',unlockMatchAudio);
 $('friendsButton').addEventListener('click',function(){$('multiModes').hidden=true;$('multiplayerNotice').hidden=false;$('modeTitle').textContent='FRIENDS';window.dispatchEvent(new Event('wmc-friends-open'))});
 $('modeClose').addEventListener('click',closeModes);
 $('modeOverlay').addEventListener('click',function(e){if(e.target===this)closeModes()});
-$('modeBack').addEventListener('click',function(){if(!$('multiplayerNotice').hidden||!$('lobbyPanel').hidden){$('multiplayerNotice').hidden=true;$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}else{$('modeButtons').hidden=true;$('multiModes').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()}});
+$('modeBack').addEventListener('click',function(){if(!$('circuitPanel').hidden){$('circuitPanel').hidden=true;if(circuitReturn==='practice'){$('modeButtons').hidden=false;$('modeTitle').textContent='PRACTICE'}else{$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}return}if(!$('multiplayerNotice').hidden||!$('lobbyPanel').hidden){$('multiplayerNotice').hidden=true;$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}else{$('modeButtons').hidden=true;$('multiModes').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()}});
 $('modeOverlay').addEventListener('keydown',function(e){
   if(e.key!=='Tab')return;
   var controls=Array.prototype.filter.call(this.querySelectorAll('button'),function(b){return b.offsetParent!==null&&!b.disabled});
@@ -1104,7 +1123,7 @@ function lapDone(){
   else if(lapNo<=RACE_LAPS)elLap.textContent=lapNo+'/'+RACE_LAPS;
   if(bestLap==null||t<bestLap){
     bestLap=t;elBest.textContent=fmt(t);
-    try{window.localStorage.setItem('apexgp-sepang-best',String(t))}catch(e){}
+    try{window.localStorage.setItem('apexgp-'+circuitId+'-best',String(t))}catch(e){}
     toast('NEW BEST<small>'+fmt(t)+'</small>','good',2200);
   }else{
     toast('LAP '+(lapNo-1)+'<small>'+fmt(t)+'</small>','',1800);
@@ -1469,6 +1488,7 @@ function broadcastChat(message){
 }
 function expireChatBroadcasts(now){var feed=$('chatBroadcast');Array.prototype.slice.call(feed.children).forEach(function(card){if(now>=card._expiresAt)card.remove()})}
 window.WMCGame={
+  circuit:circuitId,
   matchCue:playMatchCue,
   receiveChat:function(message){if(!multiplayer||!message||typeof message.text!=='string'||typeof message.name!=='string')return;broadcastChat(message);var row=document.createElement('p'),name=document.createElement('b');name.textContent=message.name+': ';row.append(chatPlate(message),document.createTextNode(' '),name,document.createTextNode(message.text));var log=$('chatLog');log.appendChild(row);while(log.children.length>30)log.firstElementChild.remove();log.scrollTop=log.scrollHeight;if(message.id===multiplayer.user_id)lastChatDraft='';if($('chatPanel').hidden){chatUnread++;$('chatUnread').hidden=false;$('chatUnread').textContent=String(chatUnread)}},
   messageError:function(message){if(!multiplayer)return;if(message.indexOf('Chat')===0){$('chatStatus').textContent=message;if(lastChatDraft&&!$('chatInput').value)$('chatInput').value=lastChatDraft;lastChatDraft=''}else toast(message,'bad',1800)},
@@ -1503,6 +1523,7 @@ window.WMCGame={
     renderQualRoster(match);renderRaceRoster(match);
   }
 };
+try{var pendingPractice=sessionStorage.getItem('wmc-practice-pending');if(pendingPractice==='race'||pendingPractice==='qualifying'){sessionStorage.removeItem('wmc-practice-pending');var practiceWait=setInterval(function(){if(!startBtn.disabled){clearInterval(practiceWait);begin(pendingPractice)}},100)}}catch(e){}
 requestAnimationFrame(frame);
 })();
 </script>

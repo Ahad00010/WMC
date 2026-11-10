@@ -86,3 +86,15 @@ test('rooms keep separate circuit geometry, physics, reset and finish distances'
  bp.lap=3;bp.state.total=3*track.N;bp.state.v=10;b.advance(23000,1/60);assert.equal(bp.completed,true);assert.equal(ap.completed,false);
  assert.throws(()=>createTrack([[0,0],[1,1]]));
 });
+
+test('circuit choice is host-only, synchronized and requires riders to load it before starting',async()=>{
+ const {circuits,getTrack}=await import('../src/track.js');const r=new RaceRoom({id:'circuits',host_id:'a',mode:'race'});r.join(profile('a'),0);r.join(profile('b'),0);
+ assert.throws(()=>r.setCircuit('b','monza'));assert.throws(()=>r.setCircuit('a','not-a-track'));assert.throws(()=>r.setCircuit('a',['assen']));assert.throws(()=>r.setCircuit('a','buildPoints'));r.setCircuit('a','monza');assert.equal(r.snapshot(0).circuit,'monza');assert.notEqual(r.track.N,N);assert.throws(()=>r.start('a',0),/load/);assert.equal(r.readyCircuit('a','monza'),true);assert.equal(r.readyCircuit('b','sepang'),false);assert.throws(()=>r.start('a',0),/load/);assert.equal(r.readyCircuit('b','monza'),true);r.start('a',0);assert.equal(r.phase,'race');assert.throws(()=>r.setCircuit('a','assen'));
+ for(const [id,meta] of Object.entries(circuits)){const t=getTrack(id);assert.ok(t.N>500);assert.ok(Number.isFinite(t.length));if(id!=='sepang')assert.ok(Math.abs(t.length-meta.length)<1)}
+});
+
+
+test('AI can drive each circuit using its own track physics',async()=>{
+ const {circuits,getTrack}=await import('../src/track.js');const {createPhysics}=await import('../src/physics.js');const {createAI}=await import('../src/ai.js');
+ for(const id of Object.keys(circuits)){const track=getTrack(id),{spawn,step}=createPhysics(track),ai=createAI(track),state=spawn(1);for(let i=0;i<18000;i++)step(state,ai(state),1/60);assert.ok(state.total>track.N,`${id} should complete a lap`);assert.ok(Number.isFinite(state.x)&&Number.isFinite(state.z),id)}
+});

@@ -1,6 +1,9 @@
 // Use the same circuit control points, sampling, and Float32 rounding as the game.
 // The web and server must be deployed from the same revision.
 import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import * as THREE from 'three';
+const circuits=createRequire(import.meta.url)('../../circuits.js');
 import {CatmullRomCurve3, Vector3} from 'three';
 const html=readFileSync(new URL('../../index.html',import.meta.url),'utf8');
 const match=html.match(/var ctrl=(\[\[.*?\]\])\s*\.map\(function\(p\)/s);
@@ -28,3 +31,7 @@ return {length,N,px,pz,tx,tz,lx,lz,roadHalfWidth,kerbEdge,wallEdge};
 const defaultTrack=createTrack(points);
 export default defaultTrack;
 export const {length,N,px,pz,tx,tz,lx,lz,roadHalfWidth,kerbEdge,wallEdge}=defaultTrack;
+
+const cache=new Map([['sepang',defaultTrack]]);
+export function getTrack(id){if(typeof id!=='string'||!Object.prototype.propertyIsEnumerable.call(circuits,id))throw Error('Unknown circuit');if(!cache.has(id))cache.set(id,createTrack(circuits.buildPoints(id,THREE)));return cache.get(id)}
+export {circuits};
