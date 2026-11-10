@@ -366,6 +366,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=diagnostics-1" defer></script>
 <script src="race-smoothing.js?v=prediction-1"></script>
+<script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=guest-fixes-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -967,7 +968,7 @@ function endQualifying(){
 function recordQualSector(){
   var split=raceTime-lapStart,sectorTime=split-qualLastSplit,i=qualSector;
   qualLastSplit=split;qualSectorTimes[i]=sectorTime;
-  qualSectorColors[i]=qualInvalid?'bad':(qualSectorBest[i]==null||sectorTime<=qualSectorBest[i]?'record':'slow');
+  qualSectorColors[i]=qualInvalid?'bad':WMCSectorColor(sectorTime,qualSectorBest[i],qualSectorBest[i],LEN/4);
   qualSector++;
 }
 function qualifyingProgress(previous){
