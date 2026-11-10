@@ -8,9 +8,9 @@ This server runs authoritative simulation in one Node process. The GitHub Pages 
 2. Set runtime to **Node**. Build command: `npm ci --prefix server --omit=dev`. Start command: `npm start --prefix server`. Render provides `PORT` automatically.
 3. Under Environment add:
    - `SUPABASE_URL`: `https://siwvtpijqgtshaknzoyb.supabase.co`
-   - `SUPABASE_ANON_KEY`: the public publishable key in `auth-config.js`.
+   - `SUPABASE_PUBLISHABLE_KEY`: the public publishable key in `auth-config.js`.
    - `ALLOWED_ORIGINS`: `https://ahad00010.github.io` (an origin, without `/WMC/` or a trailing slash).
-   - `SUPABASE_SERVICE_ROLE_KEY`: the project's **legacy service_role JWT**, copied directly from the Supabase dashboard into Render's private environment setting. Never put this in Git, browser code, or chat. This is optional for a test, but without it the server cannot record race stats. The key has broad access, so restrict access to the Render dashboard. See https://supabase.com/docs/guides/api/api-keys.
+   - `SUPABASE_SECRET_KEY`: the project's **secret key** (`sb_secret_…`), copied directly from the Supabase dashboard into Render's private environment setting. Never put this in Git, browser code, or chat. This is optional for a test, but without it the server cannot record race stats. The key has broad access, so restrict access to the Render dashboard. The older variable names `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` remain supported; if both old and new variables are set, the new names take priority. See https://supabase.com/docs/guides/api/api-keys.
 4. Deploy. Open `https://YOUR-SERVICE.onrender.com/health`; it should return `{"ok":true}`. Do not send keys, passwords or screenshots containing them to anyone.
 5. The public server address is `wss://YOUR-SERVICE.onrender.com/race`. The site must be configured with that URL before multiplayer can start. Give the developer only the public URL; never share secrets. Use a single server instance: rooms currently live in one process.
 6. For monitoring, create an UptimeRobot HTTP(s) monitor for `https://YOUR-SERVICE.onrender.com/health`, at the free 5-minute interval. This can keep an idle service warm, but cannot prevent outages, restarts or quota limits. It tests HTTP availability, not race correctness.
