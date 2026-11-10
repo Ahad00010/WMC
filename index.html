@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Apex GP</title>
+<title>WMC - World Motorbike Championship</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -146,6 +146,21 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .session-end{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.7);z-index:5}.session-end .card{background:#101216;padding:26px;border-left:4px solid #e4202c}.session-end h2{margin:0;font:800 42px/1 var(--display)}
 @media(max-width:700px){.qual-tower{width:150px}.qual-brand{font-size:24px}.qual-row{font-size:11px;gap:4px}.qual-banner{bottom:calc(var(--gb) + 85px)}}
 @media (prefers-reduced-motion:reduce){.toast,.qual-banner{transition:none}}
+
+/* Keep both towers the same size and leave room for landscape controls. */
+.race-tower{width:192px}.race-head{padding:7px 8px 5px}.race-brand{font-size:29px}.race-label{font-size:20px}
+.race-lap-label{font-size:16px}.race-lap-number{font-size:31px;line-height:1}.race-rider{height:29px;font-size:15px}.race-position{width:45px}.race-number{width:50px;font-size:21px}.race-footer{font-size:14px;padding:6px 9px 8px}
+.race-final-text{font:700 27px/1.1 var(--ui);letter-spacing:-.06em;white-space:nowrap;color:transparent;-webkit-text-stroke:1px white}
+.race-flag{font-size:18px;margin:0 4px;color:#fff}.race-tower.finish .race-progress{background:repeating-conic-gradient(#fff 0% 25%,#222 0% 50%) 0 0/6px 6px}.race-tower.finish .race-progress span{display:none}
+.race-tower.finish .race-position{background:repeating-conic-gradient(#444 0% 25%,#151515 0% 50%) 0 0/7px 7px}
+.world-title{margin:0;font:700 17px/1.2 var(--ui);letter-spacing:.05em;color:#ddd}
+@media(max-width:700px),(max-height:500px){
+ .race-tower,.qual-tower{width:150px}.race-brand{font-size:24px}.race-label{font-size:17px}.race-lap-label{font-size:14px}.race-lap-number{font-size:27px}.race-final-text{font-size:21px}.race-rider{height:25px;font-size:13px}.race-position{width:36px}.race-number{width:42px;font-size:18px}.race-footer{font-size:12px}
+ #map{width:90px;height:90px}.kmh b{font-size:48px}.gear{font-size:30px}.rpm i{width:6px;height:9px}.pad{width:54px;height:54px;font-size:17px}#pR{left:calc(var(--gl) + 66px)}#pB{right:calc(var(--gr) + 66px)}#pG,#pB{bottom:calc(var(--gb) + 86px)}
+ #menu{overflow:auto;place-items:start center;padding-top:12px;padding-bottom:12px;touch-action:pan-y}.card{gap:8px}h1{font-size:52px}.world-title{font-size:14px}.lede{font-size:12px}.keys{gap:3px 10px}.keys div{font-size:11px}.credit{font-size:10px}button.go{font-size:19px;padding:8px 24px}.session-end .card{padding:16px}.session-end h2{font-size:30px}
+}
+
+.account-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}.account-actions button,.profile-card button{border:1px solid #626771;background:#252a32;color:#fff;border-radius:4px;padding:8px 12px;font:700 13px var(--ui);cursor:pointer}.profile-overlay{position:fixed;inset:0;z-index:20;background:#000c;display:grid;place-items:center;padding:12px;overflow:auto;touch-action:pan-y}.profile-card{width:min(460px,100%);max-height:100%;overflow:auto;background:#171a20;padding:18px;display:grid;gap:8px;touch-action:pan-y}.profile-card h2,.profile-card p{margin:0}.profile-card label{display:grid;gap:3px;font-size:13px}.profile-card input,.profile-card select{width:100%;padding:8px;color:#fff;background:#292e36;border:1px solid #707986;border-radius:4px;font:16px system-ui;user-select:text;touch-action:auto}.profile-card #profileError{color:#ff9191;font-size:13px}
 </style>
 
 <canvas id="gl"></canvas>
@@ -154,19 +169,19 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   <div class="race-tower" id="raceTiming" aria-label="Race standings">
     <div class="race-head"><div class="race-brand">WMC</div><div class="race-label">RACE</div>
       <div class="race-progress"><span id="raceProgress"></span></div>
-      <div class="race-lap-label">LAP</div><div class="race-lap-number" id="lapNo">1</div>
+      <div id="raceLapLabel" class="race-lap-label">LAP</div><div class="race-lap-number" id="lapNo">1/5</div>
     </div>
-    <div class="race-rider"><span class="race-position">1</span><span class="race-name">D EFA</span><span class="race-number">0</span></div>
+    <div class="race-rider"><span class="race-position">1</span><span class="race-name rider-short">D EFA</span><span id="raceFinishFlag" class="race-flag" hidden aria-label="Finished">&#9873;</span><span class="race-number rider-number">0</span></div>
     <div class="race-footer">#MalaysianGP</div>
   </div>
   <div hidden><span id="cur"></span><span id="last"></span><span id="best"></span></div>
   <div class="qual-tower" id="qualTower" hidden>
     <div class="qual-brand">WMC</div><div class="qual-label">QUALIFYING</div>
     <div class="qual-progress"><span id="qualProgress"></span></div><div class="qual-clock" id="qualClock">10:00</div>
-    <div class="qual-row"><span class="qual-position">1</span><span class="qual-name">D EFA</span><span class="qual-stripe"></span><span class="qual-best" id="qualBest">--:--.---</span></div>
+    <div class="qual-row"><span class="qual-position">1</span><span class="qual-name rider-short">D EFA</span><span class="qual-stripe"></span><span class="qual-best" id="qualBest">--:--.---</span></div>
     <div class="qual-row"><span class="qual-name" id="qualStatus">OUT LAP</span><span id="qualLapTime" style="font-variant-numeric:tabular-nums">--:--.---</span></div><div class="qual-footer">#MalaysianGP</div>
   </div>
-  <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span><b class="qual-rank">1</b> D EFA</span><span class="qual-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-readout"><div class="qual-time" id="qualTime"></div><div class="qual-delta" id="qualDelta"></div></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i><span class="qual-marker" id="qualMarker"></span></div></div></div>
+  <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span><b class="qual-rank">1</b> <span class="rider-short">D EFA</span></span><span class="qual-number rider-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-readout"><div class="qual-time" id="qualTime"></div><div class="qual-delta" id="qualDelta"></div></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i><span class="qual-marker" id="qualMarker"></span></div></div></div>
   <canvas id="map" width="300" height="300"></canvas>
   <div class="lights" id="lights" hidden><i></i><i></i><i></i><i></i><i></i></div>
   <div class="toast" id="toast"></div>
@@ -186,7 +201,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <div id="menu">
   <div class="card">
     <div class="eyebrow" id="eyebrow">TIME ATTACK &middot; SEPANG INTERNATIONAL CIRCUIT</div>
-    <h1>Apex <span>GP</span></h1>
+    <h1>WMC</h1><p class="world-title">World Motorbike Championship</p>
     <p class="lede">Wait for the five lights to go out, then chase your best lap. Stay on the asphalt, brake before the corners, and keep out of the gravel.</p>
     <div class="keys">
       <div><kbd>W</kbd> Throttle</div>
@@ -196,13 +211,25 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <div><kbd>R</kbd> Back on track</div>
       <div><kbd>M</kbd> Sound on / off</div>
     </div>
+    <div class="account-actions"><button type="button" id="accountButton">Sign in with Google</button><button type="button" id="signOutButton" hidden>Sign out</button><span id="accountStatus" aria-live="polite"></span></div>
     <button class="go" id="start" autofocus disabled>Loading bike&hellip;</button>
     <div class="mode-buttons" id="modeButtons" hidden><button class="go" id="raceMode">Race</button><button class="go" id="qualMode">Qualifying</button><button class="go secondary" id="modeBack">Back</button></div>
     <p class="credit">Bike: &ldquo;Ducati Lenovo Team - MotoGP26&rdquo; by <a href="https://sketchfab.com/Kenny3D89" target="_blank" rel="noopener">Kenny3D89</a>, licensed <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Source: <a href="https://sketchfab.com/3d-models/ducati-lenovo-team-motogp26-497ac78767344110a0046a3ab4a5d058" target="_blank" rel="noopener">Sketchfab</a>.</p>
   </div>
 </div>
 
-<div class="session-end" id="sessionEnd" hidden><div class="card"><div class="eyebrow">WMC &middot; QUALIFYING</div><h2>SESSION FINISHED</h2><p class="lede" id="sessionResult"></p><button class="go" id="returnMenu">Main menu</button></div></div>
+<div class="session-end" id="sessionEnd" hidden><div class="card"><div class="eyebrow" id="sessionMode">WMC &middot; QUALIFYING</div><h2>SESSION FINISHED</h2><p class="lede" id="sessionResult"></p><button class="go" id="returnMenu">Main menu</button></div></div>
+
+<div id="profileOverlay" class="profile-overlay" hidden>
+  <form id="profileForm" class="profile-card">
+    <h2>Rider profile</h2><p>Choose your name and racing number.</p>
+    <label>Display name <input id="displayName" maxlength="15" placeholder="Jordan Lazia" required autocomplete="name"></label>
+    <label>Unique username <input id="username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" placeholder="jordan_lazia" required autocomplete="username"></label>
+    <label>Racing number (10–99) <input id="riderNumber" type="number" min="10" max="99" step="1" required></label>
+    <label>Number plate color <select id="plateColor"><option value="blue">Blue</option><option value="red">Red</option><option value="yellow">Yellow</option><option value="orange">Orange</option><option value="green">Green</option><option value="cyan">Cyan</option><option value="purple">Purple</option><option value="pink">Pink</option><option value="white">White</option><option value="black">Black</option><option value="silver">Silver</option></select></label>
+    <p id="profileError" role="alert"></p><div><button type="submit">Save profile</button> <button type="button" id="profileClose">Close</button></div>
+  </form>
+</div>
 
 <div id="updateNotice" hidden role="alertdialog" aria-modal="true" aria-labelledby="updateTitle" style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.9);color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:system-ui,sans-serif;pointer-events:auto;touch-action:auto">
   <h2 id="updateTitle">The current session is old</h2>
@@ -236,6 +263,9 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 })();
 </script>
 
+<script src="auth-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="profile.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -247,7 +277,8 @@ var $=function(id){return document.getElementById(id)};
 /* ---------- renderer / scene ---------- */
 var canvas=$('gl');
 var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+var mobileRender=window.matchMedia('(pointer:coarse)').matches;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,mobileRender?1.25:2));
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 var scene=new THREE.Scene();
@@ -263,7 +294,7 @@ scene.fog=new THREE.Fog(HORIZON,260,2600);
 var camera=new THREE.PerspectiveCamera(64,1,0.3,4500);
 var hemi=new THREE.HemisphereLight(0xdfeeff,0x4c5b3a,0.85);scene.add(hemi);
 var sun=new THREE.DirectionalLight(0xfff1d6,1.05);
-sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+sun.castShadow=true;sun.shadow.mapSize.set(mobileRender?512:1024,mobileRender?512:1024);
 var sc=sun.shadow.camera;sc.left=-22;sc.right=22;sc.top=22;sc.bottom=-22;sc.near=1;sc.far=200;
 sun.shadow.bias=-0.0006;
 scene.add(sun);scene.add(sun.target);
@@ -588,6 +619,7 @@ var MAP={up:['KeyW','ArrowUp'],down:['KeyS','ArrowDown'],left:['KeyA','ArrowLeft
 var ALL=[].concat(MAP.up,MAP.down,MAP.left,MAP.right,MAP.brake);
 function held(n){return MAP[n].some(function(c){return keys[c]})}
 window.addEventListener('keydown',function(e){
+  if(e.target.matches('input,select,textarea,button'))return;
   if(ALL.indexOf(e.code)>=0)e.preventDefault();
   keys[e.code]=true;
   if(e.code==='KeyR'&&state==='racing')resetBike();
@@ -671,7 +703,7 @@ function showModes(){
 function begin(selected){
   if(state!=='menu'||startBtn.disabled)return;
   mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;
-  elLap.textContent='1';$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
+  clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');elLap.textContent='1/5';$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
   keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume();
   $('menu').hidden=true;$('hud').hidden=false;
   $('raceTiming').hidden=mode==='qualifying';$('qualTower').hidden=mode!=='qualifying';
@@ -729,6 +761,7 @@ function invalidateQual(){
   }
 }
 function endQualifying(){
+  $('sessionMode').textContent='WMC · QUALIFYING';
   state='finished';v=0;throttleNow=0;keys={};$('qualStatus').textContent='SESSION FINISHED';
   $('sessionResult').textContent=(qualAttempts>=QUAL_MAX_LAPS?'5-lap limit reached. ':'')+(qualLastResult?qualLastResult+' · ':'')+(qualBest==null?'No valid flying lap recorded.':'Best lap: '+fmt(qualBest));
   $('sessionEnd').hidden=false;
@@ -812,15 +845,29 @@ function resetBike(){
   idx=i;pos.set(px[i],0,pz[i]);h=Math.atan2(tx[i],tz[i]);v=0;steer=0;lean=0;pitch=0;
   toast('BACK ON TRACK','',900);
 }
+var raceFinishTimer=0;
 function lapDone(){
   var t=raceTime-lapStart;lapStart=raceTime;lastLap=t;lapNo++;
-  elLast.textContent=fmt(t);elLap.textContent=lapNo;
+  elLast.textContent=fmt(t);
+  if(lapNo===5){$('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='LAST LAP'}
+  else if(lapNo<=5)elLap.textContent=lapNo+'/5';
   if(bestLap==null||t<bestLap){
     bestLap=t;elBest.textContent=fmt(t);
     try{window.localStorage.setItem('apexgp-sepang-best',String(t))}catch(e){}
     toast('NEW BEST<small>'+fmt(t)+'</small>','good',2200);
   }else{
     toast('LAP '+(lapNo-1)+'<small>'+fmt(t)+'</small>','',1800);
+  }
+  if(lapNo>5){
+    state='finishing';v=0;throttleNow=0;keys={};
+    $('raceTiming').classList.add('finish');$('raceFinishFlag').hidden=false;
+    $('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='FINISH';
+    raceFinishTimer=setTimeout(function(){
+      if(state!=='finishing'||mode!=='race')return;
+      state='finished';$('sessionMode').textContent='WMC · RACE';
+      $('sessionResult').textContent='Race complete · Best lap: '+fmt(bestLap);
+      $('sessionEnd').hidden=false;
+    },10000);
   }
 }
 
