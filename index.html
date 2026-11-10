@@ -100,7 +100,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .qual-clock{text-align:right;padding:0 8px;background:#050505;font:600 25px/1 var(--display);font-variant-numeric:tabular-nums}
 .qual-row{display:flex;align-items:center;gap:7px;padding:5px 7px;font-size:13px;font-weight:700}.qual-position{background:#fff;color:#111;padding:0 7px}.qual-name{flex:1}.qual-stripe{height:19px;width:3px;background:#e4202c}.qual-best{font-weight:500;font-variant-numeric:tabular-nums}
 .qual-footer{padding:6px 8px;font-size:11px;font-weight:700;background:#080808}
-.qual-banner{position:absolute;bottom:calc(var(--gb) + 18px);left:50%;width:min(320px,calc(100vw - 180px));min-width:200px;transform:translate(-50%,30px);opacity:0;transition:opacity .25s,transform .35s;pointer-events:none;font-family:var(--ui);clip-path:polygon(0 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%);background:rgba(8,10,11,.88)}
+.qual-banner{position:absolute;bottom:calc(var(--gb) + 18px);left:50%;width:min(250px,calc(100vw - 32px));transform:translate(-50%,30px);opacity:0;transition:opacity .25s,transform .35s;pointer-events:none;font-family:var(--ui);clip-path:polygon(0 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%);background:rgba(8,10,11,.88)}
 .qual-banner.show{opacity:1;transform:translate(-50%,0)}.qual-banner-head{display:flex;align-items:center;background:#050505;padding:5px 8px;font-weight:700;font-size:14px}.qual-banner-head span:first-child{flex:1}.qual-number{background:#e4202c;color:#090909;min-width:38px;text-align:center;font:800 18px/1 var(--display)}
 .qual-banner-body{padding:6px 8px 9px}.qual-readout{display:flex;align-items:baseline;justify-content:space-between;gap:5px}.qual-delta{font:800 27px/1 var(--display);color:#ff8a00;font-variant-numeric:tabular-nums}.qual-banner.live .qual-time{color:#929b9d;font-weight:600}.qual-banner.flash .qual-banner-body{background:#f32829}.qual-banner.flash .qual-time{color:white;font-size:clamp(38px,6vw,65px);text-align:center}.qual-banner.flash .qual-message,.qual-banner.flash .qual-delta,.qual-banner.flash .qual-sectors{display:none}.qual-message{font:700 12px/1.1 var(--ui);letter-spacing:.05em;color:#fff}.qual-time{font:800 35px/1 var(--display);font-variant-numeric:tabular-nums;color:#ff8a00}.qual-banner.invalid .qual-time,.qual-banner.invalid .qual-message{color:#fff}.qual-banner.fast .qual-time{color:#ff8a00}.qual-banner.record .qual-time{color:#f02d39}.qual-banner.slow .qual-time{color:#f4f4f4}
 .qual-sectors{display:flex;position:relative;gap:3px;margin-top:9px}.qual-sectors i{height:3px;flex:1;background:#535353}.qual-sectors i.best{background:#ff8a00}.qual-sectors i.slow{background:#f4f4f4}.qual-sectors i.bad{background:#535353}.qual-marker{position:absolute;top:-4px;left:0;width:2px;height:11px;background:#ff8a00;box-shadow:0 0 4px #000;transition:left .12s linear}
@@ -121,10 +121,11 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .qual-banner.flash .qual-readout{justify-content:center}.qual-banner.flash .qual-time{font:800 clamp(42px,6vw,65px)/1 var(--display);letter-spacing:.02em;color:white;text-align:center}
 .qual-banner.finish .qual-readout{justify-content:center}.qual-banner.finish .qual-time{font:800 39px/1 var(--display);color:var(--flash-color,#f32829)}
 .qual-banner.finish .qual-delta,.qual-banner.finish .qual-sectors,.qual-banner.finish .qual-message{display:none}
-.qual-banner.cancel .qual-readout{justify-content:center}.qual-banner.cancel .qual-message{text-align:center;font-size:15px}
-.qual-banner.cancel .qual-time{font:700 30px/1 var(--display);text-align:center;color:#fff}
+.qual-banner.cancel .qual-banner-body{min-height:0;height:58px;padding:5px 6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.qual-banner.cancel .qual-readout{justify-content:center;width:100%}.qual-banner.cancel .qual-message{text-align:center;font:700 12px/1.1 var(--ui);letter-spacing:.02em}
+.qual-banner.cancel .qual-time{font:700 25px/1 var(--ui);letter-spacing:-.04em;text-align:center;color:#fff}
 .qual-banner.cancel.outline .qual-time{color:transparent;-webkit-text-stroke:1px #fff}
-.qual-banner.cancel.reason .qual-time{color:#fff;font-size:26px;-webkit-text-stroke:0}
+.qual-banner.cancel.reason .qual-time{color:#fff;font-size:22px;-webkit-text-stroke:0}
 .qual-banner.cancel .qual-sectors,.qual-banner.cancel .qual-delta{display:none}
 @keyframes qual-wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 @media(prefers-reduced-motion:reduce){.qual-banner-body{animation:none!important}.qual-banner .qual-time,.qual-banner .qual-delta{transition:none}}
