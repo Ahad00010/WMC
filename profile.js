@@ -50,6 +50,8 @@
     return;
   }
   client = window.supabase.createClient(config.url, config.anonKey, {auth:{flowType:'pkce',detectSessionInUrl:true}});
+  window.WMCAuth = { client: client };
+  window.dispatchEvent(new Event('wmc-auth-ready'));
   account.onclick = async () => {
     status.textContent = 'Opening Google sign-in…';
     const native = !!(window.WMCAndroid && window.WMCAndroid.openAuth);
