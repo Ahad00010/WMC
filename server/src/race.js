@@ -29,11 +29,12 @@ export class RaceRoom {
   start(id,now){if(id!==this.host)throw Error('Only the host can start');if(this.phase!=='lobby')throw Error('Match already started');if(this.players.size<2||this.players.size>15)throw Error('2–15 connected riders required');if(this.circuitConfigured&&[...this.players.values()].some(p=>!p.connected||!p.circuitReady))throw Error('Waiting for all riders to load the circuit');
     if(this.fillAI){const colors=['blue','red','yellow','orange','green','cyan','purple','pink','white','black','silver'];for(let i=this.players.size;i<15;i++){const profile={id:'ai-'+(i+1),username:'ai'+(i+1),display_name:'AI Rider '+(i+1),number:10+i,color:colors[i%colors.length]};this.join(profile,now);this.players.get(profile.id).ai=true}}
     const order=[...this.players.values()];for(let i=order.length-1;i>0;i--){let j=randomInt(i+1);[order[i],order[j]]=[order[j],order[i]]}order.forEach((p,i)=>p.grid=i+1);this.matchId=randomUUID();this.startPhase(this.mode==='race'?'race':'qualifying',now,COUNTDOWN)}
-  startPhase(phase,now,delay){this.phase=phase;this.phaseStart=now+delay;this.resultsAt=null;for(const p of this.players.values()){p.state=this.physics.spawn(p.grid);p.emote=null;p.emoteAt=null;p.completed=p.dnf;p.finishAt=null;p.input=neutralInput();p.inputAt=now;p.lap=1;p.lapStart=this.phaseStart;p.raceBest=null;p.lastLap=null;p.flying=false;p.invalid=false;p.line=0;p.sector=0;p.sectorStart=this.phaseStart;p.sectorTimes=[];if(phase==='qualifying'){p.best=null;p.attempts=0;p.sectorBests=[null,null,null,null]}}this.events.push({type:'phase',phase})}
+  startPhase(phase,now,delay){this.phase=phase;this.phaseStart=now+delay;this.resultsAt=null;for(const p of this.players.values()){p.state=this.physics.spawn(p.grid);p.gapIndex=p.state.total;p.gapCrossings=new Map([[p.gapIndex,this.phaseStart]]);p.emote=null;p.emoteAt=null;p.completed=p.dnf;p.finishAt=null;p.input=neutralInput();p.inputAt=now;p.lap=1;p.lapStart=this.phaseStart;p.raceBest=null;p.lastLap=null;p.flying=false;p.invalid=false;p.line=0;p.sector=0;p.sectorStart=this.phaseStart;p.sectorTimes=[];if(phase==='qualifying'){p.best=null;p.attempts=0;p.sectorBests=[null,null,null,null]}}this.events.push({type:'phase',phase})}
   advance(now,dt){if(this.phase==='lobby'||this.phase==='complete')return;
     for(const p of this.players.values())if(!p.connected&&!p.dnf&&p.disconnectedAt!==null&&now-p.disconnectedAt>=GRACE&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id:p.profile.id});if([...this.players.values()].filter(q=>!q.ai).length===2){this.phase='complete';this.endReason='opponent_left';this.events.push({type:'session_ended',reason:this.endReason});return}}
     if(now>=this.phaseStart){for(const p of this.players.values()){
       if(p.dnf)continue;const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput(),result=this.physics.step(p.state,input,dt);
+      if(this.phase==='race'&&!p.completed)this.recordGapCrossings(p,now,dt);
       if(p.completed)continue;
       if(this.phase==='race'){if(p.state.total>=this.track.N*p.lap&&p.state.v>0){p.lastLap=(now-p.lapStart)/1000;p.raceBest=p.raceBest===null?p.lastLap:Math.min(p.raceBest,p.lastLap);p.lap++;p.lapStart=now;if(p.lap>RACE_LAPS){p.completed=true;p.finishAt=now;this.events.push({type:'finish',id:p.profile.id})}}}
       else this.qualify(p,result,now);
@@ -50,6 +51,31 @@ export class RaceRoom {
       if(this.phase==='qualifying'){if(this.resultsAt===null)this.resultsAt=now+QUALIFYING_RESULTS_DELAY;else if(now>=this.resultsAt){players.sort((a,b)=>Number(a.dnf)-Number(b.dnf)||(a.best??Infinity)-(b.best??Infinity)||a.grid-b.grid);players.forEach((p,i)=>p.grid=i+1);this.startPhase('race',now,GRID_COUNTDOWN)}}
       else if(this.resultsAt===null)this.resultsAt=now+RESULT_DELAY;else if(now>=this.resultsAt){this.phase='complete';this.events.push({type:'results'})}
     }
+  }
+  // Time differences are measured at the same sampled track positions, never
+  // distance divided by current speed. The bounded history covers one lap.
+  recordGapCrossings(p,now,dt){
+    if(!p.gapCrossings||!Number.isFinite(p.state.total))return;
+    const next=Math.floor(p.state.total),from=p.gapIndex;if(next<from){for(let i=next;i<=from;i++)p.gapCrossings.delete(i);p.gapIndex=next;return}if(next===from)return;
+    const count=next-from;if(count>80){p.gapCrossings.clear();p.gapIndex=next;return}
+    for(let i=from+1;i<=next;i++)p.gapCrossings.set(i,now-dt*1000+(i-from)/count*dt*1000);
+    p.gapIndex=next;while(p.gapCrossings.size>this.track.N+80)p.gapCrossings.delete(p.gapCrossings.keys().next().value);
+  }
+  raceGaps(now){
+    const result=new Map();if(!['race','complete'].includes(this.phase)||now<this.phaseStart)return result;
+    const riders=[...this.players.values()].filter(p=>!p.dnf&&p.state).sort((a,b)=>Number(b.completed)-Number(a.completed)||(a.completed?(a.finishAt??Infinity)-(b.finishAt??Infinity):b.state.total-a.state.total)||a.grid-b.grid);
+    for(let i=1;i<riders.length;i++){
+      const ahead=riders[i-1],p=riders[i];let seconds=null,laps=0;
+      if(p.completed&&ahead.completed&&p.finishAt!=null&&ahead.finishAt!=null)seconds=Math.max(0,(p.finishAt-ahead.finishAt)/1000);
+      else if(!p.completed&&!ahead.completed){
+        laps=Math.floor(Math.max(0,ahead.state.total-p.state.total)/this.track.N);
+        if(!laps&&p.gapCrossings&&ahead.gapCrossings&&p.gapIndex===Math.floor(p.state.total)){
+          const earlier=ahead.gapCrossings.get(p.gapIndex),crossed=p.gapCrossings.get(p.gapIndex);
+          if(Number.isFinite(earlier)&&Number.isFinite(crossed)&&crossed>=earlier){const when=Math.abs(p.state.v)<.5&&Math.abs(ahead.state.v)>.5?now:crossed;seconds=Math.max(0,(when-earlier)/1000)}
+        }
+      }
+      if(laps||seconds!==null)result.set(p.profile.id,{ahead:ahead.profile.id,seconds,laps});
+    }return result;
   }
   // A clean sector on the current flying lap counts provisionally. If the lap
   // is later invalidated it is excluded; only valid completed laps persist.
@@ -74,5 +100,5 @@ export class RaceRoom {
       if(expired||p.attempts>=QUALIFYING_ATTEMPTS){p.completed=true;p.finishAt=now;return}p.line+=N;p.lapStart=now;p.sectorStart=now;p.sector=0;p.sectorTimes=[];p.invalid=Math.abs(s.lat)>kerbEdge(s.idx);if(p.invalid)this.events.push({type:'invalid',id:p.profile.id,reason:'TRACK LIMITS'});
     }
   }
-  snapshot(now){return {id:this.id,matchId:this.matchId,mode:this.mode,circuit:this.circuit,circuitConfigured:this.circuitConfigured,fillAI:this.fillAI,phase:this.phase,endReason:this.endReason,phaseStart:this.phaseStart,serverTime:now,rules:{raceLaps:RACE_LAPS,qualifyingAttempts:QUALIFYING_ATTEMPTS,qualifyingMs:QUALIFYING},players:[...this.players.values()].map(p=>({...p.profile,ai:!!p.ai,circuitReady:!!p.circuitReady,grid:p.grid,connected:p.connected,completed:p.completed,dnf:p.dnf,finishAt:p.finishAt,emote:p.emote&&p.emote.until>now?p.emote:null,best:p.best,attempts:p.attempts,flying:p.flying,invalid:p.invalid,lap:p.lap,lapStart:p.lapStart,raceBest:p.raceBest,lastLap:p.lastLap,sector:p.sector,line:p.line,state:p.state&&{...p.state}})),events:this.events.splice(0)}}
+  snapshot(now){const gaps=this.raceGaps(now);return {id:this.id,matchId:this.matchId,mode:this.mode,circuit:this.circuit,circuitConfigured:this.circuitConfigured,fillAI:this.fillAI,phase:this.phase,endReason:this.endReason,phaseStart:this.phaseStart,serverTime:now,rules:{raceLaps:RACE_LAPS,qualifyingAttempts:QUALIFYING_ATTEMPTS,qualifyingMs:QUALIFYING},players:[...this.players.values()].map(p=>({...p.profile,gap:gaps.get(p.profile.id)||null,ai:!!p.ai,circuitReady:!!p.circuitReady,grid:p.grid,connected:p.connected,completed:p.completed,dnf:p.dnf,finishAt:p.finishAt,emote:p.emote&&p.emote.until>now?p.emote:null,best:p.best,attempts:p.attempts,flying:p.flying,invalid:p.invalid,lap:p.lap,lapStart:p.lapStart,raceBest:p.raceBest,lastLap:p.lastLap,sector:p.sector,line:p.line,state:p.state&&{...p.state}})),events:this.events.splice(0)}}
 }
