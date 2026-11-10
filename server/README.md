@@ -46,3 +46,7 @@ On coarse-pointer devices the renderer uses adaptive 3D resolution (0.6–0.85 C
 ## Race gaps
 
 The race tower shows a gap to the rider immediately ahead when the authoritative server has timed both through the same sampled track position. An upward arrow means the gap has decreased; a downward arrow means it has increased. There is a small deadband to prevent flicker, and no arrow is shown until a trend can be compared for the same pair. Before a shared crossing, after an overtake, or when timing is otherwise unavailable, the gap is hidden rather than estimated from speed. Lapped riders show a lap gap, and finished riders use finish times. Track sample spacing makes live times approximate. History is bounded to approximately one lap per rider and has no effect on race physics or results.
+
+## Rider nameplates
+
+Practice and multiplayer show a rider's full display name and colored number plate above the rendered bike. Multiplayer tags use the authoritative roster and the same smoothed poses as remote bikes; practice uses the signed-in profile, with the existing guest identity as fallback. Tags are screen-space DOM elements reused per rider rather than extra WebGL meshes or textures. They are culled behind the camera, off-screen, or beyond 350 metres; overlapping tags can stack upward with a stem toward the bike. This keeps mobile text readable at a fixed size but crowded grids can still overlap. Tags do not affect controls, network traffic, or physics.
