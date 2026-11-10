@@ -22,3 +22,12 @@ test('server sends the same actual qualifying sector color to both riders',async
  for(const c of [a,b]){const snapshot=await until(()=>c.messages.find(m=>m.type==='snapshot'&&m.events.some(e=>e.type==='sector')));assert.equal(snapshot.events.find(e=>e.type==='sector').color,'record')}
  a.ws.close();b.ws.close();
 });
+
+test('chat and cosmetic emotes reach both authenticated riders without changing physics',async t=>{
+ const lobby={id:'social',host_id:'a',mode:'qualifying_race'};const app=createServer({allowedOrigins:['http://test.local'],authenticate:async token=>({userId:token,lobby,profile:{id:token,username:token,display_name:'Rider '+token,number:1,color:'red'}})});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>app.close());const url=`ws://127.0.0.1:${app.server.address().port}/race`;
+ function client(id){const ws=new WebSocket(url,{origin:'http://test.local'}),messages=[];ws.on('message',v=>messages.push(JSON.parse(v)));ws.on('open',()=>ws.send(JSON.stringify({type:'auth',token:id})));return {ws,messages}}const a=client('a'),b=client('b');await until(()=>a.messages.some(m=>m.type==='ready')&&b.messages.some(m=>m.type==='ready'));a.ws.send(JSON.stringify({type:'start'}));await until(()=>a.messages.some(m=>m.type==='snapshot'&&m.phase==='qualifying'));
+ const rider=app.rooms.get('social').players.get('b'),state={...rider.state};b.ws.send(JSON.stringify({type:'input',input:{up:true,down:false,left:false,right:false,brake:false}}));b.ws.send(JSON.stringify({type:'emote',input:'wheelie'}));
+ for(const c of [a,b]){const snapshot=await until(()=>c.messages.find(m=>m.type==='snapshot'&&m.players.some(p=>p.id==='b'&&p.emote?.kind==='wheelie')));assert.equal(snapshot.players.find(p=>p.id==='b').emote.kind,'wheelie')}assert.deepEqual(rider.state,state,'pre-start emote cannot change physics');
+ b.ws.send(JSON.stringify({type:'chat',input:'<img src=x> hello',name:'spoof',id:'a'}));for(const c of [a,b]){const msg=await until(()=>c.messages.find(m=>m.type==='chat'));assert.equal(msg.name,'Rider b');assert.equal(msg.id,'b');assert.equal(msg.text,'<img src=x> hello')}
+ a.ws.close();b.ws.close();
+});

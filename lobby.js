@@ -81,7 +81,8 @@
     try{const c=await getClient(),{data,error}=await c.auth.getSession();if(error||!data.session)throw Error('Sign in first');if(leaving||currentGeneration!==generation||!snapshot||!snapshot.lobby)return;
       if(!transport)transport=new window.WMCRaceTransport(serverUrl,{
         status:(ok,code,reason)=>{if(ok&&!connected)cue('ready');connected=ok;if(ok)connectionError='';else{serverSnapshot=null;connectionError=code===1008?'Race server rejected the connection ('+(reason||'authentication failed')+'). Retrying…':'Race server connection failed. Retrying…'}if(window.WMCGame)window.WMCGame.network(ok);render()},
-        error:message=>{$('lobbyMessage').textContent=message},
+        error:message=>{$('lobbyMessage').textContent=message;if(window.WMCGame&&window.WMCGame.messageError)window.WMCGame.messageError(message)},
+        chat:message=>{if(!leaving&&currentGeneration===generation&&window.WMCGame&&window.WMCGame.receiveChat)window.WMCGame.receiveChat(message)},
         snapshot:message=>{if(leaving||currentGeneration!==generation)return;serverSnapshot=message;if(snapshot&&window.WMCGame)window.WMCGame.authoritativeReceive(message,snapshot.user_id,stats);render()}
       });transport.connect(data.session.access_token);
     }catch(e){$('lobbyMessage').textContent=e.message||'Race server connection failed.'}finally{connecting=false}
@@ -97,7 +98,7 @@
       finally{leavePromise=null}})();return leavePromise;
   }
   $('startMultiplayer').onclick=()=>{if(!transport||!transport.send('start'))$('lobbyMessage').textContent='Race server is not connected.';else cue('ready')};
-  window.WMCMatch={reset:()=>{if(transport)transport.send('reset')},sendInput,leave:leaveSession};
+  window.WMCMatch={reset:()=>{if(transport)transport.send('reset')},sendInput,emote:kind=>!!(transport&&transport.send('emote',kind)),chat:text=>!!(transport&&transport.send('chat',text)),leave:leaveSession};
   $('resumeLobby').onclick=()=>{if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby()}};
   $('multiRace').onclick=()=>{cue('select');create('race')};$('multiQualRace').onclick=()=>{cue('select');create('qualifying_race')};
   $('inviteForm').onsubmit=async e=>{e.preventDefault();const username=$('inviteUsername').value.trim();if(await act('invite',{username})){cue('join');$('lobbyMessage').textContent='Invite sent (expires in 10 seconds).';$('inviteForm').reset()}};

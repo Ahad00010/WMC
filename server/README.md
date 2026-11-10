@@ -22,3 +22,7 @@ The authoritative stats migration `202611100004_authoritative_stats.sql` has alr
 Run `npm ci --prefix server` and `npm test --prefix server`. Set the environment variables above and run `npm start --prefix server`. The browser must use HTTPS/WSS in production. Test with two real accounts and devices before relying on it, including qualifying, reconnect, finish ordering and a server restart. Client-reported legacy match RPCs remain in the existing database for compatibility with the currently deployed site and must be revoked only as part of an audited cutover; they are not used by this client.
 
 The race server authenticates through the Supabase lobby RPC using the rider’s access token. PostgREST verifies the JWT and the RPC derives identity from `auth.uid()`; the server never accepts an identity from the client. JWTs remain usable until expiry even if a session is revoked, so this is not immediate sign-out revocation.
+
+## In-session chat and emotes
+
+Chat and emotes use the authenticated race WebSocket and are broadcast only to connected riders in the same room; they do not use the old client-authoritative match RPCs. Chat is ephemeral, is not persisted or replayed on reconnect, is limited to 180 characters and one message per rider per second, and is displayed as text. There is no moderation, reporting, or blocking system. Wheelie and nitro are three-second cosmetic effects; they do not modify server physics or results. Wheelie requires forward movement or throttle. The race server and website must both be updated for these features.

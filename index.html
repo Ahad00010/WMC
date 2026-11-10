@@ -174,8 +174,15 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .race-tower{width:192px}.race-head{padding:7px 8px 5px}.race-brand{font-size:29px}.race-label{font-size:20px}
 .race-lap-label{font-size:16px}.race-lap-number{font-size:31px;line-height:1}.race-rider{height:29px;font-size:15px}.race-position{width:45px}.race-number{width:50px;font-size:21px}.race-footer{font-size:14px;padding:6px 9px 8px}
 .race-final-text{font:700 27px/1.1 var(--ui);letter-spacing:-.06em;white-space:nowrap;color:transparent;-webkit-text-stroke:1px white}
-.race-flag{font-size:18px;margin:0 4px;color:#fff}.race-tower.finish .race-progress{background:repeating-conic-gradient(#fff 0% 25%,#222 0% 50%) 0 0/6px 6px}.race-tower.finish .race-progress span{display:none}
-.race-tower.finish .race-position{background:repeating-conic-gradient(#444 0% 25%,#151515 0% 50%) 0 0/7px 7px}
+.qual-flag{font-size:14px;color:#fff}.race-flag{font-size:18px;margin:0 4px;color:#fff}.race-tower.finish .race-progress{background:repeating-conic-gradient(#fff 0% 25%,#222 0% 50%) 0 0/6px 6px}.race-tower.finish .race-progress span{display:none}
+.race-rider.finished .race-position,.qual-row.finished .qual-position{background:repeating-conic-gradient(#444 0% 25%,#151515 0% 50%) 0 0/7px 7px}
+.race-rider.finished .race-position,.qual-row.finished .qual-position{color:#fff;text-shadow:0 1px 2px #000}
+.session-tools{position:fixed;z-index:26;top:var(--gt);left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:flex-start;pointer-events:auto}
+.session-tools button{border:1px solid #ffffff55;border-radius:4px;background:#151923ed;color:#fff;padding:7px 10px;font:700 13px var(--ui);touch-action:manipulation}
+.emote-menu,.chat-panel{position:absolute;top:40px;background:#10141bee;border:1px solid #ffffff55;box-shadow:0 5px 22px #0008;padding:8px;color:white}
+.emote-menu{left:0;display:flex;gap:5px;white-space:nowrap}.chat-panel{left:50%;transform:translateX(-50%);width:min(310px,80vw);touch-action:auto}
+.chat-log{max-height:130px;overflow:auto;touch-action:pan-y;user-select:text;font:12px/1.4 var(--ui);overflow-wrap:anywhere}.chat-log p{margin:3px 0}.chat-log b{color:#ffb34b}.chat-form{display:flex;gap:4px;margin-top:6px}.chat-form input{min-width:0;flex:1;background:#252b34;color:#fff;border:1px solid #777;padding:7px;font:16px system-ui;user-select:text;touch-action:auto}.chat-status{font:11px var(--ui);color:#ffb6b6;min-height:1em}
+@media(max-width:700px),(max-height:500px){.session-tools button{font-size:11px;padding:6px 8px}.chat-log{max-height:72px}.chat-panel{width:min(280px,80vw)}}
 .world-title{margin:0;font:700 17px/1.2 var(--ui);letter-spacing:.05em;color:#ddd}
 @media(max-width:700px),(max-height:500px){
  .race-tower,.qual-tower{width:150px}.race-brand{font-size:24px}.race-label{font-size:17px}.race-lap-label{font-size:14px}.race-lap-number{font-size:27px}.race-final-text{font-size:21px}.race-rider{height:25px;font-size:13px}.race-position{width:36px}.race-number{width:42px;font-size:18px}.race-footer{font-size:12px}
@@ -228,7 +235,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   <div class="qual-tower" id="qualTower" hidden>
     <div class="qual-brand">WMC</div><div class="qual-label">QUALIFYING</div>
     <div class="qual-progress"><span id="qualProgress"></span></div><div class="qual-clock" id="qualClock">4:00</div>
-    <div id="qualRoster"><div id="qualOwnRow" class="qual-row"><span class="qual-position">1</span><span class="qual-name rider-short">D EFA</span><span class="qual-stripe"></span><span class="qual-best" id="qualBest">--:--.---</span></div>
+    <div id="qualRoster"><div id="qualOwnRow" class="qual-row"><span class="qual-position">1</span><span class="qual-name rider-short">D EFA</span><span class="qual-stripe"></span><span class="qual-flag" id="qualFinishFlag" hidden aria-label="Finished">&#9873;</span><span class="qual-best" id="qualBest">--:--.---</span></div>
     </div>
     <div class="qual-row"><span class="qual-name" id="qualStatus">OUT LAP</span><span id="qualLapTime" style="font-variant-numeric:tabular-nums">--:--.---</span></div><div class="qual-footer">#MalaysianGP</div>
   </div>
@@ -246,6 +253,12 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   </div>
 </div>
 
+<div id="sessionTools" class="session-tools" hidden>
+  <button id="emoteButton" type="button" aria-expanded="false">Emote <small>F</small></button>
+  <button id="chatButton" type="button" hidden aria-expanded="false">Chat <small>T</small> <span id="chatUnread" hidden></span></button>
+  <div id="emoteMenu" class="emote-menu" hidden><button id="wheelieEmote" type="button">Wheelie</button><button id="nitroEmote" type="button">Nitro</button></div>
+  <div id="chatPanel" class="chat-panel" hidden><div id="chatLog" class="chat-log" aria-live="polite"></div><form id="chatForm" class="chat-form"><label class="sr-only" for="chatInput">Message</label><input id="chatInput" maxlength="180" placeholder="Message riders" autocomplete="off"><button type="submit">Send</button></form><div id="chatStatus" class="chat-status" role="status"></div><button id="chatClose" type="button">Close</button></div>
+</div>
 <div id="touch" hidden>
   <button class="pad" id="pL" aria-label="Lean left">&#9664;</button>
   <button class="pad" id="pR" aria-label="Lean right">&#9654;</button>
@@ -265,6 +278,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <div><kbd>Space</kbd> Hard brake</div>
       <div><kbd>R</kbd> Back on track</div>
       <div><kbd>M</kbd> Sound on / off</div>
+      <div><kbd>F</kbd> Emotes</div><div><kbd>T</kbd> Multiplayer chat</div>
     </div>
     <div class="account-actions"><button type="button" id="soundButton">Sound: on</button><button type="button" id="accountButton">Sign in with Google</button><button type="button" id="signOutButton" hidden>Sign out</button><span id="accountStatus" aria-live="polite"></span></div>
     <button class="go" id="start" autofocus disabled>Loading bike&hellip;</button>
@@ -364,10 +378,10 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="profile.js"></script>
 <script src="friends.js" defer></script>
 <script src="race-server-config.js?v=render-1" defer></script>
-<script src="race-transport.js?v=diagnostics-1" defer></script>
+<script src="race-transport.js?v=chat-emotes-1" defer></script>
 <script src="race-smoothing.js?v=prediction-1"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
-<script src="lobby.js?v=guest-fixes-1" defer></script>
+<script src="lobby.js?v=chat-emotes-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -654,6 +668,12 @@ var bike=(function(){
   root.traverse(function(o){if(o.isMesh)o.castShadow=true});
   return {root:root,pitch:pitchG,rider:rider,fa:fa,rear:rear,front:front,tail:tail,tailMat:tailMat,gen:gen,m:m,rr:.335,fr:.335};
 })();
+// Cosmetic effects are rendered only; they never alter physics or timing.
+var nitroGeometry=new THREE.ConeGeometry(.14,.95,9),nitroOuter=new THREE.MeshBasicMaterial({color:0x1da7ff,transparent:true,opacity:.75,depthWrite:false}),nitroCore=new THREE.MeshBasicMaterial({color:0xe4faff,transparent:true,opacity:.9,depthWrite:false});
+function createNitro(parent){var fx=new THREE.Group(),outer=new THREE.Mesh(nitroGeometry,nitroOuter),core=new THREE.Mesh(nitroGeometry,nitroCore);outer.rotation.x=-Math.PI/2;core.rotation.x=-Math.PI/2;outer.position.z=-.42;core.position.z=-.27;core.scale.set(.48,.64,.48);fx.add(outer);fx.add(core);fx.position.set(.2,.50,-.86);fx.visible=false;parent.add(fx);return fx}
+var ownNitro=createNitro(bike.m),localEmote=null,chatUnread=0,lastChatDraft='',lastChatTime=-Infinity,lastEmoteTime=-Infinity;
+function emoteLevel(emote,now){if(!emote||now>=emote.until)return 0;var left=emote.until-now;return Math.max(0,Math.min(1,left/350,(3000-left)/350))}
+function drawNitro(fx,emote,now){var strength=emote&&emote.kind==='nitro'?emoteLevel(emote,now):0;fx.visible=strength>0;if(fx.visible){var flicker=.88+.12*Math.sin(now*.035);fx.scale.set(strength,strength*flicker,strength)}}
 scene.add(bike.root);
 bike.root.visible=false;
 var startBtn=$('start');
@@ -722,8 +742,14 @@ var ALL=[].concat(MAP.up,MAP.down,MAP.left,MAP.right,MAP.brake);
 function held(n){return MAP[n].some(function(c){return keys[c]})}
 window.addEventListener('keydown',function(e){
   if(e.code==='Escape'&&!$('modeOverlay').hidden){closeModes();return}
-  if(e.target.matches('input,select,textarea,button')||!$('modeOverlay').hidden||mpMenuOpen&&e.code!=='Escape')return;
+  var target=e.target,typing=target.matches&&target.matches('input,select,textarea,[contenteditable=true]'),button=target.matches&&target.matches('button');
+  var drivingKey=ALL.indexOf(e.code)>=0&&e.code!=='Space'||e.code==='KeyF'||e.code==='KeyT';
+  if(typing||button&&!(drivingKey&&(state==='racing'||state==='finishing'))||!$('modeOverlay').hidden||mpMenuOpen&&e.code!=='Escape')return;
+  if(e.code==='Escape'&&!$('chatPanel').hidden){closeChat();return}
+  if(e.code==='Escape'&&!$('emoteMenu').hidden){toggleEmoteMenu(false);return}
   if(e.code==='Escape'){togglePause();return}
+  if(e.code==='KeyF'&&!e.repeat){toggleEmoteMenu();e.preventDefault();return}
+  if(e.code==='KeyT'&&!e.repeat&&multiplayer){openChat();e.preventDefault();return}
   if(ALL.indexOf(e.code)>=0)e.preventDefault();
   keys[e.code]=true;if(ALL.indexOf(e.code)>=0&&window.WMCMatch)window.WMCMatch.sendInput();
   if(e.code==='KeyR'&&(state==='racing'||state==='finishing'))resetBike();
@@ -740,6 +766,23 @@ function bindPad(id,code){
   el.addEventListener('pointercancel',off);el.addEventListener('pointerleave',off);
 }
 bindPad('pL','KeyA');bindPad('pR','KeyD');bindPad('pG','KeyW');bindPad('pB','KeyS');
+function toggleEmoteMenu(force){if($('sessionTools').hidden||state==='menu'||state==='finished'||state==='paused')return;var open=force==null?$('emoteMenu').hidden:force;$('emoteMenu').hidden=!open;$('emoteButton').setAttribute('aria-expanded',String(open))}
+function openChat(){if(!multiplayer||$('sessionTools').hidden)return;$('emoteMenu').hidden=true;$('emoteButton').setAttribute('aria-expanded','false');$('chatPanel').hidden=false;$('chatButton').setAttribute('aria-expanded','true');chatUnread=0;$('chatUnread').hidden=true;$('chatInput').focus()}
+function closeChat(){$('chatPanel').hidden=true;$('chatButton').setAttribute('aria-expanded','false');$('chatInput').blur();$('chatClose').blur()}
+function resetSessionTools(){$('sessionTools').hidden=true;$('emoteMenu').hidden=true;$('emoteButton').setAttribute('aria-expanded','false');closeChat();$('chatInput').value='';$('chatLog').replaceChildren();$('chatStatus').textContent='';chatUnread=0;lastChatDraft='';lastChatTime=-Infinity;lastEmoteTime=-Infinity;$('chatUnread').hidden=true;localEmote=null;ownNitro.visible=false}
+function triggerEmote(kind){
+  if(state!=='racing'&&state!=='finishing'){toggleEmoteMenu(false);return}
+  if(performance.now()-lastEmoteTime<750){toast('WAIT A MOMENT','',1000);return}
+  if(kind==='wheelie'&&Math.abs(v)<1&&!held('up')){toast('MOVE TO WHEELIE','',1500);toggleEmoteMenu(false);return}
+  if(multiplayer){if(!window.WMCMatch||!window.WMCMatch.emote){toast('SERVER NOT CONNECTED','bad',1500);return}window.WMCMatch.sendInput();if(!window.WMCMatch.emote(kind)){toast('SERVER NOT CONNECTED','bad',1500);return}}
+  lastEmoteTime=performance.now();localEmote={kind:kind,until:lastEmoteTime+3000};toggleEmoteMenu(false);if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+}
+$('emoteButton').addEventListener('click',function(){toggleEmoteMenu();this.blur()});
+$('wheelieEmote').addEventListener('click',function(){triggerEmote('wheelie')});$('nitroEmote').addEventListener('click',function(){triggerEmote('nitro')});
+$('chatButton').addEventListener('click',openChat);$('chatClose').addEventListener('click',closeChat);
+$('chatInput').addEventListener('keydown',function(e){if(e.key==='Escape'){e.preventDefault();closeChat()}});
+$('chatForm').addEventListener('submit',function(e){e.preventDefault();var input=$('chatInput'),text=input.value.trim();if(!text)return;if(performance.now()-lastChatTime<1000){$('chatStatus').textContent='Wait a moment before sending again.';return}if(!window.WMCMatch||!window.WMCMatch.chat||!window.WMCMatch.chat(text)){$('chatStatus').textContent='Not connected. Message not sent.';return}lastChatTime=performance.now();lastChatDraft=text;input.value='';$('chatStatus').textContent='';input.focus()});
+
 
 /* ---------- audio ---------- */
 var actx=null,o1,o2,eg,ef,matchMaster,musicBus,muted=false,musicStep=0,nextMusicTime=0;
@@ -847,15 +890,15 @@ function showModes(){
   $('modeOverlay').hidden=false;$('playButtons').hidden=false;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('multiplayerNotice').hidden=true;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('menu').inert=true;$('practiceButton').focus();
 }
 function closeModes(){
-  $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.focus();
+  $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;if($('chatPanel').hidden)startBtn.focus();
 }
 function begin(selected){
   if(state!=='menu'||startBtn.disabled)return;
   closeModes();
   mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;
-  clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');elLap.textContent='1/'+RACE_LAPS;$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
+  clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('ownRaceRow').classList.remove('finished');$('qualOwnRow').classList.remove('finished');$('qualFinishFlag').hidden=true;$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');elLap.textContent='1/'+RACE_LAPS;$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
   keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume().catch(function(){});
-  $('menu').hidden=true;$('hud').hidden=false;$('touch').hidden=false;$('pauseButton').hidden=false;
+  $('menu').hidden=true;$('hud').hidden=false;$('touch').hidden=false;$('pauseButton').hidden=false;$('sessionTools').hidden=false;$('chatButton').hidden=!multiplayer;
   $('raceTiming').hidden=mode==='qualifying';$('qualTower').hidden=mode!=='qualifying';
   $('qualBanner').classList.remove('show');
   if(mode==='qualifying'){
@@ -909,7 +952,7 @@ function togglePause(){
 }
 function returnToMenu(){
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
-  clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
+  resetSessionTools();clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
   clearInputs();$('pauseOverlay').hidden=true;$('sessionEnd').hidden=true;$('hud').hidden=true;$('touch').hidden=true;$('menu').hidden=false;
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
@@ -1001,7 +1044,7 @@ function qualifyingProgress(previous){
       if(isBest)showFastestLap(t);else showQual('',fmt(t),false,'slow');
     }
     if(qualExpired||qualAttempts>=QUAL_MAX_LAPS){
-      state='finishing';$('pauseButton').hidden=true;
+      $('qualOwnRow').classList.add('finished');$('qualFinishFlag').hidden=false;state='finishing';$('pauseButton').hidden=true;
       $('qualStatus').textContent=qualAttempts>=QUAL_MAX_LAPS?'3 LAP LIMIT':'SESSION FINISHED';
       if(multiplayer){mpDone=true;$('qualStatus').textContent='WAITING FOR RIDERS'}else qualFinishTimer=setTimeout(endQualifying,6500);return;
     }
@@ -1060,7 +1103,7 @@ function lapDone(){
   }
   if(lapNo>RACE_LAPS){
     state='finishing';$('pauseButton').hidden=true;
-    $('raceTiming').classList.add('finish');$('raceFinishFlag').hidden=false;
+    $('raceTiming').classList.add('finish');$('ownRaceRow').classList.add('finished');$('raceFinishFlag').hidden=false;
     $('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='FINISH';
     if(multiplayer){mpDone=true;return}
     raceFinishTimer=setTimeout(function(){
@@ -1219,7 +1262,7 @@ function frame(now){
   r.position.set(pos.x,0,pos.z);
   r.rotation.y=h;
   r.rotation.z=-lean;
-  bike.pitch.rotation.x=pitch;
+  bike.pitch.rotation.x=pitch-(localEmote&&localEmote.kind==='wheelie'?.45*emoteLevel(localEmote,now):0);drawNitro(ownNitro,localEmote,now);
   bike.fa.rotation.y=steer*0.35;
   bike.rider.position.x=lean*0.2;
   bike.rider.rotation.z=-lean*0.3;
@@ -1248,7 +1291,7 @@ function frame(now){
 function shortRider(name){var parts=name.trim().split(/\s+/);return (parts[0][0]+' '+parts[parts.length-1].slice(0,3)).toUpperCase()}
 function formatMatchTime(t){return t==null?'--:--.---':fmt(t)}
 function renderMatchIntro(match,remaining){
-  $('matchIntro').hidden=false;$('menu').hidden=false;$('menu').inert=true;$('modeOverlay').hidden=true;
+  $('sessionTools').hidden=false;$('chatButton').hidden=false;$('matchIntro').hidden=false;$('menu').hidden=false;$('menu').inert=true;$('modeOverlay').hidden=true;
   var first=remaining>18&&match.phase==='qualifying'||remaining>18&&match.mode==='race';
   var stage=match.id+':'+match.phase+':'+(first?'connecting':'grid');
   if(stage!==matchIntroStage){matchIntroStage=stage;var content=$('matchIntro').querySelector('.match-intro-content');content.classList.remove('match-stage');void content.offsetWidth;content.classList.add('match-stage');playMatchCue(first?'ready':'grid')}
@@ -1269,7 +1312,8 @@ function drawMultiplayerBikes(dt){
   var visible={};multiplayer.members.forEach(function(m){
     if(m.id===multiplayer.user_id||m.x==null||m.z==null)return;
     visible[m.id]=true;var obj=mpOpponentMeshes[m.id];
-    if(!obj){obj=new THREE.Group();var base=bike.gen.clone(true),rider=bike.rider.clone(true);base.visible=true;obj.add(base);rider.position.set(0,.9,0);obj.add(rider);obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
+    if(!obj){obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group(),base=bike.gen.clone(true),rider=bike.rider.clone(true);pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);base.visible=true;assembly.add(base);rider.position.set(0,.9,0);assembly.add(rider);obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
+    var emote=m.emote;obj.userData.pivot.rotation.x=emote&&emote.kind==='wheelie'?-.45*emoteLevel(emote,performance.now()):0;drawNitro(obj.userData.nitro,emote,performance.now());
     var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(performance.now());if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h}
   });
   Object.keys(mpOpponentMeshes).forEach(function(id){if(!visible[id]){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id];delete opponentSmoothers[id]}});
@@ -1350,19 +1394,20 @@ function updateTower(box,own,sorted,match,kind){
       if(row!==own){
         row.className=kind==='race'?'race-rider':'qual-row';
         if(kind==='race'){['race-position','race-name','race-flag','race-number'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
-        else{['qual-position','qual-name','qual-stripe','qual-best'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
+        else{['qual-position','qual-name','qual-stripe','qual-flag','qual-best'].forEach(function(cls){var el=document.createElement('span');el.className=cls;row.appendChild(el)})}
       }
       box.appendChild(row);
     }
     row.style.order=i;row.querySelector(kind==='race'?'.race-position':'.qual-position').textContent=i+1;
+    var finished=m.finish_at!=null&&!m.dnf;row.classList.toggle('finished',finished);if(kind==='qual'){var qualFlag=row.querySelector('.qual-flag');qualFlag.textContent=finished?'⚑':'';qualFlag.hidden=!finished}
     if(kind==='qual'){var stripe=row.querySelector('.qual-stripe'),plateColors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};stripe.style.backgroundColor=plateColors[m.color]||'#888'}
     if(m.id!==match.user_id){row.querySelector(kind==='race'?'.race-name':'.qual-name').textContent=shortRider(m.display_name);
       if(kind==='race'){
-        row.querySelector('.race-flag').textContent=m.dnf?'DNF':m.completed?'⚑':'';
+        row.querySelector('.race-flag').textContent=m.dnf?'DNF':finished?'⚑':'';
         var number=row.querySelector('.race-number'),colors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};
         number.textContent=m.number;number.style.backgroundColor=colors[m.color]||'#e4202c';number.style.color=['yellow','white','silver','cyan'].includes(m.color)?'#111':'#fff';
-      }else row.querySelector('.qual-best').textContent=m.completed?'⚑ '+formatMatchTime(m.best):formatMatchTime(m.best);
-    }else if(kind==='race')$('raceFinishFlag').hidden=!m.completed&&!mpDone;
+      }else row.querySelector('.qual-best').textContent=formatMatchTime(m.best);
+    }else if(kind==='race')$('raceFinishFlag').hidden=!finished;
   });
   rows.forEach(function(row,id){if(!seen.has(id)){if(row!==own)row.remove();else delete row.dataset.riderId}});
   // FLIP: animate from the old visual position to the newly sorted layout. Do
@@ -1385,7 +1430,7 @@ function renderQualRoster(match){
 }
 function renderRaceRoster(match){
   if(match.phase!=='race'&&match.phase!=='complete')return;
-  if(match.members.some(function(m){return m.id===match.user_id&&m.completed&&!m.dnf})){$('raceTiming').classList.add('finish');$('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='FINISH'}
+  if(match.members.some(function(m){return m.id===match.user_id&&m.finish_at!=null&&!m.dnf})){$('raceTiming').classList.add('finish');$('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='FINISH'}
   var sorted=match.members.slice().sort(function(a,b){if(a.dnf!==b.dnf)return a.dnf?1:-1;if(a.completed!==b.completed)return a.completed?-1:1;if(a.completed)return String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id);return b.progress-a.progress||a.grid-b.grid});
   updateTower($('raceRoster'),$('ownRaceRow'),sorted,match,'race');
 }
@@ -1404,20 +1449,23 @@ function startMultiplayerPhase(match,remaining){
 }
 window.WMCGame={
   matchCue:playMatchCue,
+  receiveChat:function(message){if(!multiplayer||!message||typeof message.text!=='string'||typeof message.name!=='string')return;var row=document.createElement('p'),name=document.createElement('b');name.textContent=message.name+': ';row.append(name,document.createTextNode(message.text));var log=$('chatLog');log.appendChild(row);while(log.children.length>30)log.firstElementChild.remove();log.scrollTop=log.scrollHeight;if(message.id===multiplayer.user_id)lastChatDraft='';if($('chatPanel').hidden){chatUnread++;$('chatUnread').hidden=false;$('chatUnread').textContent=String(chatUnread)}},
+  messageError:function(message){if(!multiplayer)return;if(message.indexOf('Chat')===0){$('chatStatus').textContent=message;if(lastChatDraft&&!$('chatInput').value)$('chatInput').value=lastChatDraft;lastChatDraft=''}else toast(message,'bad',1800)},
   inSession:function(){return !!multiplayer},
   network:function(ok){$('matchNetwork').hidden=ok||!multiplayer},
   input:function(){return {up:held('up'),down:held('down'),left:held('left'),right:held('right'),brake:held('brake')}},
   authoritativeReceive:function(raw,userId,stats){
     if(!raw||raw.phase==='lobby'||!Array.isArray(raw.players))return;
     mpRaceLaps=raw.rules&&Number.isInteger(raw.rules.raceLaps)?raw.rules.raceLaps:5;mpQualDuration=raw.rules&&Number.isFinite(raw.rules.qualifyingMs)?raw.rules.qualifyingMs:600000;mpQualMax=raw.rules&&Number.isInteger(raw.rules.qualifyingAttempts)?raw.rules.qualifyingAttempts:5;
-    var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,progress:s.total/N,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
+    var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,progress:s.total/N,emote:p.emote&&['wheelie','nitro'].includes(p.emote.kind)?{kind:p.emote.kind,until:performance.now()+Math.max(0,p.emote.until-raw.serverTime)}:null,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
     mpStartAt=performance.now()+raw.phaseStart-raw.serverTime;
     var match={id:raw.id,mode:raw.mode,phase:raw.phase,endReason:raw.endReason,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
     this.receive(match);
     var own=raw.players.find(function(p){return p.id===userId});if(!own||!own.state||mpPhase!==raw.phase)return;
     var receivedAt=performance.now();updateSharedQual(raw,userId,receivedAt);if(raw.phase==='qualifying'&&sharedQual&&sharedQual.records[userId])qualSectorColors=sharedQual.records[userId].colors.slice();ownSmoother.push(own.state,receivedAt,raw.serverTime);raw.players.forEach(function(p){if(p.id===userId||!p.state)return;if(!opponentSmoothers[p.id])opponentSmoothers[p.id]=new WMCSnapshotSmoother(150);opponentSmoothers[p.id].push(p.state,receivedAt,raw.serverTime)});
+    if(own.emote&&['wheelie','nitro'].includes(own.emote.kind)&&own.emote.until>raw.serverTime)localEmote={kind:own.emote.kind,until:receivedAt+own.emote.until-raw.serverTime};
     authoritativeTarget=own.state;targetReceivedAt=receivedAt;mpDone=own.completed;qualBest=own.best;qualAttempts=own.attempts;qualInvalid=own.invalid;qualFlying=own.flying;qualSector=own.sector;qualLine=own.line;lapNo=Math.min(mpRaceLaps,own.lap);raceTime=Math.max(0,(raw.serverTime-raw.phaseStart)/1000);lapStart=Math.max(0,(own.lapStart-raw.phaseStart)/1000);
-    if(raw.phase==='race'){elBest.textContent=fmt(own.raceBest);elLast.textContent=fmt(own.lastLap);if(own.completed){state='finishing';$('raceFinishFlag').hidden=own.dnf}else if(state!=='countdown'){elLap.textContent=lapNo===mpRaceLaps?'LAST LAP':lapNo+'/'+mpRaceLaps;elLap.classList.toggle('race-final-text',lapNo===mpRaceLaps);$('raceLapLabel').hidden=lapNo===mpRaceLaps}}
+    if(raw.phase==='race'){elBest.textContent=fmt(own.raceBest);elLast.textContent=fmt(own.lastLap);if(own.completed){state='finishing';$('raceFinishFlag').hidden=own.dnf||own.finishAt==null}else if(state!=='countdown'){elLap.textContent=lapNo===mpRaceLaps?'LAST LAP':lapNo+'/'+mpRaceLaps;elLap.classList.toggle('race-final-text',lapNo===mpRaceLaps);$('raceLapLabel').hidden=lapNo===mpRaceLaps}}
     if(raw.phase==='qualifying'){var seconds=Math.ceil(Math.max(0,(raw.phaseStart+mpQualDuration-raw.serverTime)/1000));$('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');$('qualProgress').style.transform='scaleX('+(seconds/(mpQualDuration/1000))+')';$('qualBest').textContent=fmt(own.best);$('qualStatus').textContent=own.completed?'WAITING FOR RIDERS':own.flying?'LAP '+(own.attempts+1)+' / '+mpQualMax:'OUT LAP';$('qualLapTime').hidden=own.invalid;if(own.completed)state='finishing'}
     (raw.events||[]).forEach(function(e){if(e.id!==userId)return;if(e.type==='invalid')showQualCancellation(e.reason);else if(e.type==='sector'){var d=e.delta==null?'':(e.delta>=0?'+':'-')+Math.abs(e.delta).toFixed(3);showQualSplit(e.split,d,e.color|| (e.delta!=null&&e.delta<0?'best':'slow'),e.sector>=2)}else if(e.type==='lap'&&e.valid){if(e.fastest)showFastestLap(e.time);else showQual('',fmt(e.time),false,e.personal?'fast':'slow')}});
   },
