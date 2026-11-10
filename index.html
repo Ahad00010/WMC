@@ -102,8 +102,8 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .qual-footer{padding:6px 8px;font-size:11px;font-weight:700;background:#080808}
 .qual-banner{position:absolute;bottom:calc(var(--gb) + 18px);left:50%;width:min(320px,calc(100vw - 180px));min-width:200px;transform:translate(-50%,30px);opacity:0;transition:opacity .25s,transform .35s;pointer-events:none;font-family:var(--ui);clip-path:polygon(0 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%);background:rgba(8,10,11,.88)}
 .qual-banner.show{opacity:1;transform:translate(-50%,0)}.qual-banner-head{display:flex;align-items:center;background:#050505;padding:5px 8px;font-weight:700;font-size:14px}.qual-banner-head span:first-child{flex:1}.qual-number{background:#e4202c;color:#090909;min-width:38px;text-align:center;font:800 18px/1 var(--display)}
-.qual-banner-body{padding:6px 8px 9px}.qual-message{font:700 12px/1.1 var(--ui);letter-spacing:.05em;color:#fff}.qual-time{font:800 35px/1 var(--display);font-variant-numeric:tabular-nums;color:#ff8a00}.qual-banner.invalid .qual-time,.qual-banner.invalid .qual-message{color:#ff343c}.qual-banner.fast .qual-time{color:#ff8a00}.qual-banner.slow .qual-time{color:#f4f4f4}
-.qual-sectors{display:flex;position:relative;gap:3px;margin-top:9px}.qual-sectors i{height:3px;flex:1;background:#535353}.qual-sectors i.best{background:#ff8a00}.qual-sectors i.slow{background:#f4f4f4}.qual-sectors i.bad{background:#f02d39}.qual-marker{position:absolute;top:-4px;left:0;width:2px;height:11px;background:#eee;box-shadow:0 0 4px #000;transition:left .12s linear}
+.qual-banner-body{padding:6px 8px 9px}.qual-message{font:700 12px/1.1 var(--ui);letter-spacing:.05em;color:#fff}.qual-time{font:800 35px/1 var(--display);font-variant-numeric:tabular-nums;color:#ff8a00}.qual-banner.invalid .qual-time,.qual-banner.invalid .qual-message{color:#fff}.qual-banner.fast .qual-time{color:#ff8a00}.qual-banner.record .qual-time{color:#f02d39}.qual-banner.slow .qual-time{color:#f4f4f4}
+.qual-sectors{display:flex;position:relative;gap:3px;margin-top:9px}.qual-sectors i{height:3px;flex:1;background:#535353}.qual-sectors i.best{background:#ff8a00}.qual-sectors i.slow{background:#f4f4f4}.qual-sectors i.bad{background:#535353}.qual-marker{position:absolute;top:-4px;left:0;width:2px;height:11px;background:#eee;box-shadow:0 0 4px #000;transition:left .12s linear}
 .mode-buttons{display:flex;gap:10px;flex-wrap:wrap}.mode-buttons button{font-size:20px;padding:10px 24px}.mode-buttons .secondary{background:#30353d}
 .session-end{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.7);z-index:5}.session-end .card{background:#101216;padding:26px;border-left:4px solid #e4202c}.session-end h2{margin:0;font:800 42px/1 var(--display)}
 @media(max-width:700px){.qual-tower{width:150px}.qual-brand{font-size:24px}.qual-row{font-size:11px;gap:4px}.qual-banner{bottom:calc(var(--gb) + 85px)}}
@@ -679,7 +679,7 @@ function qualifyingProgress(previous){
       if(isBest){qualBest=t;$('qualBest').textContent=fmt(t)}
       qualSectorTimes.forEach(function(sectorTime,i){if(qualSectorBest[i]==null||sectorTime<qualSectorBest[i])qualSectorBest[i]=sectorTime});
       qualLastResult='Valid lap: '+fmt(t);
-      showQual(isBest?'VALID LAP · BEST LAP':'VALID LAP',fmt(t),false,isBest?'fast':'slow');
+      showQual(isBest?'VALID LAP · FASTEST LAP':'VALID LAP',fmt(t),false,isBest?'record':'slow');
     }
     if(qualExpired){endQualifying();return}
     qualLine+=N;lapStart=raceTime;qualSector=0;qualInvalid=false;qualSectorTimes=[];qualSectorColors=[];qualLastSplit=0;$('qualStatus').textContent='FLYING LAP';
