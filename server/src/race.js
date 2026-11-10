@@ -3,7 +3,7 @@ import {N,length,px,pz,tx,tz,kerbEdge} from './track.js';
 import sectorColor from '../../qualifying-colors.js';
 import {spawn,step,parseInput,neutralInput} from './physics.js';
 export const RACE_LAPS=3,QUALIFYING_ATTEMPTS=3,QUALIFYING=240000;
-const COUNTDOWN=22000,GRACE=30000,RESULT_DELAY=10000;
+const COUNTDOWN=22000,GRACE=30000,RESULT_DELAY=10000,QUALIFYING_RESULTS_DELAY=15000,GRID_COUNTDOWN=15000;
 export class RaceRoom {
   constructor(lobby){this.id=lobby.id;this.host=lobby.host_id;this.mode=lobby.mode;this.phase='lobby';this.players=new Map();this.events=[];this.matchId=null;this.phaseStart=0;this.resultsAt=null;this.endReason=null}
   join(profile,now){let p=this.players.get(profile.id);if(p){if(p.dnf)throw Error('Rider has retired');p.connected=true;p.disconnectedAt=null;p.input=neutralInput();p.inputAt=now;return}
@@ -42,7 +42,7 @@ export class RaceRoom {
     }
     const players=[...this.players.values()];
     if(players.length&&players.every(p=>p.completed)){
-      if(this.phase==='qualifying'){players.sort((a,b)=>Number(a.dnf)-Number(b.dnf)||(a.best??Infinity)-(b.best??Infinity)||a.grid-b.grid);players.forEach((p,i)=>p.grid=i+1);this.startPhase('race',now,15000)}
+      if(this.phase==='qualifying'){if(this.resultsAt===null)this.resultsAt=now+QUALIFYING_RESULTS_DELAY;else if(now>=this.resultsAt){players.sort((a,b)=>Number(a.dnf)-Number(b.dnf)||(a.best??Infinity)-(b.best??Infinity)||a.grid-b.grid);players.forEach((p,i)=>p.grid=i+1);this.startPhase('race',now,GRID_COUNTDOWN)}}
       else if(this.resultsAt===null)this.resultsAt=now+RESULT_DELAY;else if(now>=this.resultsAt){this.phase='complete';this.events.push({type:'results'})}
     }
   }
