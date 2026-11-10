@@ -336,6 +336,8 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="profile.js"></script>
 <script src="friends.js" defer></script>
+<script src="race-server-config.js" defer></script>
+<script src="race-transport.js" defer></script>
 <script src="lobby.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -815,7 +817,7 @@ $('modeOverlay').addEventListener('keydown',function(e){
   if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
 });
-var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={};
+var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={},authoritativeTarget=null;
 var pausedState='',pauseAt=0;
 function clearInputs(){keys={};document.querySelectorAll('.pad').forEach(function(p){p.classList.remove('on')})}
 function togglePause(){
@@ -830,7 +832,7 @@ function togglePause(){
 }
 function returnToMenu(){
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
-  multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
+  authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';$('ownRaceRow').querySelector('.race-position').textContent='1';Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
   clearInputs();$('pauseOverlay').hidden=true;$('sessionEnd').hidden=true;$('hud').hidden=true;$('touch').hidden=true;$('menu').hidden=false;
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
@@ -952,6 +954,7 @@ function showFastestLap(time){
   },900);
 }
 function resetBike(){
+  if(multiplayer&&window.WMCMatch){window.WMCMatch.reset();return}
   if(state==='racing'&&mode==='qualifying'&&qualFlying&&!qualInvalid){invalidateQual();showQualCancellation('RESET ON TRACK')}
   var i=globalNearest();
   idx=i;pos.set(px[i],0,pz[i]);h=Math.atan2(tx[i],tz[i]);v=0;steer=0;lean=0;pitch=0;
@@ -1097,16 +1100,17 @@ function frame(now){
     nearest();
   }
   if(state==='racing'){
-    if(mode==='qualifying'){
+    if(mode==='qualifying'&&!multiplayer){
       var remaining=Math.max(0,(qualDeadline-now)/1000),seconds=Math.ceil(remaining);
       $('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
       $('qualProgress').style.transform='scaleX('+(remaining/(QUAL_DURATION/1000))+')';
       if(remaining<=0&&!qualExpired){qualExpired=true;if(!qualFlying)endQualifying();else $('qualStatus').textContent='FINISH YOUR LAP'}
     }
-    if(state==='racing'){if(mode==='qualifying')raceTime=(now-(qualDeadline-QUAL_DURATION))/1000;else raceTime+=dt;physics(dt)}
+    if(state==='racing'&&!multiplayer){if(mode==='qualifying')raceTime=(now-(qualDeadline-QUAL_DURATION))/1000;else raceTime+=dt;physics(dt)}
   }
-  else if(state==='finishing'){physics(dt)}
+  else if(state==='finishing'&&!multiplayer){physics(dt)}
   else if(state==='menu'||state==='paused'){throttleNow=0}
+  if(multiplayer&&authoritativeTarget&&mpPhase===multiplayer.phase){var target=authoritativeTarget;var blend=Math.min(1,dt*12);pos.x+=(target.x-pos.x)*blend;pos.z+=(target.z-pos.z)*blend;h+=wrap(target.h-h)*blend;v=target.v;steer=target.steer;lean=target.lean;pitch=target.pitch;idx=target.idx;total=target.total;lat=target.lat;throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');}
   /* rpm */
   var av=Math.abs(v),g=Math.min(6,1+Math.floor(av/14.6)),frac=Math.min(1,(av-(g-1)*14.6)/14.6);
   var tr=state==='countdown'?(throttleNow?0.8:0.2):(av<0.5&&!throttleNow?0.18:0.3+0.7*frac);
@@ -1140,7 +1144,7 @@ function frame(now){
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
-/* Multiplayer coordination: movement is client simulated; shared results are reported to Supabase. */
+/* Online movement and results are supplied by the race server. */
 function shortRider(name){var parts=name.trim().split(/\s+/);return (parts[0][0]+' '+parts[parts.length-1].slice(0,3)).toUpperCase()}
 function formatMatchTime(t){return t==null?'--:--.---':fmt(t)}
 function renderMatchIntro(match,remaining){
@@ -1153,7 +1157,7 @@ function renderMatchIntro(match,remaining){
   if(!first)match.members.slice().sort(function(a,b){if(match.phase==='race'&&match.mode==='qualifying_race')return a.grid-b.grid;return a.id===match.user_id?-1:b.id===match.user_id?1:a.grid-b.grid}).forEach(function(m){
     var row=document.createElement('div'),name=document.createElement('b'),stats=document.createElement('small');
     name.textContent=(match.phase==='race'&&match.mode==='qualifying_race'?m.grid+'. ':'')+m.display_name+' #'+m.number+(m.id===match.user_id?' · YOU':'');
-    stats.textContent=match.phase==='race'&&match.mode==='qualifying_race'?formatMatchTime(m.best):m.wins+' wins · '+Math.max(0,m.podiums-m.wins)+' 2nd/3rd · '+m.races+' races';row.append(name,stats);box.appendChild(row);
+    stats.textContent=match.phase==='race'&&match.mode==='qualifying_race'?formatMatchTime(m.best):m.wins==null?'Stats unavailable':m.wins+' wins · '+Math.max(0,m.podiums-m.wins)+' 2nd/3rd · '+m.races+' races';row.append(name,stats);box.appendChild(row);
   });
 }
 function drawMultiplayerBikes(dt){
@@ -1174,12 +1178,12 @@ function renderQualRoster(match){
 }
 function renderRaceRoster(match){
   if(match.phase!=='race'&&match.phase!=='complete')return;
-  if(match.members.some(function(m){return m.completed})){$('raceTiming').classList.add('finish');$('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='FINISH'}
-  var sorted=match.members.slice().sort(function(a,b){if(a.completed!==b.completed)return a.completed?-1:1;if(a.completed)return String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id);return b.progress-a.progress});
+  if(match.members.some(function(m){return m.id===match.user_id&&m.completed&&!m.dnf})){$('raceTiming').classList.add('finish');$('raceLapLabel').hidden=true;elLap.classList.add('race-final-text');elLap.textContent='FINISH'}
+  var sorted=match.members.slice().sort(function(a,b){if(a.dnf!==b.dnf)return a.dnf?1:-1;if(a.completed!==b.completed)return a.completed?-1:1;if(a.completed)return String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id);return b.progress-a.progress});
   var roster=$('raceRoster'),own=$('ownRaceRow');Array.prototype.slice.call(roster.children).forEach(function(el){if(el!==own)el.remove()});
   sorted.forEach(function(m,i){
     var row;if(m.id===match.user_id){row=own;row.querySelector('.race-position').textContent=i+1;$('raceFinishFlag').hidden=!m.completed&&!mpDone}
-    else{row=document.createElement('div');row.className='race-rider';var position=document.createElement('span'),name=document.createElement('span'),flag=document.createElement('span'),number=document.createElement('span');position.className='race-position';position.textContent=i+1;name.className='race-name';name.textContent=shortRider(m.display_name);flag.className='race-flag';flag.textContent=m.completed?'⚑':'';number.className='race-number';number.textContent=m.number;var colors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};number.style.backgroundColor=colors[m.color]||'#e4202c';number.style.color=['yellow','white','silver','cyan'].includes(m.color)?'#111':'#fff';row.append(position,name,flag,number)}
+    else{row=document.createElement('div');row.className='race-rider';var position=document.createElement('span'),name=document.createElement('span'),flag=document.createElement('span'),number=document.createElement('span');position.className='race-position';position.textContent=i+1;name.className='race-name';name.textContent=shortRider(m.display_name);flag.className='race-flag';flag.textContent=m.dnf?'DNF':m.completed?'⚑':'';number.className='race-number';number.textContent=m.number;var colors={blue:'#176bb3',red:'#e4202c',yellow:'#f2ca24',orange:'#f47b20',green:'#268950',cyan:'#00a6bb',purple:'#814bb5',pink:'#da5696',white:'#f4f4f4',black:'#262626',silver:'#b2b9bb'};number.style.backgroundColor=colors[m.color]||'#e4202c';number.style.color=['yellow','white','silver','cyan'].includes(m.color)?'#111':'#fff';row.append(position,name,flag,number)}
     row.style.order=i;roster.appendChild(row);
   });
 }
@@ -1197,14 +1201,25 @@ function startMultiplayerPhase(match,remaining){
 }
 window.WMCGame={
   network:function(ok){$('matchNetwork').hidden=ok||!multiplayer},
-  report:function(){if(!multiplayer||mpPhase!==multiplayer.phase)return {};return {x:pos.x,z:pos.z,h:h,progress:Math.max(0,total/N),best:qualBest,completed:mpDone}},
+  input:function(){return {up:held('up'),down:held('down'),left:held('left'),right:held('right'),brake:held('brake')}},
+  authoritativeReceive:function(raw,userId,stats){
+    if(!raw||raw.phase==='lobby'||!Array.isArray(raw.players))return;
+    var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,progress:s.total/N,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
+    var match={id:raw.id,mode:raw.mode,phase:raw.phase,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
+    this.receive(match);
+    var own=raw.players.find(function(p){return p.id===userId});if(!own||!own.state||mpPhase!==raw.phase)return;
+    authoritativeTarget=own.state;mpDone=own.completed;qualBest=own.best;qualAttempts=own.attempts;qualInvalid=own.invalid;qualFlying=own.flying;qualSector=own.sector;qualLine=own.line;lapNo=Math.min(5,own.lap);raceTime=Math.max(0,(raw.serverTime-raw.phaseStart)/1000);lapStart=Math.max(0,(own.lapStart-raw.phaseStart)/1000);
+    if(raw.phase==='race'){elBest.textContent=fmt(own.raceBest);elLast.textContent=fmt(own.lastLap);if(own.completed){state='finishing';$('raceFinishFlag').hidden=own.dnf}else if(state!=='countdown'){elLap.textContent=lapNo===5?'LAST LAP':lapNo+'/5';elLap.classList.toggle('race-final-text',lapNo===5);$('raceLapLabel').hidden=lapNo===5}}
+    if(raw.phase==='qualifying'){var seconds=Math.ceil(Math.max(0,(raw.phaseStart+600000-raw.serverTime)/1000));$('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');$('qualProgress').style.transform='scaleX('+(seconds/600)+')';$('qualBest').textContent=fmt(own.best);$('qualStatus').textContent=own.completed?'WAITING FOR RIDERS':own.flying?'LAP '+(own.attempts+1)+' / 5':'OUT LAP';$('qualLapTime').hidden=own.invalid;if(own.completed)state='finishing'}
+    (raw.events||[]).forEach(function(e){if(e.id!==userId)return;if(e.type==='invalid')showQualCancellation(e.reason);else if(e.type==='sector'){var d=e.delta==null?'':(e.delta>=0?'+':'-')+Math.abs(e.delta).toFixed(3);showQualSplit(e.split,d,e.delta!=null&&e.delta<0?'best':'slow',e.sector>=2)}else if(e.type==='lap'&&e.valid){if(e.fastest)showFastestLap(e.time);else showQual('VALID LAP',fmt(e.time),false,e.personal?'fast':'slow')}});
+  },
   receive:function(match){
     if(!match||match.phase==='lobby'||startBtn.disabled)return;
     multiplayer=match;$('raceTiming').classList.add('mp-tower');$('qualTower').classList.add('mp-qual');var rowSize=Math.min(29,Math.max(12,(window.innerHeight-155)/Math.max(1,match.members.length)));$('raceTiming').style.setProperty('--mp-row',rowSize+'px');$('qualTower').style.setProperty('--mp-row',rowSize+'px');
     var remaining=(Date.parse(match.phase_start)-Date.parse(match.server_time))/1000;
     if(match.phase==='complete'){
       $('matchIntro').hidden=true;renderRaceRoster(match);
-      if(!mpResultsTimer){mpResultsTimer=setTimeout(function(){state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('sessionMode').textContent='WMC · RACE';var standings=match.members.slice().sort(function(a,b){return String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id)});var place=standings.findIndex(function(m){return m.id===match.user_id})+1;$('sessionResult').textContent='Race complete · Position '+place+' / '+standings.length;$('sessionEnd').hidden=false},10000)}
+      if(!mpResultsTimer){mpResultsTimer=setTimeout(function(){state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('sessionMode').textContent='WMC · RACE';var standings=match.members.slice().sort(function(a,b){return Number(!!a.dnf)-Number(!!b.dnf)||String(a.finish_at).localeCompare(String(b.finish_at))||a.id.localeCompare(b.id)});var place=standings.findIndex(function(m){return m.id===match.user_id})+1;$('sessionResult').textContent=standings[place-1]&&standings[place-1].dnf?'Race complete · DNF':'Race complete · Position '+place+' / '+standings.length;$('sessionEnd').hidden=false},1)}
       return;
     }
     if(mpPhase!==match.phase){if(remaining>(match.phase==='race'?5:0)){renderMatchIntro(match,remaining);return}startMultiplayerPhase(match,remaining)}

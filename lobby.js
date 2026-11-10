@@ -2,6 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id);
   let snapshot=null, checking=null, pending=false, clockOffset=0;
+  const serverUrl=window.WMC_RACE_SERVER_URL||'';let transport=null, serverSnapshot=null, connecting=false,stats={},statsAt=0;
   async function getClient() {
     const c=window.WMCAuth&&window.WMCAuth.client;
     if(!c)throw new Error('Sign in with Google first.');
@@ -16,6 +17,7 @@
       const c=await getClient(), {data,error}=await c.rpc('wmc_lobby_snapshot');
       if(error)throw error;
       snapshot=data;clockOffset=Date.parse(data.server_time)-Date.now();
+      if(data.lobby&&serverUrl){connectRace();if(Date.now()-statsAt>30000){statsAt=Date.now();const result=await c.rpc('wmc_lobby_stats');if(!result.error)stats=Object.fromEntries(result.data.map(p=>[p.id,p]))}}else if(!data.lobby&&transport){transport.close();transport=null;serverSnapshot=null;stats={};statsAt=0;}
       render();
     } catch(e) {
       snapshot=null;$('inviteNotice').hidden=true;if(window.WMCGame&&window.WMCGame.network)window.WMCGame.network(false);
@@ -33,8 +35,9 @@
         $('lobbyMode').textContent=(lobby.mode==='race'?'Race only':'Qualifying + Race')+' · '+lobby.members.length+'/15 riders';
         $('inviteForm').hidden=lobby.host_id!==snapshot.user_id;
         $('startMultiplayer').hidden=lobby.host_id!==snapshot.user_id;
-        $('startMultiplayer').disabled=lobby.members.length<2;
-        $('startHint').textContent=lobby.members.length<2?'At least two riders are needed to start.':'Ready to start · '+lobby.members.length+'/15 riders';
+        const connected=serverSnapshot?serverSnapshot.players.filter(p=>p.connected).length:0;
+        $('startMultiplayer').disabled=!serverUrl||!transport||!transport.ready||connected<2;
+        $('startHint').textContent=!serverUrl?'Race server not configured yet.':!transport||!transport.ready?'Connecting to race server…':connected<2?'Waiting for at least two connected riders.':'Ready to start · '+connected+'/15 connected';
         const list=$('lobbyMembers');list.replaceChildren();
         lobby.members.forEach(member=>{const row=document.createElement('div');row.className='friend-row';const name=document.createElement('div');name.className='friend-row-name';const title=document.createElement('strong');title.textContent=member.display_name+(member.id===lobby.host_id?' · HOST':'');const sub=document.createElement('small');sub.textContent='@'+member.username+' · #'+member.number;name.append(title,sub);row.appendChild(name);list.appendChild(row)});
       }
@@ -65,24 +68,24 @@
     }
     if(await act('create',{mode})){$('multiMessage').textContent='';showLobby();}
   }
-  $('startMultiplayer').onclick=async()=>{
-    try{const c=await getClient();$('startMultiplayer').disabled=true;$('lobbyMessage').textContent='Starting match…';const {error}=await c.rpc('wmc_match_start');if(error)throw error;await matchTick();}
-    catch(e){$('lobbyMessage').textContent=e.message||'Could not start match.';render();}
-  };
-  let ticking=false, leaving=false;
-  async function matchTick(){
-    if(ticking||leaving||!snapshot||!snapshot.lobby||!window.WMCGame)return;
-    ticking=true;
-    try{const c=await getClient();const {data,error}=await c.rpc('wmc_match_tick',{report:window.WMCGame.report()});if(error)throw error;if(window.WMCGame.network)window.WMCGame.network(true);if(!leaving)window.WMCGame.receive(data);}
-    catch(e){if(window.WMCGame.network)window.WMCGame.network(false);if(!$('lobbyPanel').hidden)$('lobbyMessage').textContent=e.message||'Match connection failed.';}
-    finally{ticking=false;}
+  async function connectRace(){
+    if(connecting||!snapshot||!snapshot.lobby||!serverUrl||transport&&transport.ws)return;
+    connecting=true;
+    try{const c=await getClient(),{data,error}=await c.auth.getSession();if(error||!data.session)throw Error('Sign in first');
+      if(!transport)transport=new window.WMCRaceTransport(serverUrl,{
+        status:ok=>{if(!ok)serverSnapshot=null;if(window.WMCGame)window.WMCGame.network(ok);render()},
+        error:message=>{$('lobbyMessage').textContent=message},
+        snapshot:message=>{serverSnapshot=message;if(snapshot&&window.WMCGame)window.WMCGame.authoritativeReceive(message,snapshot.user_id,stats);render()}
+      });transport.connect(data.session.access_token);
+    }catch(e){$('lobbyMessage').textContent=e.message||'Race server connection failed.'}finally{connecting=false}
   }
-  window.WMCMatch={leave:async()=>{leaving=true;try{await act('leave')}finally{snapshot=null;leaving=false}}};
-  setInterval(matchTick,750);
+  setInterval(()=>{if(transport&&transport.ready&&window.WMCGame)transport.send('input',window.WMCGame.input())},100);
+  $('startMultiplayer').onclick=()=>{if(!transport||!transport.send('start'))$('lobbyMessage').textContent='Race server is not connected.'};
+  window.WMCMatch={reset:()=>{if(transport)transport.send('reset')},leave:async()=>{if(transport){transport.close();transport=null;serverSnapshot=null}try{await act('leave')}finally{snapshot=null}}};
   $('resumeLobby').onclick=()=>{if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby()}};
   $('multiRace').onclick=()=>create('race');$('multiQualRace').onclick=()=>create('qualifying_race');
   $('inviteForm').onsubmit=async e=>{e.preventDefault();const username=$('inviteUsername').value.trim();if(await act('invite',{username})){$('lobbyMessage').textContent='Invite sent (expires in 10 seconds).';$('inviteForm').reset()}};
-  $('leaveLobby').onclick=async()=>{if(await act('leave')){$('multiMessage').textContent='';$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}};
+  $('leaveLobby').onclick=async()=>{if(transport){transport.close();transport=null;serverSnapshot=null}if(await act('leave')){$('multiMessage').textContent='';$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}};
   $('acceptInvite').onclick=async()=>{if(!$('menu')||$('menu').hidden){$('inviteError').textContent='Return to the main menu to accept.';return}const invite=snapshot&&snapshot.invites[0];if(invite&&await act('accept',{invite_id:invite.id})){$('inviteError').textContent='';showLobby()}};
   $('declineInvite').onclick=async()=>{const invite=snapshot&&snapshot.invites[0];if(invite)await act('decline',{invite_id:invite.id})};
   window.addEventListener('wmc-lobby-open',()=>{refresh()});
