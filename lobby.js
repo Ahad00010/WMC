@@ -25,7 +25,9 @@
       render();
     } catch(e) {
       if(leaving||currentGeneration!==generation)return;
-      snapshot=null;$('inviteNotice').hidden=true;if(window.WMCGame&&window.WMCGame.network)window.WMCGame.network(false);
+      // A temporary lobby RPC failure is not a WebSocket failure. Preserve the
+      // last authenticated lobby and keep processing live race snapshots.
+      if(!snapshot)$('inviteNotice').hidden=true;if(snapshot&&snapshot.lobby&&!connected)connectRace();
       if(!$('modeOverlay').hidden&&!$('multiModes').hidden)$('modeTitle').textContent='MULTIPLAYER · SIGN IN REQUIRED';
       if(!$('lobbyPanel').hidden)$('lobbyMessage').textContent=e.message||'Unable to load lobby.';
     } finally {checking=null;finish();}
@@ -92,6 +94,8 @@
   }
   function sendInput(){if(!leaving&&transport&&transport.ready&&window.WMCGame)transport.send('input',window.WMCGame.input())}
   setInterval(sendInput,100);
+  // Supabase may rotate access tokens while a long session is running.
+  setInterval(async()=>{if(leaving||!transport||!transport.ready||!transport.refreshAuth)return;try{const c=await getClient(),{data}=await c.auth.getSession();if(data.session)transport.refreshAuth(data.session.access_token)}catch{}},30000);
   function leaveSession(){
     if(leavePromise)return leavePromise;
     leaving=true;generation++;sessionStorage.setItem('wmc-leaving','1');
@@ -114,7 +118,7 @@
   $('declineInvite').onclick=async()=>{const invite=snapshot&&snapshot.invites[0];if(invite)await act('decline',{invite_id:invite.id})};
   window.addEventListener('wmc-lobby-open',()=>{refresh()});
   window.addEventListener('wmc-auth-ready',refresh);
-  setInterval(()=>{if(!document.hidden)refresh()},2000);
+  setInterval(()=>{if(!document.hidden){if(snapshot&&snapshot.lobby&&!connected)connectRace();refresh()}},2000);
   setInterval(render,250);
   refresh();
 })();

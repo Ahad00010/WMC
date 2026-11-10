@@ -50,3 +50,9 @@ test('choosing multiplayer circuit configures the room and confirms local track 
  instance.handlers.snapshot({phase:'lobby',circuit:'sepang',circuitConfigured:false,players:[{id:'a',connected:true}]});assert.deepEqual(sent.find(x=>x[0]==='circuit'),['circuit','assen']);
  instance.handlers.snapshot({phase:'lobby',circuit:'assen',circuitConfigured:true,players:[{id:'a',connected:true,circuitReady:false}]});assert.deepEqual(sent.find(x=>x[0]==='circuit_ready'),['circuit_ready','assen']);assert.match(w.document.getElementById('lobbyMode').textContent,/TT CIRCUIT ASSEN/);assert.equal(w.document.getElementById('startMultiplayer').disabled,true);
 });
+
+test('temporary lobby RPC failure does not discard live race snapshots or signal false connection loss',async t=>{
+ const dom=new JSDOM(html,{url:'http://test.local',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());let instance,fail=false,received=0,status=[];const lobby={id:'l',mode:'race',host_id:'a',members:[{id:'a',display_name:'A',username:'a',number:1}]};w.WMC_RACE_SERVER_URL='ws://test.local';
+ w.WMCRaceTransport=class{constructor(url,handlers){instance=this;this.handlers=handlers}connect(){this.ws={};this.ready=true;this.handlers.status(true)}close(){}send(){}};
+ w.WMCAuth={client:{auth:{getSession:async()=>({data:{session:{access_token:'a'}}})},rpc:async name=>{if(name==='wmc_lobby_snapshot'&&fail)return {error:Error('temporary outage')};return {data:name==='wmc_lobby_snapshot'?{user_id:'a',lobby,invites:[],server_time:new Date().toISOString()}:[],error:null}}}};w.WMCGame={inSession:()=>true,network:v=>status.push(v),input:()=>({}),authoritativeReceive:()=>received++};w.eval(lobbyScript);await until(()=>instance?.ready);fail=true;w.dispatchEvent(new w.Event('wmc-lobby-open'));await sleep(50);instance.handlers.snapshot({phase:'race',players:[]});assert.equal(received,1);assert.equal(status.includes(false),false);
+});
