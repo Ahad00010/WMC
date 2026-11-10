@@ -1529,7 +1529,10 @@ function renderSharedQual(now){
   });
   q.queue=q.queue.filter(function(id){var r=q.records[id];return r&&r.player.flying&&!r.player.invalid&&!r.player.completed&&!r.player.dnf&&q.slots.indexOf(id)===-1});
   q.players.forEach(function(p){var r=q.records[p.id];if(p.flying&&!p.invalid&&!p.completed&&!p.dnf&&!r.terminal&&q.slots.indexOf(p.id)===-1&&q.queue.indexOf(p.id)===-1)q.queue.push(p.id)});
-  while(q.slots.length<4&&q.queue.length)q.slots.push(q.queue.shift());
+  // Touch devices have limited screen space; keep the same FIFO rotation but
+  // show one row of two cards instead of filling the screen with four.
+  var slotLimit=mobileRender?2:4;
+  while(q.slots.length<slotLimit&&q.queue.length)q.slots.push(q.queue.shift());
   var box=$('qualGraphics'),own=$('qualBanner');own.hidden=q.slots.indexOf(q.userId)===-1;if(own.hidden&&own.dataset.qualAnim==='exit')delete own.dataset.qualAnim;
   Array.prototype.slice.call(box.children).forEach(function(el){if(el!==own&&q.slots.indexOf(el.dataset.riderId)===-1)el.remove()});
   var ranking=q.players.slice().sort(function(a,b){return (a.best==null?Infinity:a.best)-(b.best==null?Infinity:b.best)||a.grid-b.grid});
