@@ -19,7 +19,7 @@ export class RaceRoom {
   }
   chat(id,text,now){const p=this.players.get(id);if(!p||!p.connected||!['race','qualifying','complete'].includes(this.phase)||typeof text!=='string')return null;
     if(text.length>180)return null;const clean=text.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,' ').replace(/\s+/g,' ').trim();
-    if(!clean||p.chatAt!=null&&now-p.chatAt<1000)return null;p.chatAt=now;return {type:'chat',id:p.profile.id,name:p.profile.display_name,text:clean};
+    if(!clean||p.chatAt!=null&&now-p.chatAt<1000)return null;p.chatAt=now;return {type:'chat',id:p.profile.id,name:p.profile.display_name,number:p.profile.number,color:p.profile.color,text:clean};
   }
   reset(id){const p=this.players.get(id);if(!p||!p.connected||!p.state||!['race','qualifying'].includes(this.phase))return;let s=p.state;const i=s.idx;s.x=px[i];s.z=pz[i];s.h=Math.atan2(tx[i],tz[i]);s.v=0;s.steer=0;s.lean=0;s.pitch=0;if(this.phase==='qualifying'&&p.flying&&!p.completed&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id,reason:'RESET ON TRACK'})}}
   start(id,now){if(id!==this.host)throw Error('Only the host can start');if(this.phase!=='lobby')throw Error('Match already started');if(this.players.size<2||this.players.size>15)throw Error('2–15 connected riders required');

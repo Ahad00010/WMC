@@ -55,7 +55,7 @@ test('emotes are cosmetic, movement-gated, bounded and rate-limited',()=>{
 });
 
 test('chat uses server identity, validates length and limits spam',()=>{
- const r=room(),p=r.players.get('a');p.profile.display_name='Actual Rider';assert.deepEqual(r.chat('a',' hi\n<test> ',30000),{type:'chat',id:'a',name:'Actual Rider',text:'hi <test>'});
+ const r=room(),p=r.players.get('a');p.profile.display_name='Actual Rider';assert.deepEqual(r.chat('a',' hi\n<test> ',30000),{type:'chat',id:'a',name:'Actual Rider',number:1,color:'red',text:'hi <test>'});
  assert.equal(r.chat('a','second',30001),null);assert.equal(r.chat('a','x'.repeat(181),32000),null);assert.equal(r.chat('a','   ',32000),null);assert.equal(r.chat('a','OK',32000).text,'OK');
  r.phase='qualifying';assert.equal(r.chat('a','qualifying',33001).text,'qualifying');r.phase='complete';assert.equal(r.chat('a','post race',34002).text,'post race');
 });

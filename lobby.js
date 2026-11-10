@@ -2,7 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id);
   let snapshot=null, checking=null, pending=false, clockOffset=0, leaving=sessionStorage.getItem('wmc-leaving')==='1', leavePromise=null, generation=0;
-  const serverUrl=window.WMC_RACE_SERVER_URL||'';let transport=null, serverSnapshot=null, connecting=false,stats={},statsAt=0,connectionError='',knownMembers=null,lastInvite=null,connected=false;
+  const serverUrl=window.WMC_RACE_SERVER_URL||'';let transport=null, serverSnapshot=null, connecting=false,stats={},statsAt=0,connectionError='',knownMembers=null,lastInvite=null,connected=false,earlyChat=[];
   function cue(kind){if(window.WMCGame&&window.WMCGame.matchCue)window.WMCGame.matchCue(kind)}
   async function getClient() {
     const c=window.WMCAuth&&window.WMCAuth.client;
@@ -20,7 +20,7 @@
       if(error)throw error;
       if(leaving||currentGeneration!==generation)return;
       snapshot=data;clockOffset=Date.parse(data.server_time)-Date.now();
-      if(data.lobby&&serverUrl){connectRace();if(Date.now()-statsAt>30000){statsAt=Date.now();const result=await c.rpc('wmc_lobby_stats');if(!result.error)stats=Object.fromEntries(result.data.map(p=>[p.id,p]))}}else if(!data.lobby&&transport&&!(window.WMCGame&&window.WMCGame.inSession&&window.WMCGame.inSession())){transport.close();transport=null;serverSnapshot=null;stats={};statsAt=0;}
+      if(data.lobby&&serverUrl){connectRace();if(Date.now()-statsAt>30000){statsAt=Date.now();const result=await c.rpc('wmc_lobby_stats');if(!result.error)stats=Object.fromEntries(result.data.map(p=>[p.id,p]))}}else if(!data.lobby&&transport&&!(window.WMCGame&&window.WMCGame.inSession&&window.WMCGame.inSession())){transport.close();transport=null;serverSnapshot=null;earlyChat=[];stats={};statsAt=0;}
       render();
     } catch(e) {
       if(leaving||currentGeneration!==generation)return;
@@ -82,8 +82,8 @@
       if(!transport)transport=new window.WMCRaceTransport(serverUrl,{
         status:(ok,code,reason)=>{if(ok&&!connected)cue('ready');connected=ok;if(ok)connectionError='';else{serverSnapshot=null;connectionError=code===1008?'Race server rejected the connection ('+(reason||'authentication failed')+'). Retrying…':'Race server connection failed. Retrying…'}if(window.WMCGame)window.WMCGame.network(ok);render()},
         error:message=>{$('lobbyMessage').textContent=message;if(window.WMCGame&&window.WMCGame.messageError)window.WMCGame.messageError(message)},
-        chat:message=>{if(!leaving&&currentGeneration===generation&&window.WMCGame&&window.WMCGame.receiveChat)window.WMCGame.receiveChat(message)},
-        snapshot:message=>{if(leaving||currentGeneration!==generation)return;serverSnapshot=message;if(snapshot&&window.WMCGame)window.WMCGame.authoritativeReceive(message,snapshot.user_id,stats);render()}
+        chat:message=>{if(leaving||currentGeneration!==generation)return;if(window.WMCGame&&window.WMCGame.inSession&&window.WMCGame.inSession()&&window.WMCGame.receiveChat)window.WMCGame.receiveChat(message);else{earlyChat.push(message);if(earlyChat.length>10)earlyChat.shift()}},
+        snapshot:message=>{if(leaving||currentGeneration!==generation)return;serverSnapshot=message;if(snapshot&&window.WMCGame){window.WMCGame.authoritativeReceive(message,snapshot.user_id,stats);if(window.WMCGame.inSession&&window.WMCGame.inSession()&&window.WMCGame.receiveChat){earlyChat.forEach(m=>window.WMCGame.receiveChat(m));earlyChat=[]}}render()}
       });transport.connect(data.session.access_token);
     }catch(e){$('lobbyMessage').textContent=e.message||'Race server connection failed.'}finally{connecting=false}
   }
@@ -92,7 +92,7 @@
   function leaveSession(){
     if(leavePromise)return leavePromise;
     leaving=true;generation++;sessionStorage.setItem('wmc-leaving','1');
-    if(transport){transport.send('leave');transport.close();transport=null}connected=false;serverSnapshot=null;snapshot=null;render();
+    if(transport){transport.send('leave');transport.close();transport=null}connected=false;earlyChat=[];serverSnapshot=null;snapshot=null;render();
     leavePromise=(async()=>{try{const c=await getClient(),{error}=await c.rpc('wmc_lobby_action',{action:'leave',params:{}});if(error)throw error;leaving=false;sessionStorage.removeItem('wmc-leaving');$('multiMessage').textContent='';return true}
       catch(e){$('multiMessage').textContent='Could not leave the previous session. Retrying; check your connection.';return false}
       finally{leavePromise=null}})();return leavePromise;

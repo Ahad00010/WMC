@@ -182,7 +182,14 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 .emote-menu,.chat-panel{position:absolute;top:40px;background:#10141bee;border:1px solid #ffffff55;box-shadow:0 5px 22px #0008;padding:8px;color:white}
 .emote-menu{left:0;display:flex;gap:5px;white-space:nowrap}.chat-panel{left:50%;transform:translateX(-50%);width:min(310px,80vw);touch-action:auto}
 .chat-log{max-height:130px;overflow:auto;touch-action:pan-y;user-select:text;font:12px/1.4 var(--ui);overflow-wrap:anywhere}.chat-log p{margin:3px 0}.chat-log b{color:#ffb34b}.chat-form{display:flex;gap:4px;margin-top:6px}.chat-form input{min-width:0;flex:1;background:#252b34;color:#fff;border:1px solid #777;padding:7px;font:16px system-ui;user-select:text;touch-action:auto}.chat-status{font:11px var(--ui);color:#ffb6b6;min-height:1em}
-@media(max-width:700px),(max-height:500px){.session-tools button{font-size:11px;padding:6px 8px}.chat-log{max-height:72px}.chat-panel{width:min(280px,80vw)}}
+/* Live chat broadcasts remain visible without opening the chat panel. */
+.chat-broadcast{position:fixed;z-index:24;top:calc(var(--gt) + 48px);left:50%;transform:translateX(-50%);width:min(330px,calc(100vw - 210px));display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-family:var(--ui)}
+.chat-broadcast-card{width:100%;background:rgba(8,11,16,.91);border-left:3px solid #e4202c;box-shadow:0 3px 12px #0008;padding:5px 7px;color:#fff;animation:chat-arrive .2s ease-out both}
+.chat-broadcast-head{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;min-width:0}.chat-broadcast-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chat-plate{flex:none;min-width:27px;text-align:center;padding:1px 4px;border-radius:2px;font:800 13px/1.2 var(--display);background:#70777e;color:#fff}
+.chat-broadcast-text{margin:3px 0 0;font-size:12px;line-height:1.2;overflow-wrap:anywhere;white-space:pre-wrap}
+@keyframes chat-arrive{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:700px),(max-height:500px){.session-tools button{font-size:11px;padding:6px 8px}.chat-log{max-height:72px}.chat-panel{width:min(280px,80vw)}.chat-broadcast{top:calc(var(--gt) + 39px);width:min(250px,calc(100vw - 190px))}.chat-broadcast-card{padding:3px 5px}.chat-broadcast-head,.chat-broadcast-text{font-size:10px}.chat-plate{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.chat-broadcast-card{animation:none}}
 .world-title{margin:0;font:700 17px/1.2 var(--ui);letter-spacing:.05em;color:#ddd}
 @media(max-width:700px),(max-height:500px){
  .race-tower,.qual-tower{width:150px}.race-brand{font-size:24px}.race-label{font-size:17px}.race-lap-label{font-size:14px}.race-lap-number{font-size:27px}.race-final-text{font-size:21px}.race-rider{height:25px;font-size:13px}.race-position{width:36px}.race-number{width:42px;font-size:18px}.race-footer{font-size:12px}
@@ -253,6 +260,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   </div>
 </div>
 
+<div id="chatBroadcast" class="chat-broadcast" aria-live="polite" aria-label="Live chat messages"></div>
 <div id="sessionTools" class="session-tools" hidden>
   <button id="emoteButton" type="button" aria-expanded="false">Emote <small>F</small></button>
   <button id="chatButton" type="button" hidden aria-expanded="false">Chat <small>T</small> <span id="chatUnread" hidden></span></button>
@@ -381,7 +389,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-transport.js?v=chat-emotes-1" defer></script>
 <script src="race-smoothing.js?v=prediction-1"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
-<script src="lobby.js?v=chat-emotes-1" defer></script>
+<script src="lobby.js?v=chat-broadcast-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -769,7 +777,7 @@ bindPad('pL','KeyA');bindPad('pR','KeyD');bindPad('pG','KeyW');bindPad('pB','Key
 function toggleEmoteMenu(force){if($('sessionTools').hidden||state==='menu'||state==='finished'||state==='paused')return;var open=force==null?$('emoteMenu').hidden:force;$('emoteMenu').hidden=!open;$('emoteButton').setAttribute('aria-expanded',String(open))}
 function openChat(){if(!multiplayer||$('sessionTools').hidden)return;$('emoteMenu').hidden=true;$('emoteButton').setAttribute('aria-expanded','false');$('chatPanel').hidden=false;$('chatButton').setAttribute('aria-expanded','true');chatUnread=0;$('chatUnread').hidden=true;$('chatInput').focus()}
 function closeChat(){$('chatPanel').hidden=true;$('chatButton').setAttribute('aria-expanded','false');$('chatInput').blur();$('chatClose').blur()}
-function resetSessionTools(){$('sessionTools').hidden=true;$('emoteMenu').hidden=true;$('emoteButton').setAttribute('aria-expanded','false');closeChat();$('chatInput').value='';$('chatLog').replaceChildren();$('chatStatus').textContent='';chatUnread=0;lastChatDraft='';lastChatTime=-Infinity;lastEmoteTime=-Infinity;$('chatUnread').hidden=true;localEmote=null;ownNitro.visible=false}
+function resetSessionTools(){$('sessionTools').hidden=true;$('emoteMenu').hidden=true;$('emoteButton').setAttribute('aria-expanded','false');closeChat();$('chatInput').value='';$('chatLog').replaceChildren();$('chatBroadcast').replaceChildren();$('chatStatus').textContent='';chatUnread=0;lastChatDraft='';lastChatTime=-Infinity;lastEmoteTime=-Infinity;$('chatUnread').hidden=true;localEmote=null;ownNitro.visible=false}
 function triggerEmote(kind){
   if(state!=='racing'&&state!=='finishing'){toggleEmoteMenu(false);return}
   if(performance.now()-lastEmoteTime<750){toast('WAIT A MOMENT','',1000);return}
@@ -1270,7 +1278,7 @@ function frame(now){
   bike.tailMat.color.setHex(brakeNow&&state==='racing'?0xff2230:0x6a0a10);
   sun.position.set(pos.x+45,70,pos.z+30);sun.target.position.copy(pos);
   updateCamera(dt,clock);
-  audioTick();musicTick();
+  audioTick();musicTick();expireChatBroadcasts(now);
   /* HUD */
   if(state!=='menu'){
     var k=Math.round(av*3.6);
@@ -1447,9 +1455,22 @@ function startMultiplayerPhase(match,remaining){
     goAt=5;cdT=Math.max(0,5-remaining);
   }
 }
+function chatPlate(message){
+  var member=multiplayer&&multiplayer.members.find(function(m){return m.id===message.id});
+  var color=typeof message.color==='string'?message.color:member&&member.color;
+  var number=Number.isInteger(message.number)?message.number:member&&member.number;
+  var plate=document.createElement('span');plate.className='chat-plate';plate.textContent=Number.isInteger(number)&&number>=10&&number<=99?String(number):'–';
+  plate.style.backgroundColor=Object.prototype.hasOwnProperty.call(riderColors,color)?riderColors[color]:'#70777e';plate.style.color=['yellow','white','silver','cyan'].includes(color)?'#111':'#fff';return plate;
+}
+function broadcastChat(message){
+  var feed=$('chatBroadcast'),card=document.createElement('div'),head=document.createElement('div'),name=document.createElement('span'),text=document.createElement('p');
+  card.className='chat-broadcast-card';head.className='chat-broadcast-head';name.className='chat-broadcast-name';name.textContent=message.name;text.className='chat-broadcast-text';text.textContent=message.text;
+  head.append(chatPlate(message),name);card.append(head,text);card._expiresAt=performance.now()+8000;feed.appendChild(card);while(feed.children.length>3)feed.firstElementChild.remove();
+}
+function expireChatBroadcasts(now){var feed=$('chatBroadcast');Array.prototype.slice.call(feed.children).forEach(function(card){if(now>=card._expiresAt)card.remove()})}
 window.WMCGame={
   matchCue:playMatchCue,
-  receiveChat:function(message){if(!multiplayer||!message||typeof message.text!=='string'||typeof message.name!=='string')return;var row=document.createElement('p'),name=document.createElement('b');name.textContent=message.name+': ';row.append(name,document.createTextNode(message.text));var log=$('chatLog');log.appendChild(row);while(log.children.length>30)log.firstElementChild.remove();log.scrollTop=log.scrollHeight;if(message.id===multiplayer.user_id)lastChatDraft='';if($('chatPanel').hidden){chatUnread++;$('chatUnread').hidden=false;$('chatUnread').textContent=String(chatUnread)}},
+  receiveChat:function(message){if(!multiplayer||!message||typeof message.text!=='string'||typeof message.name!=='string')return;broadcastChat(message);var row=document.createElement('p'),name=document.createElement('b');name.textContent=message.name+': ';row.append(chatPlate(message),document.createTextNode(' '),name,document.createTextNode(message.text));var log=$('chatLog');log.appendChild(row);while(log.children.length>30)log.firstElementChild.remove();log.scrollTop=log.scrollHeight;if(message.id===multiplayer.user_id)lastChatDraft='';if($('chatPanel').hidden){chatUnread++;$('chatUnread').hidden=false;$('chatUnread').textContent=String(chatUnread)}},
   messageError:function(message){if(!multiplayer)return;if(message.indexOf('Chat')===0){$('chatStatus').textContent=message;if(lastChatDraft&&!$('chatInput').value)$('chatInput').value=lastChatDraft;lastChatDraft=''}else toast(message,'bad',1800)},
   inSession:function(){return !!multiplayer},
   network:function(ok){$('matchNetwork').hidden=ok||!multiplayer},
