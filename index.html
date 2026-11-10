@@ -173,6 +173,8 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 @media(max-width:360px){.mode-choices{grid-template-columns:1fr}.mode-choice{min-height:80px}}
 
 .friends-panel{display:grid;gap:10px}.friends-intro,.friend-note,.friend-message{margin:0;color:#bfc6cf;font-size:12px}.friend-message{color:#fff}.friend-form{display:flex;gap:8px}.friend-form input{min-width:0;flex:1;background:#0e1116;color:#fff;border:1px solid #5b626e;border-radius:3px;padding:10px;font:16px system-ui;user-select:text;touch-action:auto}.friend-form button,.friend-row button{background:#e4202c;color:#fff;border:0;border-radius:3px;padding:8px 12px;font:700 12px var(--ui);cursor:pointer}.friend-list{display:grid;gap:6px;max-height:28vh;overflow:auto;touch-action:pan-y}.friend-row{display:flex;align-items:center;gap:8px;padding:9px;background:#ffffff0a}.friend-row-name{flex:1;min-width:0}.friend-row-name strong,.friend-row-name small{display:block;overflow:hidden;text-overflow:ellipsis}.friend-row-name small{color:#aab2bd}.friend-row button.alt{background:#343a43}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+
+.invite-notice{position:fixed;top:calc(var(--gt) + 8px);right:var(--gr);z-index:30;width:min(310px,calc(100vw - 32px));background:#141820;border-left:3px solid #e4202c;padding:12px;box-shadow:0 8px 25px #000a;font:13px var(--ui);display:grid;gap:7px;touch-action:auto}.invite-notice button{background:#e4202c;color:white;border:0;border-radius:3px;padding:8px;font:700 12px var(--ui);cursor:pointer}.invite-notice button+button{background:#343a43}.invite-notice p{margin:0;color:#ffb6b6}
 </style>
 
 <canvas id="gl"></canvas>
@@ -241,16 +243,31 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <button id="raceMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Race</strong><span>Five laps at Sepang.</span></button>
       <button id="qualMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Qualifying</strong><span>Set your fastest lap.</span></button>
     </div>
+    <div id="multiModes" class="mode-choices" hidden>
+      <button id="multiQualRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Qualifying + Race</strong><span>Create a private lobby.</span></button>
+      <button id="multiRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Race only</strong><span>Create a private lobby.</span></button>
+      <button id="friendsButton" class="mode-choice" type="button"><span class="choice-label">SOCIAL</span><strong>Friends</strong><span>Add riders and manage requests.</span></button>
+    </div>
+    <p id="multiMessage" class="friend-message" aria-live="polite"></p>
+    <div id="lobbyPanel" class="friends-panel" hidden>
+      <p id="lobbyMode" class="friends-intro"></p><div id="lobbyMembers" class="friend-list"></div>
+      <form id="inviteForm" class="friend-form"><label class="sr-only" for="inviteUsername">Friend username</label><input id="inviteUsername" maxlength="20" placeholder="Friend's username" required><button type="submit">Invite</button></form>
+      <p id="lobbyMessage" class="friend-message" aria-live="polite"></p>
+      <p class="friend-note">Race start is not available yet. Lobby holds up to 15 riders.</p>
+      <button id="leaveLobby" class="mode-back" type="button">Leave lobby</button>
+    </div>
     <div id="multiplayerNotice" class="friends-panel" hidden>
       <p class="friends-intro">Find your friends by their unique username.</p>
       <form id="friendForm" class="friend-form"><label class="sr-only" for="friendUsername">Friend username</label><input id="friendUsername" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" placeholder="Friend's username" required><button type="submit">Send request</button></form>
       <p id="friendMessage" class="friend-message" aria-live="polite"></p>
       <div id="friendList" class="friend-list"></div>
-      <p class="friend-note">Online lobbies, invitations and racing are still being built.</p>
+
     </div>
     <button id="modeBack" class="mode-back" type="button" hidden>&#8592; Back</button>
   </div>
 </div>
+
+<div id="inviteNotice" class="invite-notice" hidden role="status"><strong id="inviteText"></strong><span id="inviteRemaining"></span><div><button type="button" id="acceptInvite">Accept invite</button> <button type="button" id="declineInvite">Decline</button></div><p id="inviteError"></p></div>
 
 <div id="pauseOverlay" class="pause-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><div class="card"><h2 id="pauseTitle">PAUSED</h2><button class="go" id="resumeButton">Resume</button><button class="go secondary" id="quitButton">Main menu</button></div></div>
 
@@ -303,6 +320,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="profile.js"></script>
 <script src="friends.js" defer></script>
+<script src="lobby.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -737,7 +755,7 @@ function drawMap(){
 /* ---------- flow ---------- */
 function showModes(){
   if(state!=='menu'||startBtn.disabled)return;
-  $('modeOverlay').hidden=false;$('playButtons').hidden=false;$('modeButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('menu').inert=true;$('practiceButton').focus();
+  $('modeOverlay').hidden=false;$('playButtons').hidden=false;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('multiplayerNotice').hidden=true;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('menu').inert=true;$('practiceButton').focus();
 }
 function closeModes(){
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.focus();
@@ -767,10 +785,11 @@ $('start').addEventListener('click',showModes);
 $('raceMode').addEventListener('click',function(){begin('race')});
 $('qualMode').addEventListener('click',function(){begin('qualifying')});
 $('practiceButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeButtons').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='PRACTICE';$('raceMode').focus()});
-$('multiplayerButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='FRIENDS';window.dispatchEvent(new Event('wmc-friends-open'))});
+$('multiplayerButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiModes').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='MULTIPLAYER';window.dispatchEvent(new Event('wmc-lobby-open'))});
+$('friendsButton').addEventListener('click',function(){$('multiModes').hidden=true;$('multiplayerNotice').hidden=false;$('modeTitle').textContent='FRIENDS';window.dispatchEvent(new Event('wmc-friends-open'))});
 $('modeClose').addEventListener('click',closeModes);
 $('modeOverlay').addEventListener('click',function(e){if(e.target===this)closeModes()});
-$('modeBack').addEventListener('click',function(){$('modeButtons').hidden=true;$('multiplayerNotice').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()});
+$('modeBack').addEventListener('click',function(){if(!$('multiplayerNotice').hidden||!$('lobbyPanel').hidden){$('multiplayerNotice').hidden=true;$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}else{$('modeButtons').hidden=true;$('multiModes').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()}});
 $('modeOverlay').addEventListener('keydown',function(e){
   if(e.key!=='Tab')return;
   var controls=Array.prototype.filter.call(this.querySelectorAll('button'),function(b){return b.offsetParent!==null&&!b.disabled});
