@@ -761,7 +761,7 @@ function bikeReady(){bike.root.visible=true;startBtn.disabled=false;startBtn.tex
 // The supplied static Marc rider is a separate optional asset. Keep the
 // procedural rider if loading fails, and retain the existing Ducati and wheels.
 (function(){
-  try{fetch('marc-rider.glb').then(function(r){if(!r.ok)throw new Error('rider '+r.status);return r.arrayBuffer()}).then(function(buffer){
+  try{fetch('marc-rider.glb?v=ducati-red-2').then(function(r){if(!r.ok)throw new Error('rider '+r.status);return r.arrayBuffer()}).then(function(buffer){
     new THREE.GLTFLoader().parse(buffer,'',function(gltf){
       var model=gltf.scene;if(!model||!model.getObjectByName('Pilot_M_Pilot_0'))return;
       model.traverse(function(o){if(!o.isMesh)return;o.castShadow=!mobileRender;
