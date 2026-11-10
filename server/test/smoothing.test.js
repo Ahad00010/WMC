@@ -9,3 +9,10 @@ test('server-time interpolation avoids arrival-jitter rocking and never reverses
 });
 
 test('interpolates bike lean, steering and speed along with position',()=>{const s=new S(100);s.push({x:0,z:0,h:0,v:0,lean:0,pitch:0,steer:0},0);s.push({x:10,z:0,h:0,v:10,lean:1,pitch:.2,steer:-1},100);const p=s.sample(150);assert.equal(p.x,5);assert.equal(p.v,5);assert.equal(p.lean,.5);assert.equal(p.steer,-.5);assert.equal(p.pitch,.1)});
+
+test('remote visual prediction bridges a late snapshot briefly and is bounded',()=>{
+ const s=new S(150);s.push({x:0,z:0,h:0,v:20},0,1000);s.push({x:0,z:2,h:0,v:20},100,1100);
+ assert.equal(s.sample(300).z,2,'default behavior remains unchanged');assert.equal(s.sample(300,100).z,3);assert.equal(s.sample(500,100).z,4,'prediction stops after 100ms');
+ s.push({x:0,z:4,h:0,v:20},220,1200);assert.equal(s.sample(300,100).z,3,'interpolation resumes with the new packet');
+ const parked=new S(150);parked.push({x:0,z:0,h:0,v:0},0);assert.equal(parked.sample(500,100).z,0);
+});

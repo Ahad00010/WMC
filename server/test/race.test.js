@@ -98,3 +98,8 @@ test('AI can drive each circuit using its own track physics',async()=>{
  const {circuits,getTrack}=await import('../src/track.js');const {createPhysics}=await import('../src/physics.js');const {createAI}=await import('../src/ai.js');
  for(const id of Object.keys(circuits)){const track=getTrack(id),{spawn,step}=createPhysics(track),ai=createAI(track),state=spawn(1);for(let i=0;i<18000;i++)step(state,ai(state),1/60);assert.ok(state.total>track.N,`${id} should complete a lap`);assert.ok(Number.isFinite(state.x)&&Number.isFinite(state.z),id)}
 });
+
+test('precomputed AI curvature preserves the original driving decisions',async()=>{
+ const {circuits,getTrack}=await import('../src/track.js');const {createAI}=await import('../src/ai.js');const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+ for(const id of Object.keys(circuits)){const t=getTrack(id),ai=createAI(t);for(let idx=0;idx<t.N;idx+=19){const s={idx,x:t.px[idx]+1,z:t.pz[idx]-1,h:Math.atan2(t.tx[idx],t.tz[idx])+.02,v:idx%60},skill=idx%5-2,look=Math.max(5,Math.min(22,Math.round(5+Math.abs(s.v)*.08))),j=(idx+look)%t.N,angle=wrap(Math.atan2(t.px[j]-s.x,t.pz[j]-s.z)-s.h);let curve=0;for(let k=4;k<look+16;k+=4){const a=(idx+k)%t.N,b=(a+5)%t.N;curve=Math.max(curve,Math.abs(wrap(Math.atan2(t.tx[b],t.tz[b])-Math.atan2(t.tx[a],t.tz[a]))))}const cap=Math.max(13,Math.min(49+skill*2,60/(1+curve*4)));assert.deepEqual(ai(s,skill),{up:s.v<cap-1,down:s.v>cap+2,left:angle>.035,right:angle<-.035,brake:false},id)}}
+});

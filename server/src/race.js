@@ -41,8 +41,8 @@ export class RaceRoom {
       // Separate overlapping bikes; both riders remain in the authoritative simulation.
       const active=[...this.players.values()].filter(p=>!p.dnf&&p.state);
       for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
-        const a=active[i].state,b=active[j].state,dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz);
-        if(d<1.5){const nx=d>0.001?dx/d:1,nz=d>0.001?dz/d:0,shift=(1.5-d)/2;a.x-=nx*shift;a.z-=nz*shift;b.x+=nx*shift;b.z+=nz*shift;a.v*=.98;b.v*=.98;}
+        const a=active[i].state,b=active[j].state,dx=b.x-a.x,dz=b.z-a.z;
+        if(dx*dx+dz*dz<2.25){const d=Math.hypot(dx,dz),nx=d>0.001?dx/d:1,nz=d>0.001?dz/d:0,shift=(1.5-d)/2;a.x-=nx*shift;a.z-=nz*shift;b.x+=nx*shift;b.z+=nz*shift;a.v*=.98;b.v*=.98;}
       }
     }
     const players=[...this.players.values()];
