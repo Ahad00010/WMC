@@ -20,7 +20,7 @@
       if(error)throw error;
       if(leaving||currentGeneration!==generation)return;
       snapshot=data;clockOffset=Date.parse(data.server_time)-Date.now();
-      if(data.lobby&&serverUrl){connectRace();if(Date.now()-statsAt>30000){statsAt=Date.now();const result=await c.rpc('wmc_lobby_stats');if(!result.error)stats=Object.fromEntries(result.data.map(p=>[p.id,p]))}}else if(!data.lobby&&transport){transport.close();transport=null;serverSnapshot=null;stats={};statsAt=0;}
+      if(data.lobby&&serverUrl){connectRace();if(Date.now()-statsAt>30000){statsAt=Date.now();const result=await c.rpc('wmc_lobby_stats');if(!result.error)stats=Object.fromEntries(result.data.map(p=>[p.id,p]))}}else if(!data.lobby&&transport&&!(window.WMCGame&&window.WMCGame.inSession&&window.WMCGame.inSession())){transport.close();transport=null;serverSnapshot=null;stats={};statsAt=0;}
       render();
     } catch(e) {
       if(leaving||currentGeneration!==generation)return;

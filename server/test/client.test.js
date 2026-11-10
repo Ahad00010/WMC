@@ -22,3 +22,12 @@ test('leaving blocks stale snapshots and reconnects until lobby leave succeeds',
  assert.equal(connections,0);assert.equal(received,0);assert.equal(w.document.getElementById('resumeLobby').hidden,true);
  resolveLeave({error:null});assert.equal(await leaving,true);assert.equal(w.sessionStorage.getItem('wmc-leaving'),null);
 });
+
+test('active client keeps race connection when host leaving deletes the lobby',async t=>{
+ const dom=new JSDOM(html,{url:'http://test.local',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());let active=true,instance,received=0;
+ const lobby={id:'l',mode:'race',host_id:'a',members:[{id:'b',display_name:'B',username:'b',number:2}]};
+ w.WMC_RACE_SERVER_URL='ws://test.local';w.WMCRaceTransport=class{constructor(url,handlers){instance=this;this.handlers=handlers;this.closed=false}connect(){this.ws={};this.ready=true}close(){this.closed=true;this.ws=null}send(){}};
+ w.WMCAuth={client:{auth:{getSession:async()=>({data:{session:{access_token:'b'}}})},rpc:async name=>({data:name==='wmc_lobby_snapshot'?{user_id:'b',lobby:active?lobby:null,invites:[],server_time:new Date().toISOString()}:[],error:null})}};
+ w.WMCGame={inSession:()=>true,network(){},input:()=>({}),authoritativeReceive(){received++}};w.eval(lobbyScript);await until(()=>instance?.ready);
+ active=false;w.dispatchEvent(new w.Event('wmc-lobby-open'));await sleep(50);assert.equal(instance.closed,false);instance.handlers.snapshot({phase:'complete',players:[]});assert.equal(received,1);
+});

@@ -52,4 +52,11 @@ test('multiplayer music, synchronized countdown and overtakes use real game UI p
  w.WMCGame.authoritativeReceive({...qualifying,serverTime:199500},'a',{});
  w.WMCGame.authoritativeReceive({...qualifying,serverTime:200000},'a',{});
  assert.equal(w.__cues.filter(c=>c==='tick').length-ticks,3,'qualifying intro should count down');assert.equal(w.__cues.filter(c=>c==='go').length-gos,1);
+ const a={...player('a',100,1),color:'red',flying:true,lapStart:200000},b={...player('b',120,2),color:'blue',flying:true,lapStart:200000};
+ w.WMCGame.authoritativeReceive({...qualifying,serverTime:210000,players:[a,b],events:[]},'a',{});now+=16;w.__frame(now);
+ const qualRows=[...w.document.getElementById('qualRoster').children],ownQual=qualRows.find(r=>r.dataset.riderId==='a'),otherQual=qualRows.find(r=>r.dataset.riderId==='b');
+ assert.equal(ownQual.querySelector('.qual-stripe').style.backgroundColor,'rgb(228, 32, 44)');assert.equal(otherQual.querySelector('.qual-stripe').style.backgroundColor,'rgb(23, 107, 179)');
+ const card=w.document.getElementById('otherQual').firstElementChild;assert.ok(card.querySelector('.other-name').textContent.includes('B'));assert.match(card.querySelector('.other-time').textContent,/0:10\.0/);
+ w.WMCGame.authoritativeReceive({...qualifying,serverTime:210100,players:[a,{...b,invalid:true}],events:[{type:'invalid',id:'b',reason:'TRACK LIMITS'}]},'a',{});now+=16;w.__frame(now);assert.equal(card.querySelector('.other-time').textContent,'LAP CANCELLED');
+ w.WMCGame.authoritativeReceive({...qualifying,phase:'complete',endReason:'opponent_left',serverTime:210200,players:[a,{...b,dnf:true}],events:[]},'a',{});await new Promise(r=>setTimeout(r,5));assert.equal(w.document.getElementById('sessionEnd').hidden,false);assert.match(w.document.getElementById('sessionResult').textContent,/other rider left/);
 });
