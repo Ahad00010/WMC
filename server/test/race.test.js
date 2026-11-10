@@ -76,3 +76,13 @@ test('host alone controls AI fill, and bots ride through authoritative physics',
  const bots=[...r.players.values()].filter(p=>p.ai);assert.equal(r.phase,'race');assert.ok(bots.filter(p=>p.best!==null).length>=5,'AI riders should complete valid qualifying laps');assert.ok(bots.every(p=>p.state&&Number.isFinite(p.state.x)));
  r.disconnect('b',600000);assert.equal(r.phase,'complete','AI must not hide the departure of the other human rider');
 });
+
+test('rooms keep separate circuit geometry, physics, reset and finish distances',async()=>{
+ const {createTrack}=await import('../src/track.js');
+ const track=createTrack([[10000,10000],[10400,10000],[10400,10400],[10000,10400]]);
+ const a=room('race'),b=new RaceRoom({id:'other',host_id:'a',mode:'race'},track);b.join(profile('a'),0);b.join(profile('b'),0);b.start('a',0);
+ const ap=a.players.get('a'),bp=b.players.get('a');assert.notEqual(track.N,N);assert.ok(bp.state.x>9000);assert.ok(ap.state.x<9000);
+ bp.state.x=0;b.reset('a');assert.ok(bp.state.x>9000);assert.ok(ap.state.x<9000);
+ bp.lap=3;bp.state.total=3*track.N;bp.state.v=10;b.advance(23000,1/60);assert.equal(bp.completed,true);assert.equal(ap.completed,false);
+ assert.throws(()=>createTrack([[0,0],[1,1]]));
+});

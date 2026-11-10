@@ -1,23 +1,19 @@
-import {N,px,pz,tx,tz,lx,lz,roadHalfWidth,kerbEdge,wallEdge} from './track.js';
+import defaultTrack from './track.js';
 const VMAX=88, WIN=40;
 const wrap=a=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a};
-export function spawn(grid=1){
+export function createPhysics(track){
+const {N,px,pz,tx,tz,lx,lz,roadHalfWidth,kerbEdge,wallEdge}=track;
+function spawn(grid=1){
   if(!Number.isInteger(grid)||grid<1||grid>15)throw new Error('invalid grid position');
   const i=(N-9-Math.floor((grid-1)/2)*2+N)%N,side=grid%2?1:-1;
   return {x:px[i]+lx[i]*side*2,z:pz[i]+lz[i]*side*2,h:Math.atan2(tx[i],tz[i]),v:0,steer:0,lean:0,pitch:0,idx:i,total:i>N/2?i-N:i,lat:side*2,impact:0};
 }
-export function parseInput(value){
-  if(!value||typeof value!=='object'||Array.isArray(value))return null;
-  const out={};for(const key of ['up','down','left','right','brake']){if(typeof value[key]!=='boolean')return null;out[key]=value[key]}
-  return out;
-}
-export const neutralInput=()=>({up:false,down:false,left:false,right:false,brake:false});
 function nearest(s){
   let best=Infinity,bi=s.idx;
   for(let k=-WIN;k<=WIN;k++){const j=(s.idx+k+N)%N,dx=s.x-px[j],dz=s.z-pz[j],d=dx*dx+dz*dz;if(d<best){best=d;bi=j}}
   let dl=bi-s.idx;if(dl>N/2)dl-=N;if(dl<-N/2)dl+=N;s.idx=bi;s.total+=dl;s.lat=(s.x-px[bi])*lx[bi]+(s.z-pz[bi])*lz[bi];
 }
-export function step(s,input,dt){
+function step(s,input,dt){
   if(!Number.isFinite(dt)||dt<=0||dt>1/30)throw new Error('invalid physics step');
   const previous=s.total;nearest(s);
   const al=Math.abs(s.lat),grip=al>kerbEdge(s.idx)?.5:al>roadHalfWidth(s.idx)?.92:1,maxV=al>kerbEdge(s.idx)?VMAX*.36:VMAX;
@@ -38,3 +34,13 @@ export function step(s,input,dt){
   let pt=0;if(thr&&s.v>0&&s.v<32)pt=-.24*(1-s.v/32)*Math.max(0,a/17);if((brk||hard)&&s.v>25)pt=.06;s.pitch+=(pt-s.pitch)*Math.min(1,dt*5);
   return {previous,offTrack};
 }
+
+return {spawn,step};
+}
+export const {spawn,step}=createPhysics(defaultTrack);
+export function parseInput(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const out={};for(const key of ['up','down','left','right','brake']){if(typeof value[key]!=='boolean')return null;out[key]=value[key]}
+  return out;
+}
+export const neutralInput=()=>({up:false,down:false,left:false,right:false,brake:false});
