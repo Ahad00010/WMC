@@ -5,3 +5,20 @@ test('browser lobby transport connects two riders and starts one synchronized ra
  function client(id){const dom=new JSDOM(html,{url:'http://test.local',runScripts:'outside-only'}),w=dom.window;let last=null,active=true;class Socket extends WebSocket{constructor(u){super(u,{origin:'http://test.local'})}}w.WebSocket=Socket;w.WMC_RACE_SERVER_URL=url;w.WMCAuth={client:{auth:{getSession:async()=>({data:{session:{access_token:id}}})},rpc:async(name,args)=>{if(name==='wmc_lobby_action'&&args.action==='leave')active=false;return {data:name==='wmc_lobby_snapshot'?{user_id:id,lobby:active?lobby:null,invites:[],server_time:new Date().toISOString()}:[],error:null}}}};w.WMCGame={network(){},input:()=>({up:false,down:false,left:false,right:false,brake:false}),authoritativeReceive(m){last=m}};w.eval(transport);w.eval(lobbyScript);w.document.getElementById('modeOverlay').hidden=false;w.document.getElementById('multiModes').hidden=false;w.dispatchEvent(new w.Event('wmc-lobby-open'));return {w,get last(){return last}}}
  const a=client('a'),b=client('b');t.after(()=>{a.w.close();b.w.close()});await until(()=>!a.w.document.getElementById('resumeLobby').hidden);a.w.document.getElementById('resumeLobby').click();await until(()=>!a.w.document.getElementById('startMultiplayer').disabled);a.w.document.getElementById('startMultiplayer').click();await until(()=>a.last?.phase==='race'&&b.last?.phase==='race');assert.equal(a.last.matchId,b.last.matchId);assert.equal(a.last.players.length,2);await a.w.WMCMatch.leave();await b.w.WMCMatch.leave();await sleep(100);
 });
+
+test('leaving blocks stale snapshots and reconnects until lobby leave succeeds',async t=>{
+ const dom=new JSDOM(html,{url:'http://test.local',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
+ let resolveSnapshot,resolveLeave,calls=0,connections=0,received=0;
+ const lobby={id:'l',mode:'race',host_id:'a',members:[]};
+ w.WMC_RACE_SERVER_URL='ws://test.local';
+ w.WMCRaceTransport=class {constructor(url,handlers){this.handlers=handlers;connections++}connect(){this.ws={};this.ready=true}close(){this.ws=null}send(){}};
+ w.WMCAuth={client:{auth:{getSession:async()=>({data:{session:{access_token:'a'}}})},rpc:async(name)=>{
+   if(name==='wmc_lobby_snapshot'){calls++;return new Promise(r=>{resolveSnapshot=r})}
+   if(name==='wmc_lobby_action')return new Promise(r=>{resolveLeave=r});return {data:[],error:null};
+ }}};
+ w.WMCGame={network(){},input:()=>({}),authoritativeReceive(){received++}};w.eval(lobbyScript);
+ await until(()=>resolveSnapshot);const leaving=w.WMCMatch.leave();await until(()=>resolveLeave);
+ resolveSnapshot({data:{user_id:'a',lobby,invites:[],server_time:new Date().toISOString()},error:null});await sleep(20);
+ assert.equal(connections,0);assert.equal(received,0);assert.equal(w.document.getElementById('resumeLobby').hidden,true);
+ resolveLeave({error:null});assert.equal(await leaving,true);assert.equal(w.sessionStorage.getItem('wmc-leaving'),null);
+});

@@ -10,3 +10,11 @@ test('15 riders can run fixed steps without non-finite positions and a disconnec
 });
 
 test('race ends on lap three and qualifying expires after four minutes',()=>{const r=room(),p=r.players.get('a');p.lap=3;p.state.total=3*N;p.state.v=5;r.advance(r.phaseStart+1000,1/60);assert.equal(p.completed,true);assert.equal(p.lap,4);const q=room('qualifying'),rider=q.players.get('a');q.advance(q.phaseStart+240000,1/60);assert.equal(q.phase,'race')});
+
+test('explicitly leaving an active race immediately retires the rider',()=>{
+ const room=new RaceRoom({id:'leave-test',host_id:'a',mode:'race'});
+ room.join({id:'a',username:'a'},0);room.join({id:'b',username:'b'},0);room.start('a',0);
+ room.leave('b',100);const rider=room.players.get('b');
+ assert.equal(rider.dnf,true);assert.equal(rider.completed,true);assert.equal(rider.connected,false);
+ assert.ok(room.events.some(e=>e.type==='dnf'&&e.id==='b'));
+});
