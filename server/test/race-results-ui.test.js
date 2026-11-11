@@ -7,3 +7,14 @@ test('reconnect uses server elapsed time',()=>{const x=setup();x.r.begin(1000,24
 
 test('summary soundtrack fades in from silence and still fades out',()=>{const x=setup();x.r.begin(0,0,()=>x.entries,{});x.r.tick(20000);assert.equal(x.audio().volume,0);x.r.tick(21500);assert.ok(Math.abs(x.audio().volume-.4)<1e-6);x.r.tick(23000);assert.equal(x.audio().volume,.8);x.r.tick(52500);assert.ok(Math.abs(x.audio().volume-.4)<1e-6);x.r.tick(53000);assert.equal(x.audio().volume,0);x.dom.window.close()});
 test('responsive stage preserves the layout inside the viewport',()=>{const x=setup();Object.defineProperty(x.dom.window,'innerWidth',{value:1600,configurable:true});Object.defineProperty(x.dom.window,'innerHeight',{value:800,configurable:true});x.r.begin(0,0,()=>x.entries,{});x.r.tick(23000);assert.equal(Number(x.box.querySelector('.results-stage').style.getPropertyValue('--results-scale')),800/851);Object.defineProperty(x.dom.window,'innerWidth',{value:1000,configurable:true});x.dom.window.dispatchEvent(new x.dom.window.Event('resize'));assert.equal(Number(x.box.querySelector('.results-stage').style.getPropertyValue('--results-scale')),1000/1568);x.dom.window.close()});
+
+test('summary uses the supplied MGP display, inline and text fonts',()=>{
+ const css=readFileSync(new URL('../../race-results.css',import.meta.url),'utf8');
+ for(const file of ['MGPDisplay-Bold.otf','MGPInline-Regular.otf','MGPText-Regular.ttf','MGPText-Bold.ttf','MGPText-Black.ttf','MGPText-BlackItalic.ttf']){
+  assert.match(css,new RegExp(file.replace('.','\\.')));assert.ok(readFileSync(new URL('../../assets/results/mgp/'+file,import.meta.url)).length>50000);
+ }
+ assert.match(css,/\.results-title\{[^}]*MGPDisplay/);assert.match(css,/\.results-winner-word\{[^}]*MGPInline/);assert.match(css,/\.results-row\{[^}]*MGPText/);
+});
+test('summary starts loading MGP fonts before the screen appears',()=>{
+ const x=setup(),loaded=[];Object.defineProperty(x.dom.window.document,'fonts',{value:{load(name){loaded.push(name);return Promise.resolve([])}}});x.r.begin(0,0,()=>x.entries,{});assert.ok(loaded.some(name=>name.includes('MGPDisplay')));assert.ok(loaded.some(name=>name.includes('MGPInline')));assert.ok(loaded.some(name=>name.includes('MGPText')));assert.equal(x.box.hidden,true);x.dom.window.close();
+});
