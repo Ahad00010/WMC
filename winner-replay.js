@@ -2,7 +2,7 @@
 (function(root){
 'use strict';
 function createFootage(env){
- var stream=null,recorder=null,segment=null,best=Object.create(null),completed=Object.create(null),generation=0,lastSample=-Infinity,disabled=false,slowStart=null,slowFrames=0,slowTime=0,highQuality=false;
+ var stream=null,recorder=null,segment=null,best=Object.create(null),completed=Object.create(null),generation=0,lastSample=-Infinity,disabled=false,slowStart=null,slowFrames=0,slowTime=0,highQuality=false,clipHandler=null;
  function stopTracks(){if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}}
  function clear(){generation++;if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){}}recorder=null;segment=null;stopTracks();best=Object.create(null);completed=Object.create(null);lastSample=-Infinity;disabled=false;slowStart=null;slowFrames=0;slowTime=0;highQuality=false}
  function start(source,now){
@@ -12,7 +12,7 @@ function createFootage(env){
    var types=['video/webm;codecs=vp8','video/webm','video/mp4'],mime=types.find(function(type){return env.MediaRecorder.isTypeSupported&&env.MediaRecorder.isTypeSupported(type)}),options={videoBitsPerSecond:highQuality?16000000:6000000};if(mime)options.mimeType=mime;
    var r=new env.MediaRecorder(stream,options),g=generation,part={start:now,end:now,scores:Object.create(null),finishers:Object.create(null),chunks:[]};recorder=r;segment=part;
    r.ondataavailable=function(e){if(e.data&&e.data.size)part.chunks.push(e.data)};
-   r.onstop=function(){var duration=part.end-part.start;if(g!==generation||!part.chunks.length||duration<200)return;var blob=new env.Blob(part.chunks,{type:r.mimeType||mime||'video/webm'});if(!blob.size)return;Object.keys(part.scores).forEach(function(id){var atFinish=!!part.finishers[id],previous=best[id];if(!atFinish&&duration<5500)return;if(!previous||(atFinish&&!previous.atFinish)||(atFinish===previous.atFinish&&part.end>previous.end))best[id]={blob:blob,score:part.scores[id],duration:duration,end:part.end,atFinish:atFinish}})};
+   r.onstop=function(){var duration=part.end-part.start;if(g!==generation||!part.chunks.length||duration<200)return;var blob=new env.Blob(part.chunks,{type:r.mimeType||mime||'video/webm'});if(!blob.size)return;Object.keys(part.scores).forEach(function(id){var atFinish=!!part.finishers[id],previous=best[id];if(!atFinish&&duration<5500)return;if(!previous||(atFinish&&!previous.atFinish)||(atFinish===previous.atFinish&&part.end>previous.end)){best[id]={blob:blob,score:part.scores[id],duration:duration,end:part.end,atFinish:atFinish};if(clipHandler)clipHandler(id,best[id])}})};
    r.onerror=function(){if(g===generation){disabled=true;stopTracks()}};r.start();return true;
   }catch(e){disabled=true;stopTracks();return false}
  }
@@ -37,7 +37,7 @@ function createFootage(env){
  }
  function finish(now){finishPart(now);stopTracks()}
  function clip(id){return best[id]||null}
- return {clear:clear,record:record,finish:finish,clip:clip,isAvailable:function(){return !disabled},setHighQuality:function(enabled){if(!recorder&&!stream)highQuality=!!enabled}};
+ return {clear:clear,record:record,finish:finish,clip:clip,onClip:function(fn){clipHandler=fn},isAvailable:function(){return !disabled},setHighQuality:function(enabled){if(!recorder&&!stream)highQuality=!!enabled}};
 }
 // Start only in the final approach. Track progress is measured in laps, not
 // straight-line distance, so the start line cannot be mistaken for the finish.

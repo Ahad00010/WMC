@@ -77,3 +77,20 @@ test('authoritative race gap reaches every connected rider in snapshots',async t
  const room=app.rooms.get('gaps'),lead=room.players.get('a'),follow=room.players.get('b');room.phaseStart=0;lead.state.total=101;follow.state.total=100;lead.gapIndex=101;follow.gapIndex=100;lead.gapCrossings=new Map([[100,100]]);follow.gapCrossings=new Map([[100,600]]);lead.state.v=follow.state.v=20;clock=1101;
  for(const c of [a,b]){const snap=await until(()=>c.messages.find(m=>m.type==='snapshot'&&m.players.find(p=>p.id==='b')?.gap));assert.deepEqual(snap.players.find(p=>p.id==='b').gap,{ahead:'a',seconds:.5,laps:0})}a.ws.close();b.ws.close();
 });
+
+test('only the authoritative winner uploads a race replay; participants receive identical bytes',async t=>{
+ let clock=100000;const lobby={id:'shared-replay',host_id:'a',mode:'race'};
+ const app=createServer({now:()=>clock,allowedOrigins:['http://test.local'],authenticate:async token=>{if(token==='bad')throw Error('bad');return {userId:token,lobby:token==='other'?{id:'other'}:lobby,profile:{id:token,username:token,display_name:token,number:1}}}});
+ await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>app.close());const port=app.server.address().port,url=`ws://127.0.0.1:${port}/race`;
+ function connect(id){const ws=new WebSocket(url,{origin:'http://test.local'}),messages=[];ws.on('message',v=>messages.push(JSON.parse(v)));ws.on('open',()=>ws.send(JSON.stringify({type:'auth',token:id})));t.after(()=>ws.close());return {ws,messages}}
+ const a=connect('a'),b=connect('b');await until(()=>a.messages.some(m=>m.type==='ready')&&b.messages.some(m=>m.type==='ready'));a.ws.send(JSON.stringify({type:'start'}));await until(()=>app.rooms.get(lobby.id).matchId);const room=app.rooms.get(lobby.id),endpoint=`http://127.0.0.1:${port}/replay/${room.matchId}`;
+ const headers=id=>({Origin:'http://test.local',Authorization:'Bearer '+id,'Content-Type':'video/webm','X-WMC-Duration':'7500'}),video=Buffer.from('actual video bytes');
+ assert.equal((await fetch(endpoint,{method:'POST',headers:headers('a'),body:video})).status,403,'nobody can upload before a winner finishes');
+ const rider=room.players.get('a');rider.completed=true;rider.finishAt=clock;assert.equal((await fetch(endpoint,{method:'POST',headers:headers('b'),body:video})).status,403,'a nonwinner cannot upload');
+ assert.equal((await fetch(endpoint,{method:'POST',headers:{...headers('a'),Origin:'https://evil.test'},body:video})).status,403);
+ assert.equal((await fetch(endpoint,{method:'POST',headers:{...headers('a'),'Content-Type':'text/html'},body:video})).status,400);
+ assert.equal((await fetch(endpoint,{method:'POST',headers:headers('a'),body:video})).status,201);
+ for(const id of ['a','b']){const response=await fetch(endpoint,{headers:headers(id)});assert.equal(response.status,200);assert.equal(response.headers.get('x-wmc-winner'),'a');assert.equal(response.headers.get('x-wmc-duration'),'7500');assert.deepEqual(Buffer.from(await response.arrayBuffer()),video)}
+ assert.equal((await fetch(endpoint,{headers:headers('other')})).status,403);assert.equal((await fetch(endpoint,{headers:headers('bad')})).status,401);
+ clock+=5*60*1000+1;assert.equal((await fetch(endpoint,{headers:headers('b')})).status,404,'temporary replay expires');
+});
