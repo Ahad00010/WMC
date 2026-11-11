@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="race-results.css?v=1">
+<link rel="stylesheet" href="race-results.css?v=2">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Saira+Condensed:wght@600;800&display=swap" rel="stylesheet">
 <style>
 /* Touch feedback without the browser's blue tap flash or long-press callout. */
@@ -413,7 +413,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="bike-contact.js?v=4"></script>
 <script src="practice-ai.js?v=3"></script>
 <script src="menu-music.js?v=1"></script>
-<script src="race-results.js?v=1"></script>
+<script src="race-results.js?v=2"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=max-riders-11" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1346,6 +1346,9 @@ function updateDesktopSessionQuality(now,frameMs){
 }
 function frame(now){
   if(resultsSequence)resultsSequence.tick(now);
+  // The full-screen summary replaces the race view. Don't render or update the
+  // hidden track and rider batches behind its WebGL canvas every frame.
+  if(resultsSequence&&resultsSequence.isShown()){lastT=now;audioTick();requestAnimationFrame(frame);return}
   var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000),beforeContact={x:pos.x,z:pos.z};lastT=now;clock+=dt;contactVisual={};
   // Sustained slow frames lower resolution gradually. A long pause is not a
   // performance sample; recovery is deliberately slower to avoid oscillation.
