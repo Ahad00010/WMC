@@ -1430,19 +1430,15 @@ function projectedServerPose(target,age){
   var pushTime=(1-Math.exp(-3*age))/3;x+=(target.pushX||0)*pushTime;z+=(target.pushZ||0)*pushTime;
   return {x:x,z:z,h:end};
 }
-// Ease server error without letting old snapshots steer the player off the road.
+// Reconcile both position and heading: leaving either divergent lets small input
+// delays compound into a different trajectory and false server track-limit penalties.
 // Actual collisions, lap validity and results are decided by the race server.
 function multiplayerCorrection(dx,dz,heading,angleError,dt,motion,speed,contact,steering){
-  var fx=Math.sin(heading),fz=Math.cos(heading),sideX=fz,sideZ=-fx;
-  var forward=dx*fx+dz*fz,side=dx*sideX+dz*sideZ;
-  var f=1-Math.exp(-dt*(contact?5:2)),limit=(Math.hypot(dx,dz)>12?12:6)*dt,forwardStep=Math.max(-limit,Math.min(limit,forward*f));
-  if(speed>=-.1)forwardStep=Math.max(motion>0?-motion*.5:0,forwardStep);
-  // Suppress small lateral jitter and limit any remaining sideways correction.
-  var deadzone=contact?0:.75,sideError=Math.sign(side)*Math.max(0,Math.abs(side)-deadzone);
-  var sideLimit=(contact?2:1)*dt,sideStep=Math.max(-sideLimit,Math.min(sideLimit,sideError*f));
-  // Old server headings are particularly misleading while the player is turning.
-  var turn=0;if(!steering||contact){var err=Math.sign(angleError)*Math.max(0,Math.abs(angleError)-.08),turnLimit=(contact?1:.6)*dt;turn=Math.max(-turnLimit,Math.min(turnLimit,err*f))}
-  return {x:fx*forwardStep+sideX*sideStep,z:fz*forwardStep+sideZ*sideStep,heading:turn};
+  var f=1-Math.exp(-dt*(contact?7:2)),dist=Math.hypot(dx,dz),cx=dx*f,cz=dz*f,limit=(dist>12?12:6)*dt,amount=Math.hypot(cx,cz);
+  if(amount>limit){cx*=limit/amount;cz*=limit/amount}
+  var fx=Math.sin(heading),fz=Math.cos(heading),forward=cx*fx+cz*fz,minimum=speed<-.1?-Infinity:motion>0?-motion*.5:0;
+  if(forward<minimum){cx+=(minimum-forward)*fx;cz+=(minimum-forward)*fz}
+  return {x:cx,z:cz,heading:Math.max(-1.5*dt,Math.min(1.5*dt,angleError*f))};
 }
 function frame(now){
   if(resultsSequence)resultsSequence.tick(now);
@@ -1501,8 +1497,8 @@ function frame(now){
     var targetSpeed=target.v;if(v>=0&&!held('down'))targetSpeed=Math.max(0,targetSpeed);
     v+=(targetSpeed-v)*(1-Math.exp(-dt*2));
     throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');
-    var sync=$('matchSync'),outOfSync=Number.isFinite(target.lat)&&Number.isInteger(target.idx)&&target.idx>=0&&target.idx<N&&Math.abs(target.lat)>kerbEdge(target.idx)&&Math.abs(lat)<=kerbEdge(idx);
-    var warning=now-targetReceivedAt>500?'Connection delayed · controls may arrive late':outOfSync?'Server sees bike off track · connection delay':'';
+    var sync=$('matchSync');
+    var warning=now-targetReceivedAt>500?'Connection delayed · controls may arrive late':'';
     sync.hidden=!warning||!$('matchNetwork').hidden;if(warning&&sync.textContent!==warning)sync.textContent=warning;
   }else $('matchSync').hidden=true;
   /* rpm */
