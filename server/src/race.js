@@ -33,15 +33,24 @@ export class RaceRoom {
     if(this.fillAI){const colors=['blue','red','yellow','orange','green','cyan','purple','pink','white','black','silver'];for(let i=this.players.size;i<MAX_RIDERS;i++){const profile={id:'ai-'+(i+1),username:'ai'+(i+1),display_name:'AI Rider '+(i+1),number:10+i,color:colors[i%colors.length]};this.join(profile,now);this.players.get(profile.id).ai=true}}
     const order=[...this.players.values()];for(let i=order.length-1;i>0;i--){let j=randomInt(i+1);[order[i],order[j]]=[order[j],order[i]]}order.forEach((p,i)=>p.grid=i+1);this.matchId=randomUUID();this.startPhase(this.mode==='race'?'race':'qualifying',now,COUNTDOWN)}
   startPhase(phase,now,delay){this.phase=phase;this.phaseStart=now+delay;this.resultsAt=null;this.resultsStartedAt=null;this.completedPhase=null;for(const p of this.players.values()){p.state=this.physics.spawn(p.grid);p.gapIndex=p.state.total;p.gapCrossings=new Map([[p.gapIndex,this.phaseStart]]);p.emote=null;p.emoteAt=null;p.completed=p.dnf;p.finishAt=null;p.input=neutralInput();p.inputAt=now;p.lap=1;p.lapStart=this.phaseStart;p.raceBest=null;p.lastLap=null;p.flying=false;p.invalid=false;p.line=0;p.sector=0;p.sectorStart=this.phaseStart;p.sectorTimes=[];if(phase==='qualifying'){p.best=null;p.attempts=0;p.sectorBests=[null,null,null,null]}}this.events.push({type:'phase',phase})}
+  riderInput(p,now){
+    if(p.ai)return this.aiInput(p.state,(p.grid%5)-2);
+    if(!p.connected)return neutralInput();
+    const age=now-p.inputAt;if(age<500)return p.input;
+    // A brief packet gap should not repeatedly cut the throttle, but stale
+    // steering and reverse/braking must still release quickly to avoid spins.
+    if(age<1500)return {...neutralInput(),up:p.input.up};
+    return neutralInput();
+  }
   advance(now,dt){if(this.phase==='lobby'||this.phase==='complete')return;
     for(const p of this.players.values())if(!p.connected&&!p.dnf&&p.disconnectedAt!==null&&now-p.disconnectedAt>=GRACE&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id:p.profile.id});if([...this.players.values()].filter(q=>!q.ai).length===2){this.completedPhase=this.phase;this.phase='complete';this.resultsStartedAt=now;this.endReason='connection_lost';this.events.push({type:'session_ended',reason:this.endReason});return}}
     if(now>=this.phaseStart){
       const active=[...this.players.values()].filter(p=>!p.dnf&&!p.completed&&p.state);
       // Finished riders continue rolling under their normal controls, but no
       // longer collide or affect timing. Freezing them caused client rewinds.
-      for(const p of this.players.values())if(p.completed&&!p.dnf&&p.state){const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<500?p.input:neutralInput();this.physics.step(p.state,input,dt)}
+      for(const p of this.players.values())if(p.completed&&!p.dnf&&p.state){const input=this.riderInput(p,now);this.physics.step(p.state,input,dt)}
       const before=new Map(),results=new Map();
-      for(const p of active){before.set(p,{x:p.state.x,z:p.state.z});const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<500?p.input:neutralInput();results.set(p,this.physics.step(p.state,input,dt))}
+      for(const p of active){before.set(p,{x:p.state.x,z:p.state.z});const input=this.riderInput(p,now);results.set(p,this.physics.step(p.state,input,dt))}
       for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
         const a=active[i],b=active[j];if(a.ai&&b.ai)continue;if(bikeContact.resolve(a.state,b.state,before.get(a),before.get(b),dt)){a.state.contactSeq=(a.state.contactSeq||0)+1;b.state.contactSeq=(b.state.contactSeq||0)+1}
       }

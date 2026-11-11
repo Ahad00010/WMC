@@ -270,7 +270,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
   <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span><b class="qual-rank">1</b> <span class="rider-short">D EFA</span></span><span class="qual-number rider-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-readout"><div class="qual-time" id="qualTime"></div><div class="qual-delta" id="qualDelta"></div></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i><span class="qual-marker" id="qualMarker"></span></div></div></div>
   </div>
   <canvas id="map" width="300" height="300"></canvas>
-  <div id="matchNetwork" class="match-network" hidden>Connection interrupted · reconnecting…</div>
+  <div id="matchNetwork" class="match-network" hidden>Connection interrupted · reconnecting…</div><div id="matchSync" class="match-network" hidden></div>
   <button id="pauseButton" class="pause-button" aria-label="Pause game">&#10074;&#10074; Pause</button>
   <div class="lights" id="lights" hidden><i></i><i></i><i></i><i></i><i></i></div>
   <div class="toast" id="toast"></div>
@@ -1079,7 +1079,7 @@ function returnToMenu(){
   if(resultsSequence)resultsSequence.cancel();resultsStarted=false;resultsMatch=null;practiceFinishTime=null;
   practiceAI=null;practiceFill=false;if(practiceSpeed!==1){bestLap=null;try{var savedBest=Number(window.localStorage.getItem('apexgp-'+circuitId+'-best'));if(savedBest>0)bestLap=savedBest}catch(e){}}practiceSpeed=1;$('practiceSpeed').value='1';cancelPracticeLoad();
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
-  clearRiderTags();resetSessionTools();clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';$('ownRaceRow').querySelector('.race-gap').hidden=true;$('ownRaceRow')._gapTrend=null;Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
+  clearRiderTags();resetSessionTools();clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('matchSync').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';$('ownRaceRow').querySelector('.race-gap').hidden=true;$('ownRaceRow')._gapTrend=null;Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
   clearInputs();$('pauseOverlay').hidden=true;$('sessionEnd').hidden=true;$('hud').hidden=true;$('touch').hidden=true;$('menu').hidden=false;
   $('modeOverlay').hidden=true;$('menu').inert=false;$('multiplayerNotice').hidden=true;startBtn.hidden=false;state='menu';gridSpot(N-9);
@@ -1421,6 +1421,15 @@ function updateDesktopSessionQuality(now,frameMs){
     }
   }else{desktopSampleStart=0;desktopFrames=0;desktopFrameTime=0}
 }
+// Extrapolate a snapshot along its turning arc, not a straight line. A straight
+// projection in corners invents lateral error and fights the rider's steering.
+function projectedServerPose(target,age){
+  var speed=target.v,heading=target.h,grip=Math.abs(target.lat)>kerbEdge(target.idx)?.5:Math.abs(target.lat)>roadHalfWidth(target.idx)?.92:1;
+  var yaw=(target.steer||0)*Math.min(1.9,18*grip/Math.max(Math.abs(speed),.01))*Math.min(1,Math.abs(speed)/4)*(speed>=0?1:-.7),end=heading+yaw*age;
+  var x=target.x,z=target.z;if(Math.abs(yaw)>1e-5){x+=speed*(Math.cos(heading)-Math.cos(end))/yaw;z+=speed*(Math.sin(end)-Math.sin(heading))/yaw}else{x+=Math.sin(heading)*speed*age;z+=Math.cos(heading)*speed*age}
+  var pushTime=(1-Math.exp(-3*age))/3;x+=(target.pushX||0)*pushTime;z+=(target.pushZ||0)*pushTime;
+  return {x:x,z:z,h:end};
+}
 // Ease server error without letting old snapshots steer the player off the road.
 // Actual collisions, lap validity and results are decided by the race server.
 function multiplayerCorrection(dx,dz,heading,angleError,dt,motion,speed,contact,steering){
@@ -1485,14 +1494,17 @@ function frame(now){
     if((state==='racing'||state==='finishing')&&mpDt>0&&now-targetReceivedAt<1000){var steps=Math.ceil(mpDt/(1/60));for(var q=0;q<steps;q++)physics(mpDt/steps)}
     // Correct prediction gradually toward a short extrapolation of the last server state.
     // Never pull a moving bike backwards solely to hide a network correction.
-    var age=Math.min(.6,Math.max(0,(now-targetReceivedAt+networkLatency)/1000)),ex=target.x+(Math.sin(target.h)*target.v+(target.pushX||0))*age,ez=target.z+(Math.cos(target.h)*target.v+(target.pushZ||0))*age;
-    var correction=multiplayerCorrection(ex-pos.x,ez-pos.z,h,wrap(target.h-h),dt,(pos.x-prePhysicsX)*Math.sin(h)+(pos.z-prePhysicsZ)*Math.cos(h),v,now<contactCorrectionUntil,held('left')||held('right'));
+    var age=Math.min(.6,Math.max(0,(now-targetReceivedAt+networkLatency)/1000)),projected=projectedServerPose(target,age);
+    var correction=multiplayerCorrection(projected.x-pos.x,projected.z-pos.z,h,wrap(projected.h-h),dt,(pos.x-prePhysicsX)*Math.sin(h)+(pos.z-prePhysicsZ)*Math.cos(h),v,now<contactCorrectionUntil,held('left')||held('right'));
     pos.x+=correction.x;pos.z+=correction.z;h+=correction.heading;
     // An old reverse snapshot must not put a forward-moving bike into reverse.
     var targetSpeed=target.v;if(v>=0&&!held('down'))targetSpeed=Math.max(0,targetSpeed);
     v+=(targetSpeed-v)*(1-Math.exp(-dt*2));
     throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');
-  }
+    var sync=$('matchSync'),outOfSync=Number.isFinite(target.lat)&&Number.isInteger(target.idx)&&target.idx>=0&&target.idx<N&&Math.abs(target.lat)>kerbEdge(target.idx)&&Math.abs(lat)<=kerbEdge(idx);
+    var warning=now-targetReceivedAt>500?'Connection delayed · controls may arrive late':outOfSync?'Server sees bike off track · connection delay':'';
+    sync.hidden=!warning||!$('matchNetwork').hidden;if(warning&&sync.textContent!==warning)sync.textContent=warning;
+  }else $('matchSync').hidden=true;
   /* rpm */
   var av=Math.abs(v),g=Math.min(6,1+Math.floor(av/14.6)),frac=Math.min(1,(av-(g-1)*14.6)/14.6);
   var tr=state==='countdown'?(throttleNow?0.8:0.2):(av<0.5&&!throttleNow?0.18:0.3+0.7*frac);
