@@ -530,7 +530,7 @@ function kerbEdge(i){return roadHalfWidth(i)+2.5}
 function wallEdge(i){return roadHalfWidth(i)+10}
 
 function ribbon(latA,latB,vScale,y,map,recv){
-  var material=new THREE.MeshLambertMaterial({map:map}),chunk=mobileRender?48:N;
+  var material=new THREE.MeshLambertMaterial({map:map}),chunk=48;
   // Whole-circuit meshes cannot be culled even when almost all the circuit is
   // behind the camera. Independent continuous chunks retain identical geometry.
   for(var first=0;first<N;first+=chunk){
@@ -557,13 +557,13 @@ ribbon(function(i){return -wallEdge(i)},function(i){return -kerbEdge(i)},10,0.02
 (function(){
   var geo=new THREE.BoxGeometry(0.9,1.1,STEP*1.02);
   var mat=new THREE.MeshLambertMaterial({color:0xffffff});
-  var m4=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),sv=new THREE.Vector3(1,1,1),p=new THREE.Vector3(),col=new THREE.Color(),chunk=mobileRender?48:N;
+  var m4=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),sv=new THREE.Vector3(1,1,1),p=new THREE.Vector3(),col=new THREE.Color(),chunk=48;
   for(var first=0;first<N;first+=chunk){
     var end=Math.min(N,first+chunk),cx=0,cz=0;
     for(var j=first;j<end;j++){cx+=px[j];cz+=pz[j]}cx/=(end-first);cz/=(end-first);
     var radius=0;for(var j=first;j<end;j++)radius=Math.max(radius,Math.hypot(px[j]-cx,pz[j]-cz)+wallEdge(j)+STEP+3);
-    var sectionGeo=mobileRender?geo.clone():geo;if(mobileRender)sectionGeo.boundingSphere=new THREE.Sphere(new THREE.Vector3(0,0,0),radius);
-    var inst=new THREE.InstancedMesh(sectionGeo,mat,(end-first)*2);inst.position.set(cx,0,cz);inst.frustumCulled=mobileRender;inst.userData.trackBarrier=true;
+    var sectionGeo=geo.clone();sectionGeo.boundingSphere=new THREE.Sphere(new THREE.Vector3(0,0,0),radius);
+    var inst=new THREE.InstancedMesh(sectionGeo,mat,(end-first)*2);inst.position.set(cx,0,cz);inst.frustumCulled=true;inst.userData.trackBarrier=true;
     var n=0;
     for(var i=first;i<end;i++){
       q.setFromAxisAngle(up,Math.atan2(tx[i],tz[i]));
@@ -1307,9 +1307,21 @@ function updateCamera(dt,t){
 /* ---------- main loop ---------- */
 var lastT=performance.now(),clock=0,kmhShown=-1,gearShown='',mapT=0,lastRpmLit=-1;
 var desktopShadowThrottled=false,desktopShadowAt=-Infinity;
-function updateDesktopMultiplayerQuality(now,frameMs){
+var desktopMaxRatio=Math.min(window.devicePixelRatio||1,2),desktopRatio=desktopMaxRatio,desktopSampleStart=0,desktopFrames=0,desktopFrameTime=0,desktopLastChange=0;
+function updateDesktopSessionQuality(now,frameMs){
   if(mobileRender)return; // Mobile rendering and quality settings stay untouched.
-  var active=!!multiplayer&&['countdown','racing','finishing'].includes(state);
+  var active=['countdown','racing','finishing'].includes(state);
+  // Only reduce excess high-DPI pixels after sustained slow frames; keep the
+  // same geometry, textures, antialiasing and at least one pixel per CSS pixel.
+  if(active&&frameMs>0&&frameMs<1000){
+    if(!desktopSampleStart)desktopSampleStart=now;desktopFrames++;desktopFrameTime+=frameMs;
+    if(now-desktopSampleStart>=2000&&desktopFrames>=5){var avg=desktopFrameTime/desktopFrames,next=desktopRatio;
+      if(avg>25&&now-desktopLastChange>=2000)next=Math.max(Math.min(1,desktopMaxRatio),desktopRatio-.15);
+      else if(avg<17&&now-desktopLastChange>=6000)next=Math.min(desktopMaxRatio,desktopRatio+.05);
+      if(Math.abs(next-desktopRatio)>.001){desktopRatio=next;desktopLastChange=now;renderer.setPixelRatio(desktopRatio)}
+      desktopSampleStart=now;desktopFrames=0;desktopFrameTime=0;
+    }
+  }else{desktopSampleStart=0;desktopFrames=0;desktopFrameTime=0}
   if(active){if(!desktopShadowThrottled){desktopShadowThrottled=true;renderer.shadowMap.autoUpdate=false;desktopShadowAt=-Infinity}
     if(now-desktopShadowAt>=100){renderer.shadowMap.needsUpdate=true;desktopShadowAt=now}
   }else if(desktopShadowThrottled){desktopShadowThrottled=false;renderer.shadowMap.autoUpdate=true;renderer.shadowMap.needsUpdate=true}
@@ -1394,7 +1406,7 @@ function frame(now){
   if((multiplayer||practiceAI)&&$('matchIntro').hidden)drawMultiplayerBikes(dt);
   drawRiderTags(now);
   if(practiceAI&&!multiplayer&&now-practiceTowerAt>=250){practiceTowerAt=now;var pm=practiceVisualMatch();if(mode==='race')renderRaceRoster(pm);else renderQualRoster(pm)}
-  updateDesktopMultiplayerQuality(now,frameMs);
+  updateDesktopSessionQuality(now,frameMs);
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
