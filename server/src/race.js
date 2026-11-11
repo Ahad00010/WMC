@@ -3,6 +3,7 @@ import defaultTrack,{getTrack} from './track.js';
 import sectorColor from '../../qualifying-colors.js';
 import {createPhysics,parseInput,neutralInput} from './physics.js';
 import {createAI} from './ai.js';
+import bikeContact from '../../bike-contact.js';
 export const MAX_RIDERS=10,RACE_LAPS=3,QUALIFYING_ATTEMPTS=3,QUALIFYING=240000;
 const COUNTDOWN=22000,GRACE=30000,RESULT_DELAY=10000,QUALIFYING_RESULTS_DELAY=15000,GRID_COUNTDOWN=15000;
 export class RaceRoom {
@@ -32,18 +33,17 @@ export class RaceRoom {
   startPhase(phase,now,delay){this.phase=phase;this.phaseStart=now+delay;this.resultsAt=null;for(const p of this.players.values()){p.state=this.physics.spawn(p.grid);p.gapIndex=p.state.total;p.gapCrossings=new Map([[p.gapIndex,this.phaseStart]]);p.emote=null;p.emoteAt=null;p.completed=p.dnf;p.finishAt=null;p.input=neutralInput();p.inputAt=now;p.lap=1;p.lapStart=this.phaseStart;p.raceBest=null;p.lastLap=null;p.flying=false;p.invalid=false;p.line=0;p.sector=0;p.sectorStart=this.phaseStart;p.sectorTimes=[];if(phase==='qualifying'){p.best=null;p.attempts=0;p.sectorBests=[null,null,null,null]}}this.events.push({type:'phase',phase})}
   advance(now,dt){if(this.phase==='lobby'||this.phase==='complete')return;
     for(const p of this.players.values())if(!p.connected&&!p.dnf&&p.disconnectedAt!==null&&now-p.disconnectedAt>=GRACE&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id:p.profile.id});if([...this.players.values()].filter(q=>!q.ai).length===2){this.phase='complete';this.endReason='opponent_left';this.events.push({type:'session_ended',reason:this.endReason});return}}
-    if(now>=this.phaseStart){for(const p of this.players.values()){
-      if(p.dnf)continue;const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput(),result=this.physics.step(p.state,input,dt);
-      if(this.phase==='race'&&!p.completed)this.recordGapCrossings(p,now,dt);
-      if(p.completed)continue;
-      if(this.phase==='race'){if(p.state.total>=this.track.N*p.lap&&p.state.v>0){p.lastLap=(now-p.lapStart)/1000;p.raceBest=p.raceBest===null?p.lastLap:Math.min(p.raceBest,p.lastLap);p.lap++;p.lapStart=now;if(p.lap>RACE_LAPS){p.completed=true;p.finishAt=now;this.events.push({type:'finish',id:p.profile.id})}}}
-      else this.qualify(p,result,now);
-    }
-      // Separate overlapping bikes; both riders remain in the authoritative simulation.
-      const active=[...this.players.values()].filter(p=>!p.dnf&&p.state);
+    if(now>=this.phaseStart){
+      const active=[...this.players.values()].filter(p=>!p.dnf&&!p.completed&&p.state);
+      const before=new Map(),results=new Map();
+      for(const p of active){before.set(p,{x:p.state.x,z:p.state.z});const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput();results.set(p,this.physics.step(p.state,input,dt))}
       for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
-        const a=active[i].state,b=active[j].state,dx=b.x-a.x,dz=b.z-a.z;
-        if(dx*dx+dz*dz<2.25){const d=Math.hypot(dx,dz),nx=d>0.001?dx/d:1,nz=d>0.001?dz/d:0,shift=(1.5-d)/2;a.x-=nx*shift;a.z-=nz*shift;b.x+=nx*shift;b.z+=nz*shift;a.v*=.98;b.v*=.98;}
+        const a=active[i],b=active[j];if(a.ai&&b.ai)continue;if(bikeContact.resolve(a.state,b.state,before.get(a),before.get(b))){a.state.contactSeq=(a.state.contactSeq||0)+1;b.state.contactSeq=(b.state.contactSeq||0)+1}
+      }
+      for(const p of active){
+        this.physics.reconcile(p.state);const result=results.get(p);result.offTrack=Math.abs(p.state.lat)>this.track.kerbEdge(p.state.idx);
+        if(this.phase==='race'){this.recordGapCrossings(p,now,dt);if(p.state.total>=this.track.N*p.lap&&p.state.v>0){p.lastLap=(now-p.lapStart)/1000;p.raceBest=p.raceBest===null?p.lastLap:Math.min(p.raceBest,p.lastLap);p.lap++;p.lapStart=now;if(p.lap>RACE_LAPS){p.completed=true;p.finishAt=now;this.events.push({type:'finish',id:p.profile.id})}}}
+        else this.qualify(p,result,now);
       }
     }
     const players=[...this.players.values()];

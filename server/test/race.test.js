@@ -72,6 +72,8 @@ test('host alone controls AI fill, and bots ride through authoritative physics',
  const r=new RaceRoom({id:'ai-room',host_id:'a',mode:'qualifying_race'});r.join(profile('a'),0);r.join(profile('b'),0);
  assert.throws(()=>r.setAI('b',true));assert.throws(()=>r.setAI('a','yes'));r.setAI('a',true);r.start('a',0);
  assert.equal(r.players.size,10);assert.equal(r.snapshot(0).players.filter(p=>p.ai).length,8);assert.throws(()=>r.setAI('a',false));
+ // Parked human test clients must not obstruct every AI qualifying lap.
+ r.players.get('a').completed=true;r.players.get('b').completed=true;
  for(let i=0;i<30000&&r.phase!=='race';i++)r.advance(22000+i*1000/60,1/60);
  const bots=[...r.players.values()].filter(p=>p.ai);assert.equal(r.phase,'race');assert.ok(bots.filter(p=>p.best!==null).length>=5,'AI riders should complete valid qualifying laps');assert.ok(bots.every(p=>p.state&&Number.isFinite(p.state.x)));
  r.disconnect('b',600000);assert.notEqual(r.phase,'complete');r.advance(630000,1/60);assert.equal(r.phase,'complete','AI must not hide the departure of the other human rider after grace');
