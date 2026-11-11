@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="race-results.css?v=3">
+<link rel="stylesheet" href="race-results.css?v=4">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Saira+Condensed:wght@600;800&display=swap" rel="stylesheet">
 <style>
 /* Touch feedback without the browser's blue tap flash or long-press callout. */
@@ -356,7 +356,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 
 <div id="pauseOverlay" class="pause-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><div class="card"><h2 id="pauseTitle">PAUSED</h2><button class="go" id="resumeButton">Resume</button><button class="go secondary" id="quitButton">Main menu</button></div></div>
 
-<section id="raceResults" class="race-results" hidden aria-label="Grand Prix results"><div class="results-stage"><div class="results-winner-word" aria-hidden="true">WINNER</div><div class="results-rider" aria-hidden="true"><canvas></canvas></div><div class="results-content"><div class="results-brandline"><span class="results-wmc">WMC</span><span class="results-tag"></span></div><div class="results-circuit"></div><h1 class="results-title">GRAND PRIX RESULTS</h1><div class="results-list"></div></div><div class="results-foot"><span class="results-tissot"><span class="results-cross">+</span>TISSOT</span><span class="results-right-logos">FIM <i>|</i> <b>WMC</b></span></div><button class="results-audio" hidden>Play results music</button></div></section>
+<section id="raceResults" class="race-results" hidden aria-label="Grand Prix results"><div class="results-stage"><div class="results-winner-word" aria-hidden="true">WINNER</div><div class="results-rider" aria-hidden="true"><canvas></canvas></div><div class="results-content"><div class="results-brandline"><span class="results-wmc">WMC</span><span class="results-tag"></span></div><div class="results-circuit"></div><h1 class="results-title">GRAND PRIX RESULTS</h1><div class="results-list"></div></div><div class="results-foot"><img class="results-tissot" src="assets/results/tissot-reference.png" alt="Tissot"><span class="results-right-logos"><img class="results-fim" src="assets/results/fim-reference.png" alt="FIM"><i>|</i><b>WMC</b></span></div><button class="results-audio" hidden>Play results music</button></div></section>
 <div class="session-end" id="sessionEnd" hidden><div class="card"><div class="eyebrow" id="sessionMode">WMC &middot; QUALIFYING</div><h2>SESSION FINISHED</h2><p class="lede" id="sessionResult"></p><button class="go" id="returnMenu">Main menu</button></div></div>
 
 <div id="profileOverlay" class="profile-overlay" hidden>
@@ -413,7 +413,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="bike-contact.js?v=4"></script>
 <script src="practice-ai.js?v=4"></script>
 <script src="menu-music.js?v=1"></script>
-<script src="race-results.js?v=3"></script>
+<script src="race-results.js?v=4"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=lap-slider-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

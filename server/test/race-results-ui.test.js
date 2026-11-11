@@ -10,11 +10,18 @@ test('responsive stage preserves the layout inside the viewport',()=>{const x=se
 
 test('summary uses the supplied MGP display, inline and text fonts',()=>{
  const css=readFileSync(new URL('../../race-results.css',import.meta.url),'utf8');
- for(const file of ['MGPDisplay-Bold.otf','MGPInline-Regular.otf','MGPText-Regular.ttf','MGPText-Bold.ttf','MGPText-Black.ttf','MGPText-BlackItalic.ttf']){
+ for(const file of ['MGPDisplay-Medium.otf','MGPInline-Regular.otf','MGPText-Regular.ttf','MGPText-Bold.ttf','MGPText-Black.ttf','MGPText-BlackItalic.ttf']){
   assert.match(css,new RegExp(file.replace('.','\\.')));assert.ok(readFileSync(new URL('../../assets/results/mgp/'+file,import.meta.url)).length>50000);
  }
  assert.match(css,/\.results-title\{[^}]*MGPDisplay/);assert.match(css,/\.results-winner-word\{[^}]*MGPInline/);assert.match(css,/\.results-row\{[^}]*MGPText/);
 });
 test('summary starts loading MGP fonts before the screen appears',()=>{
  const x=setup(),loaded=[];Object.defineProperty(x.dom.window.document,'fonts',{value:{load(name){loaded.push(name);return Promise.resolve([])}}});x.r.begin(0,0,()=>x.entries,{});assert.ok(loaded.some(name=>name.includes('MGPDisplay')));assert.ok(loaded.some(name=>name.includes('MGPInline')));assert.ok(loaded.some(name=>name.includes('MGPText')));assert.equal(x.box.hidden,true);x.dom.window.close();
+});
+
+test('results rider replaces lost WebGL canvases and never reveals a failed canvas',async()=>{
+ const {default:THREE}=await import('three').then(m=>({default:m}));const x=setup(),w=x.dom.window;let created=0,fail=false;class Renderer{constructor(){created++;if(fail)throw Error('no GPU')}setPixelRatio(){}setSize(){}setClearColor(){}render(){}dispose(){}forceContextLoss(){}getContext(){return {isContextLost:()=>false}}};w.THREE={...THREE,WebGLRenderer:Renderer};
+ const box=x.box,r=w.WMCRaceResults.create({box,rider:()=>new THREE.Group(),muted:()=>false,onShow(){},onEnd(){}});
+ r.begin(0,0,()=>x.entries,{});r.tick(23000);const first=box.querySelector('canvas');assert.ok(first.classList.contains('ready'));const lost=new w.Event('webglcontextlost',{cancelable:true});first.dispatchEvent(lost);assert.equal(lost.defaultPrevented,true);assert.equal(first.classList.contains('ready'),false);r.tick(23016);const second=box.querySelector('canvas');assert.notEqual(second,first);assert.ok(second.classList.contains('ready'));first.dispatchEvent(new w.Event('webglcontextlost',{cancelable:true}));assert.ok(second.classList.contains('ready'),'stale loss events cannot affect the new canvas');
+ r.cancel();r.begin(50000,0,()=>x.entries,{});r.tick(73000);const third=box.querySelector('canvas');assert.notEqual(third,second);assert.ok(third.classList.contains('ready'));third.dispatchEvent(new w.Event('webglcontextlost',{cancelable:true}));fail=true;r.tick(73016);assert.equal(box.querySelector('canvas').classList.contains('ready'),false);const attempts=created;r.tick(73032);r.tick(73048);assert.equal(created,attempts,'failed GPU is not retried every frame');w.close();
 });
