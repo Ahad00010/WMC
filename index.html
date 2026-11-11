@@ -415,7 +415,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="profile.js?v=rider-tags-1"></script>
 <script src="friends.js" defer></script>
 <script src="race-server-config.js?v=render-1" defer></script>
-<script src="race-transport.js?v=reconnect-3" defer></script>
+<script src="race-transport.js?v=reconnect-4" defer></script>
 <script src="circuits.js?v=1"></script>
 <script src="race-smoothing.js?v=remote-3"></script>
 <script src="bike-contact.js?v=4"></script>
@@ -424,7 +424,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-results.js?v=9"></script>
 <script src="winner-replay.js?v=8"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
-<script src="lobby.js?v=shared-replay-1" defer></script>
+<script src="lobby.js?v=connection-2" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -439,10 +439,9 @@ window.WMCCurrentCircuit=circuitId;
 /* ---------- renderer / scene ---------- */
 var canvas=$('gl');
 var mobileRender=window.matchMedia('(pointer:coarse)').matches;
-// Phones prioritize frame rate over 3D sharpness; the HUD stays native resolution.
-// Starting below one CSS pixel and disabling MSAA greatly reduces GPU fill work.
-var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:!mobileRender});
-var mobileMaxRatio=Math.min(window.devicePixelRatio||1,.85),mobilePixelRatio=Math.min(mobileMaxRatio,.8),mobileMinRatio=Math.min(mobileMaxRatio,.5),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
+// Preserve road readability on phones while using simplified bike geometry.
+var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+var mobileMaxRatio=Math.min(window.devicePixelRatio||1,1.25),mobilePixelRatio=Math.min(mobileMaxRatio,1.1),mobileMinRatio=Math.min(mobileMaxRatio,1),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
 renderer.setPixelRatio(mobileRender?mobilePixelRatio:Math.min(window.devicePixelRatio||1,2));
 renderer.shadowMap.enabled=!mobileRender;
 if(!mobileRender)renderer.shadowMap.autoUpdate=true; // Keep the moving bike shadow in sync each frame.
@@ -456,15 +455,15 @@ var HORIZON=0xbcd3e6;
   g.fillStyle=gr;g.fillRect(0,0,2,512);
   scene.background=new THREE.CanvasTexture(c);
 })();
-scene.fog=new THREE.Fog(HORIZON,260,mobileRender?1100:2600);
-var camera=new THREE.PerspectiveCamera(64,1,0.3,mobileRender?1300:4500);
+scene.fog=new THREE.Fog(HORIZON,260,2600);
+var camera=new THREE.PerspectiveCamera(64,1,0.3,4500);
 var hemi=new THREE.HemisphereLight(0xdfeeff,0x4c5b3a,0.85);scene.add(hemi);
 var sun=new THREE.DirectionalLight(0xfff1d6,1.05);
 sun.castShadow=!mobileRender;sun.shadow.mapSize.set(mobileRender?512:1024,mobileRender?512:1024);
 var sc=sun.shadow.camera;sc.left=-22;sc.right=22;sc.top=22;sc.bottom=-22;sc.near=1;sc.far=200;
 sun.shadow.bias=-0.0006;
 scene.add(sun);scene.add(sun.target);
-var maxAniso=mobileRender?1:renderer.capabilities.getMaxAnisotropy();
+var maxAniso=mobileRender?Math.min(4,renderer.capabilities.getMaxAnisotropy()):renderer.capabilities.getMaxAnisotropy();
 
 function resize(){
   var w=window.innerWidth,h=window.innerHeight;
@@ -1217,7 +1216,7 @@ function resetBike(){
   toast('BACK ON TRACK','',900);
 }
 var raceFinishTimer=0,practiceFinishTime=null,resultsMatch=null,resultsStarted=false;
-var resultsSequence=window.WMCRaceResults&&window.WMCRaceResults.create({box:$('raceResults'),rider:function(){return resultsRiderModel},muted:function(){return muted},keepMusic:function(entries){return !!winnerFootage&&entries.some(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)})},onShow:function(){$('winnerTransition').hidden=false;state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('hud').hidden=true},onEnd:function(entries){$('winnerTransition').hidden=true;var winner=entries.find(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)});if(winner&&winnerFootage){showWinnerWhenReady(winner);return}$('sessionMode').textContent='WMC · RACE';$('sessionResult').textContent=resultsMatch&&resultsMatch.endReason==='opponent_left'?'Session ended · the other rider left.':'Race ended · no winner recorded.';$('sessionEnd').hidden=false}});
+var resultsSequence=window.WMCRaceResults&&window.WMCRaceResults.create({box:$('raceResults'),rider:function(){return resultsRiderModel},muted:function(){return muted},keepMusic:function(entries){return !!winnerFootage&&entries.some(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)})},onShow:function(){$('winnerTransition').hidden=false;state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('hud').hidden=true},onEnd:function(entries){$('winnerTransition').hidden=true;var winner=entries.find(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)});if(winner&&winnerFootage){showWinnerWhenReady(winner);return}$('sessionMode').textContent='WMC · RACE';$('sessionResult').textContent=resultsMatch&&resultsMatch.endReason==='connection_lost'?'Session ended · another rider lost connection.':resultsMatch&&resultsMatch.endReason==='opponent_left'?'Session ended · the other rider left.':'Race ended · no winner recorded.';$('sessionEnd').hidden=false}});
 function resultEntries(){var match=resultsMatch||practiceVisualMatch(),profile=window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'};var members=match?match.members:[{id:'practice-self',display_name:profile.display_name,number:profile.number,color:profile.color,grid:1,progress:total/N,finish_at:practiceFinishTime}];return members.map(function(m){return {id:m.id,name:m.display_name,number:m.number,color:m.color,grid:m.grid,progress:m.progress,dnf:m.dnf,finishSeconds:m.finish_at==null?null:resultsMatch?(Number(m.finish_at)-Date.parse(resultsMatch.phase_start))/1000:Number(m.finish_at)}})}
 // Record the broadcast view, tagging riders visible in each short segment.
 var winnerFootage=window.WMCWinnerReplay?window.WMCWinnerReplay.createFootage(window):null,winnerHighlight=null,winnerReplayURL=null,replayFinishPending=false,replayArmed=false,replayDone=false,replayCinema=null,replayProjection=new THREE.Vector3(),replayVisibilityAt=-Infinity,sharedReplay=null,sharedReplayTimer=0,sharedReplayGeneration=0,sharedReplayPolling=false;
@@ -1870,7 +1869,7 @@ window.WMCGame={
     var remaining=(Date.parse(match.phase_start)-Date.parse(match.server_time))/1000;
     if(match.phase==='complete'){
       clearSharedQual();$('qualBanner').classList.remove('show');$('matchIntro').hidden=true;renderRaceRoster(match);
-      if((match.completedPhase||mpPhase)==='qualifying'){if(!mpResultsTimer){mpResultsTimer=setTimeout(function(){state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('sessionMode').textContent='WMC · QUALIFYING';$('sessionResult').textContent='Session ended · the other rider left.';$('sessionEnd').hidden=false},1)}return}
+      if((match.completedPhase||mpPhase)==='qualifying'){if(!mpResultsTimer){mpResultsTimer=setTimeout(function(){state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('sessionMode').textContent='WMC · QUALIFYING';$('sessionResult').textContent=match.endReason==='connection_lost'?'Session ended · another rider lost connection.':'Session ended · the other rider left.';$('sessionEnd').hidden=false},1)}return}
       resultsMatch=match;if(!resultsStarted){var elapsed=Number.isFinite(match.results_at)?Math.max(0,Date.parse(match.server_time)-match.results_at):0;beginRaceResults(elapsed)}
       return;
     }

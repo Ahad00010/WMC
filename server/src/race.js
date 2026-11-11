@@ -5,7 +5,8 @@ import {createPhysics,parseInput,neutralInput} from './physics.js';
 import {createAI} from './ai.js';
 import bikeContact from '../../bike-contact.js';
 export const MAX_RIDERS=10,RACE_LAPS=3,QUALIFYING_ATTEMPTS=3,QUALIFYING=240000;
-const COUNTDOWN=22000,GRACE=30000,RESULT_DELAY=0,QUALIFYING_RESULTS_DELAY=15000,GRID_COUNTDOWN=15000;
+export const DISCONNECT_GRACE=60000;
+const COUNTDOWN=22000,GRACE=DISCONNECT_GRACE,RESULT_DELAY=0,QUALIFYING_RESULTS_DELAY=15000,GRID_COUNTDOWN=15000;
 export class RaceRoom {
   constructor(lobby,track=defaultTrack){this.track=track;this.physics=createPhysics(track);this.aiInput=createAI(track);this.id=lobby.id;this.host=lobby.host_id;this.mode=lobby.mode;this.phase='lobby';this.players=new Map();this.events=[];this.matchId=null;this.phaseStart=0;this.resultsAt=null;this.endReason=null;this.fillAI=false;this.raceLaps=RACE_LAPS;this.circuit='sepang';this.circuitConfigured=false}
   join(profile,now){let p=this.players.get(profile.id);if(p){if(p.dnf)throw Error('Rider has retired');p.connected=true;p.disconnectedAt=null;p.circuitReady=false;p.input=neutralInput();p.inputAt=now;return}
@@ -33,7 +34,7 @@ export class RaceRoom {
     const order=[...this.players.values()];for(let i=order.length-1;i>0;i--){let j=randomInt(i+1);[order[i],order[j]]=[order[j],order[i]]}order.forEach((p,i)=>p.grid=i+1);this.matchId=randomUUID();this.startPhase(this.mode==='race'?'race':'qualifying',now,COUNTDOWN)}
   startPhase(phase,now,delay){this.phase=phase;this.phaseStart=now+delay;this.resultsAt=null;this.resultsStartedAt=null;this.completedPhase=null;for(const p of this.players.values()){p.state=this.physics.spawn(p.grid);p.gapIndex=p.state.total;p.gapCrossings=new Map([[p.gapIndex,this.phaseStart]]);p.emote=null;p.emoteAt=null;p.completed=p.dnf;p.finishAt=null;p.input=neutralInput();p.inputAt=now;p.lap=1;p.lapStart=this.phaseStart;p.raceBest=null;p.lastLap=null;p.flying=false;p.invalid=false;p.line=0;p.sector=0;p.sectorStart=this.phaseStart;p.sectorTimes=[];if(phase==='qualifying'){p.best=null;p.attempts=0;p.sectorBests=[null,null,null,null]}}this.events.push({type:'phase',phase})}
   advance(now,dt){if(this.phase==='lobby'||this.phase==='complete')return;
-    for(const p of this.players.values())if(!p.connected&&!p.dnf&&p.disconnectedAt!==null&&now-p.disconnectedAt>=GRACE&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id:p.profile.id});if([...this.players.values()].filter(q=>!q.ai).length===2){this.completedPhase=this.phase;this.phase='complete';this.resultsStartedAt=now;this.endReason='opponent_left';this.events.push({type:'session_ended',reason:this.endReason});return}}
+    for(const p of this.players.values())if(!p.connected&&!p.dnf&&p.disconnectedAt!==null&&now-p.disconnectedAt>=GRACE&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id:p.profile.id});if([...this.players.values()].filter(q=>!q.ai).length===2){this.completedPhase=this.phase;this.phase='complete';this.resultsStartedAt=now;this.endReason='connection_lost';this.events.push({type:'session_ended',reason:this.endReason});return}}
     if(now>=this.phaseStart){
       const active=[...this.players.values()].filter(p=>!p.dnf&&!p.completed&&p.state);
       // Finished riders continue rolling under their normal controls, but no
