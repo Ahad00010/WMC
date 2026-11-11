@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="race-results.css?v=5">
-<link rel="stylesheet" href="winner-highlight.css?v=3">
+<link rel="stylesheet" href="winner-highlight.css?v=4">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Saira+Condensed:wght@600;800&display=swap" rel="stylesheet">
 <style>
 /* Touch feedback without the browser's blue tap flash or long-press callout. */
@@ -360,7 +360,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <section id="raceResults" class="race-results" hidden aria-label="Grand Prix results"><div class="results-stage"><div class="results-winner-word" aria-hidden="true">WINNER</div><div class="results-rider" aria-hidden="true"><canvas></canvas></div><div class="results-content"><div class="results-brandline"><span class="results-wmc">WMC</span><span class="results-tag"></span></div><div class="results-circuit"></div><h1 class="results-title">GRAND PRIX RESULTS</h1><div class="results-list"></div></div><div class="results-foot"><img class="results-tissot" src="assets/results/tissot-reference.png" alt="Tissot"><span class="results-right-logos"><img class="results-fim" src="assets/results/fim-reference.png" alt="FIM"><i>|</i><b>WMC</b></span></div><button class="results-audio" hidden>Play results music</button></div></section>
 <div id="winnerTransition" hidden style="position:fixed;inset:0;z-index:49;background:#050609;pointer-events:none" aria-hidden="true"></div>
 <section id="winnerHighlight" class="winner-highlight" hidden aria-label="Race winner highlight">
-  <video id="winnerFreeze" class="winner-freeze" muted playsinline preload="auto" hidden aria-label="Recorded race replay"></video><div id="winnerNoReplay" class="winner-no-replay" hidden>REPLAY UNAVAILABLE</div>
+  <video id="winnerFreeze" class="winner-freeze" muted autoplay playsinline webkit-playsinline disablepictureinpicture preload="auto" hidden aria-label="Recorded race replay"></video><div id="winnerNoReplay" class="winner-no-replay" hidden>REPLAY UNAVAILABLE</div>
   <div id="winnerCard" class="winner-card" hidden><div class="winner-head">RACE WINNER</div><div class="winner-info"><div class="winner-name"><span id="winnerFirst"></span><strong id="winnerLast"></strong><div class="winner-team">WMC Grand Prix Team</div></div><span id="winnerNumber" class="winner-number"></span></div><div class="winner-points"><strong>+25</strong><span>POINTS</span></div><img class="winner-tissot" src="assets/results/tissot-reference.png" alt="Tissot"></div>
   <button id="winnerMenu" class="winner-menu" type="button" hidden>Main menu</button>
 </section>
@@ -422,7 +422,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="practice-ai.js?v=4"></script>
 <script src="menu-music.js?v=1"></script>
 <script src="race-results.js?v=7"></script>
-<script src="winner-replay.js?v=5"></script>
+<script src="winner-replay.js?v=6"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=lap-slider-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -977,7 +977,7 @@ function closeModes(){
 function begin(selected){
   if(state!=='menu'||startBtn.disabled)return;
   closeModes();
-  resultsStarted=false;resultsMatch=null;practiceFinishTime=null;if(resultsSequence)resultsSequence.cancel();if(winnerFootage)winnerFootage.clear();replayFinishPending=false;replayArmed=false;replayDone=false;stopWinnerHighlight();mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;startPracticeAI();
+  resultsStarted=false;resultsMatch=null;practiceFinishTime=null;if(resultsSequence)resultsSequence.cancel();if(winnerFootage)winnerFootage.clear();disposeReplayCinema();replayFinishPending=false;replayArmed=false;replayDone=false;stopWinnerHighlight();mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;startPracticeAI();
   clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('ownRaceRow').classList.remove('finished');$('qualOwnRow').classList.remove('finished');$('qualFinishFlag').hidden=true;$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');var initialLaps=multiplayer?mpRaceLaps:RACE_LAPS;var finalStart=selected==='race'&&initialLaps===1;$('raceLapLabel').hidden=finalStart;elLap.classList.toggle('race-final-text',finalStart);elLap.textContent=finalStart?'LAST LAP':'1/'+initialLaps;$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
   keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume().catch(function(){});
   $('menu').hidden=true;$('hud').hidden=false;$('touch').hidden=false;$('pauseButton').hidden=false;$('sessionTools').hidden=false;$('chatButton').hidden=!multiplayer;
@@ -1073,7 +1073,7 @@ function togglePause(){
   $('touch').hidden=true;$('pauseOverlay').hidden=false;
 }
 function returnToMenu(){
-  stopWinnerHighlight();if(winnerFootage)winnerFootage.clear();replayFinishPending=false;replayArmed=false;replayDone=false;
+  stopWinnerHighlight();if(winnerFootage)winnerFootage.clear();disposeReplayCinema();replayFinishPending=false;replayArmed=false;replayDone=false;
   if(resultsSequence)resultsSequence.cancel();resultsStarted=false;resultsMatch=null;practiceFinishTime=null;
   practiceAI=null;practiceFill=false;cancelPracticeLoad();
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
@@ -1217,30 +1217,45 @@ var raceFinishTimer=0,practiceFinishTime=null,resultsMatch=null,resultsStarted=f
 var resultsSequence=window.WMCRaceResults&&window.WMCRaceResults.create({box:$('raceResults'),rider:function(){return resultsRiderModel},muted:function(){return muted},keepMusic:function(entries){return !!winnerFootage&&entries.some(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)})},onShow:function(){$('winnerTransition').hidden=false;state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('hud').hidden=true},onEnd:function(entries){$('winnerTransition').hidden=true;var winner=entries.find(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)});if(winner&&winnerFootage){startWinnerHighlight(winner);return}$('sessionMode').textContent='WMC · RACE';$('sessionResult').textContent=resultsMatch&&resultsMatch.endReason==='opponent_left'?'Session ended · the other rider left.':'Race ended · no winner recorded.';$('sessionEnd').hidden=false}});
 function resultEntries(){var match=resultsMatch||practiceVisualMatch(),profile=window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'};var members=match?match.members:[{id:'practice-self',display_name:profile.display_name,number:profile.number,color:profile.color,grid:1,progress:total/N,finish_at:practiceFinishTime}];return members.map(function(m){return {id:m.id,name:m.display_name,number:m.number,color:m.color,grid:m.grid,progress:m.progress,dnf:m.dnf,finishSeconds:m.finish_at==null?null:resultsMatch?(Number(m.finish_at)-Date.parse(resultsMatch.phase_start))/1000:Number(m.finish_at)}})}
 // Record the broadcast view, tagging riders visible in each short segment.
-var winnerFootage=window.WMCWinnerReplay?window.WMCWinnerReplay.createFootage(window):null,winnerHighlight=null,winnerReplayURL=null,replayFinishPending=false,replayArmed=false,replayDone=false,replayProjection=new THREE.Vector3(),replayVisibilityAt=-Infinity;
+var winnerFootage=window.WMCWinnerReplay?window.WMCWinnerReplay.createFootage(window):null,winnerHighlight=null,winnerReplayURL=null,replayFinishPending=false,replayArmed=false,replayDone=false,replayCinema=null,replayProjection=new THREE.Vector3(),replayVisibilityAt=-Infinity;
 function stopWinnerHighlight(){if(winnerHighlight)bike.root.visible=true;winnerHighlight=null;var video=$('winnerFreeze');if(video.hasAttribute('src'))video.pause();video.removeAttribute('src');if(winnerReplayURL){URL.revokeObjectURL(winnerReplayURL);winnerReplayURL=null}$('winnerTransition').hidden=true;$('winnerHighlight').hidden=true;video.hidden=true;$('winnerNoReplay').hidden=true;$('winnerCard').hidden=true;$('winnerMenu').hidden=true}
+function replayLocalLeading(){
+ var me=multiplayer?multiplayer.user_id:'practice-self',mine=multiplayer&&multiplayer.members.find(function(m){return m.id===me}),progress=mine?mine.progress:total/N,match=multiplayer||practiceVisualMatch();
+ if(!Number.isFinite(progress)||mine&&(mine.dnf||mine.completed))return false;
+ return !match||!match.members.some(function(m){return m.id!==me&&!m.dnf&&(m.finish_at!=null||Number.isFinite(m.progress)&&m.progress>progress)});
+}
 function shouldArmWinnerReplay(){
-  if(!window.WMCWinnerReplay)return false;var laps=multiplayer?mpRaceLaps:RACE_LAPS;
-  if(multiplayer)return multiplayer.members.some(function(m){return !m.dnf&&!m.completed&&window.WMCWinnerReplay.nearFinish(m.progress,laps,LEN)});
-  if(window.WMCWinnerReplay.nearFinish(total/N,laps,LEN))return true;
-  return !!(practiceAI&&practiceAI.riders.some(function(r){return !r.completed&&window.WMCWinnerReplay.nearFinish(r.state.total/N,laps,LEN)}));
+ if(!window.WMCWinnerReplay)return false;var laps=multiplayer?mpRaceLaps:RACE_LAPS;
+ if(replayLocalLeading())return window.WMCWinnerReplay.nearWinnerFinish(total/N,laps,LEN,Math.abs(v));
+ if(multiplayer)return multiplayer.members.some(function(m){return !m.dnf&&!m.completed&&window.WMCWinnerReplay.nearFinish(m.progress,laps,LEN)});
+ return !!(practiceAI&&practiceAI.riders.some(function(r){return !r.completed&&window.WMCWinnerReplay.nearFinish(r.state.total/N,laps,LEN)}));
+}
+// Render a second view of the *live* scene only for the local leading rider.
+// No pose reconstruction: wheelies, other bikes and track are the actual scene.
+function beginReplayCinema(now){
+ if(!canvas.captureStream||!window.MediaRecorder)return false;
+ try{var out=document.createElement('canvas');if(!out.captureStream)return false;var rr=new THREE.WebGLRenderer({canvas:out,antialias:true});replayCinema={renderer:rr};var aspect=Math.max(.25,window.innerWidth/Math.max(1,window.innerHeight)),width=Math.min(1920,Math.max(1280,window.innerWidth*(window.devicePixelRatio||1))),height=Math.round(width/aspect);if(height>1080){height=1080;width=Math.round(height*aspect)}width=Math.round(width);rr.setPixelRatio(1);rr.setSize(width,height,false);var cam=new THREE.PerspectiveCamera(48,width/height,.3,4500);replayCinema={renderer:rr,canvas:out,camera:cam,started:now};winnerFootage.setHighQuality(true);return true}catch(e){disposeReplayCinema();return false}
+}
+function disposeReplayCinema(){if(!replayCinema)return;var rr=replayCinema.renderer;replayCinema=null;if(rr.dispose)rr.dispose();if(rr.forceContextLoss)rr.forceContextLoss()}
+function drawReplayCinema(now){
+ var c=replayCinema;if(!c)return;var context=c.renderer.getContext&&c.renderer.getContext();if(context&&context.isContextLost&&context.isContextLost())throw Error('Replay context lost');var shot=Math.floor((now-c.started)/2000)%3,angles=[.65,1.8,3.25],distances=[5.4,5.8,6.4],angle=h+angles[shot],d=distances[shot];c.camera.position.set(pos.x+Math.sin(angle)*d,shot===2?2.6:1.8,pos.z+Math.cos(angle)*d);c.camera.lookAt(pos.x,1,pos.z);c.camera.updateMatrixWorld();c.renderer.render(scene,c.camera);
 }
 function replayLeaderFinished(){
   if(multiplayer)return multiplayer.members.some(function(m){return !m.dnf&&m.finish_at!=null});
   return practiceFinishTime!=null||!!(practiceAI&&practiceAI.riders.some(function(r){return r.finish_at!=null}));
 }
-function visibleReplayRiders(now){
+function visibleReplayRiders(now,viewCamera){
  var riders=[],match=multiplayer||practiceVisualMatch(),self=multiplayer?multiplayer.user_id:'practice-self';
  riders.push({id:self,finished:multiplayer?!!(match&&match.members.some(function(m){return m.id===self&&!m.dnf&&m.finish_at!=null})):practiceFinishTime!=null});
- if(match&&match.members)match.members.forEach(function(m){if(m.id===self)return;var obj=mpOpponentMeshes[m.id];if(!obj||!obj.visible||obj.position.distanceTo(bike.root.position)>30)return;replayProjection.set(obj.position.x,1,obj.position.z).project(camera);if(replayProjection.z>=-1&&replayProjection.z<=1&&Math.abs(replayProjection.x)<.95&&Math.abs(replayProjection.y)<.95)riders.push({id:m.id,finished:!m.dnf&&m.finish_at!=null})});
+ if(match&&match.members)match.members.forEach(function(m){if(m.id===self)return;var obj=mpOpponentMeshes[m.id];if(!obj||!obj.visible||obj.position.distanceTo(bike.root.position)>30)return;replayProjection.set(obj.position.x,1,obj.position.z).project(viewCamera||camera);if(replayProjection.z>=-1&&replayProjection.z<=1&&Math.abs(replayProjection.x)<.95&&Math.abs(replayProjection.y)<.95)riders.push({id:m.id,finished:!m.dnf&&m.finish_at!=null})});
  return riders;
 }
 function startWinnerHighlight(winner){
   var clip=winnerFootage&&winnerFootage.clip(winner.id),parts=(winner.name||'Rider').trim().split(/\s+/),last=parts.length>1?parts.pop():'';
   $('winnerFirst').textContent=parts.join(' ');$('winnerLast').textContent=last;$('winnerNumber').textContent=Number.isInteger(winner.number)?winner.number:'–';
-  $('winnerHighlight').hidden=false;$('winnerFreeze').hidden=!clip;$('winnerNoReplay').hidden=!!clip;$('winnerCard').hidden=true;$('winnerMenu').hidden=true;
+  $('winnerHighlight').hidden=false;$('winnerFreeze').classList.add('replay-loading');$('winnerFreeze').hidden=!clip;$('winnerNoReplay').hidden=!!clip;$('winnerCard').hidden=true;$('winnerMenu').hidden=true;
   resetSessionTools();clearRiderTags();clearOpponentBatches();Object.keys(mpOpponentMeshes).forEach(function(id){mpOpponentMeshes[id].visible=false});
-  winnerHighlight={started:performance.now(),clip:clip,frozen:false,waiting:!!clip};state='finished';bike.root.visible=false;if(clip){var video=$('winnerFreeze'),current=winnerHighlight;try{winnerReplayURL=URL.createObjectURL(clip.blob);video.src=winnerReplayURL;video.playbackRate=1;video.currentTime=Math.max(0,(clip.duration-6000)/1000);var playing=video.play();Promise.resolve(playing).then(function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now()},function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now();video.hidden=true;$('winnerNoReplay').hidden=false})}catch(e){current.waiting=false;video.hidden=true;$('winnerNoReplay').hidden=false}}
+  winnerHighlight={started:performance.now(),clip:clip,frozen:false,waiting:!!clip};state='finished';bike.root.visible=false;if(clip){var video=$('winnerFreeze'),current=winnerHighlight;try{winnerReplayURL=URL.createObjectURL(clip.blob);video.src=winnerReplayURL;video.playbackRate=1;video.currentTime=Math.max(0,(clip.duration-6000)/1000);var playing=video.play();Promise.resolve(playing).then(function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now();video.classList.remove('replay-loading')},function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now();video.hidden=true;$('winnerNoReplay').hidden=false})}catch(e){current.waiting=false;video.hidden=true;$('winnerNoReplay').hidden=false}}
 }
 function tickWinnerHighlight(now){
   var highlight=winnerHighlight;if(!highlight)return;if(highlight.waiting){if(now-highlight.started<5000)return;highlight.waiting=false;highlight.started=now;$('winnerFreeze').pause();$('winnerFreeze').hidden=true;$('winnerNoReplay').hidden=false}var elapsed=Math.max(0,now-highlight.started),progress=Math.min(1,elapsed/6000);
@@ -1481,7 +1496,7 @@ function frame(now){
   if(practiceAI&&!multiplayer&&now-practiceTowerAt>=250){practiceTowerAt=now;var pm=practiceVisualMatch();if(mode==='race')renderRaceRoster(pm);else renderQualRoster(pm)}
   updateDesktopSessionQuality(now,frameMs);
   renderer.render(scene,camera);
-  if(winnerFootage&&!replayDone&&mode==='race'&&(!resultsStarted||replayFinishPending)){if(!replayArmed&&!resultsStarted)replayArmed=shouldArmWinnerReplay();if(replayArmed&&replayLeaderFinished())replayFinishPending=true;if((state==='racing'||state==='finishing')&&(replayArmed||replayFinishPending)){var replayVisible=[];if(now-replayVisibilityAt>=250||replayFinishPending){replayVisibilityAt=now;replayVisible=visibleReplayRiders(now)}if(winnerFootage.record(now,canvas,replayVisible,frameMs,replayFinishPending)){replayFinishPending=false;replayDone=true}}else if(state==='paused')winnerFootage.finish(now)}
+  if(winnerFootage&&!replayDone&&mode==='race'&&(!resultsStarted||replayFinishPending)){if(!replayArmed&&!resultsStarted&&state==='racing'&&shouldArmWinnerReplay()){replayArmed=true;if(replayLocalLeading())beginReplayCinema(now)}if(replayArmed&&replayLeaderFinished())replayFinishPending=true;if((state==='racing'||state==='finishing')&&(replayArmed||replayFinishPending)){if(replayCinema){try{drawReplayCinema(now)}catch(e){winnerFootage.finish(now);disposeReplayCinema();winnerFootage.setHighQuality(false)}}var replayVisible=[];if(now-replayVisibilityAt>=250||replayFinishPending){replayVisibilityAt=now;replayVisible=visibleReplayRiders(now,replayCinema&&replayCinema.camera)}if(winnerFootage.record(now,replayCinema?replayCinema.canvas:canvas,replayVisible,frameMs,replayFinishPending)){replayFinishPending=false;replayDone=true;disposeReplayCinema()}else if(!winnerFootage.isAvailable())disposeReplayCinema()}else if(state==='paused'){winnerFootage.finish(now);disposeReplayCinema();winnerFootage.setHighQuality(false);replayArmed=false}}
   requestAnimationFrame(frame);
 }
 /* Online movement and results are supplied by the race server. */
