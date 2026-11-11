@@ -1,0 +1,1 @@
+The small Tissot and FIM images are crops from the race-results reference screenshot supplied by the user. They are used only in the results presentation; they are not substitutes for original vector logos. The MGP font files were supplied by the user in the repository archive; see their embedded copyright information.
