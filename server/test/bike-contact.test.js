@@ -20,3 +20,8 @@ test('practice player collides with an AI rider in race and qualifying',()=>{
  for(const mode of ['race','qualifying']){const track=getTrack('sepang'),session=practice.createPracticeAI(track,mode),bot=session.riders[0],s=bot.state,h=s.h;
  const player=state(s.x-Math.sin(h),s.z-Math.cos(h),h,30),previous={x:player.x-Math.sin(h),z:player.z-Math.cos(h)};session.step(1/60,player,previous);assert.ok(player.v<30,mode);assert.ok(Math.hypot(player.x-s.x,player.z-s.z)>=contact.diameter-1e-6,mode)}
 });
+test('riders travelling together do not freeze at the contact plane',()=>{
+ const a=state(0,0,0,41),b=state(0,contact.diameter,0,40);let hits=0;
+ for(let i=0;i<120;i++){const pa={...a},pb={...b};a.z+=a.v/60;b.z+=b.v/60;if(contact.resolve(a,b,pa,pb))hits++;assert.ok(a.z<b.z,'bikes remain in order')}
+ assert.ok(a.z>75&&b.z>77,'both riders continue moving while touching');assert.ok(hits<10,'nearly matched bikes do not repeatedly trigger hard collision corrections');
+});
