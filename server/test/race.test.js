@@ -125,3 +125,14 @@ test('race timing history stays bounded and qualifying does not report race gaps
 test('reversing or teleporting cannot reuse stale crossing timestamps',()=>{
  const r=room(),p=r.players.get('a');p.gapIndex=10;p.gapCrossings=new Map([[8,100],[9,200],[10,300]]);p.state.total=9;r.recordGapCrossings(p,400,1/60);assert.equal(p.gapIndex,9);assert.equal(p.gapCrossings.has(9),false);assert.equal(p.gapCrossings.has(10),false);p.state.total=10;r.recordGapCrossings(p,500,1/60);assert.equal(p.gapCrossings.get(10),500);p.state.total=300;r.recordGapCrossings(p,600,1/60);assert.equal(p.gapCrossings.size,0,'teleports must not invent crossing times');
 });
+
+test('host configures 1–10 laps before start and race completion uses the selected limit',()=>{
+ for(const laps of [1,10]){
+  const r=new RaceRoom({id:'laps',host_id:'a',mode:'qualifying_race'});r.join(profile('a'),0);r.join(profile('b'),0);
+  for(const invalid of [0,11,1.5,'3',null])assert.throws(()=>r.setRaceLaps('a',invalid));
+  assert.throws(()=>r.setRaceLaps('b',laps));r.setRaceLaps('a',laps);assert.equal(r.snapshot(0).rules.raceLaps,laps);r.start('a',0);assert.throws(()=>r.setRaceLaps('a',3));
+  r.startPhase('race',r.phaseStart,0);const p=r.players.get('a');
+  if(laps>1){p.lap=laps-1;p.state.total=(laps-1)*N;p.state.v=5;r.advance(r.phaseStart+1000,1/60);assert.equal(p.completed,false);assert.equal(p.lap,laps)}
+  p.lap=laps;p.state.total=laps*N;p.state.v=5;r.advance(r.phaseStart+2000,1/60);assert.equal(p.completed,true);assert.equal(p.lap,laps+1);assert.equal(r.snapshot(r.phaseStart+2000).rules.raceLaps,laps);
+ }
+});

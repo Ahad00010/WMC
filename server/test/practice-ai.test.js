@@ -26,3 +26,10 @@ test('practice AI completes a real three-lap race and invalid qualifying laps do
  assert.ok(race.riders.every(r=>r.completed&&r.lap===4&&Number.isFinite(r.finish_at)));
  assert.ok(qual.riders.every(r=>r.completed&&r.attempts<=3&&r.best!==null));
 });
+
+test('practice AI respects one and ten lap race limits',()=>{
+ const track=getTrack('sepang');for(const laps of [1,10]){const session=practice.createPracticeAI(track,'race',laps),r=session.riders[0];
+  if(laps>1){r.lap=laps-1;r.state.total=(laps-1)*track.N;r.state.v=5;session.step(1/60);assert.equal(r.completed,false);assert.equal(r.lap,laps)}
+  r.lap=laps;r.state.total=laps*track.N;r.state.v=5;session.step(1/60);assert.equal(r.completed,true);assert.equal(r.lap,laps+1);assert.ok(Number.isFinite(r.finish_at));
+ }
+});
