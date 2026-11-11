@@ -231,12 +231,12 @@ test('finished riders do not rubber-band back to the finish on desktop or touch'
  }
 });
 
-test('multiplayer correction avoids steering and sudden sideways pulls from old snapshots',async t=>{
+test('multiplayer correction converges lateral and heading errors without teleporting or reversing',()=>{
  const html=readFileSync(new URL('../../index.html',import.meta.url),'utf8');const source=html.slice(html.indexOf('function multiplayerCorrection('),html.indexOf('function frame(now)'));const correction=Function(source+';return multiplayerCorrection')();
- const turn=correction(30,0,0,2,.05,1,40,false,true);assert.ok(Math.abs(turn.x)<=.050001,'sideways correction is bounded');assert.equal(turn.heading,0,'server heading cannot fight active steering');
- const idle=correction(.5,0,0,.05,.05,0,40,false,false);assert.equal(idle.x,0);assert.equal(idle.heading,0);
+ const turn=correction(30,0,0,2,.05,1,40,false,true);assert.ok(turn.x>0&&turn.x<=.600001);assert.ok(turn.heading>0&&turn.heading<=.075001,'heading converges even while steering, with a bounded step');
+ const small=correction(.5,0,0,.05,.05,0,40,false,false);assert.ok(small.x>0&&small.heading>0,'no permanent lateral or heading dead zone');
  const stale=correction(0,-100,0,0,.05,0,40,false,false);assert.equal(stale.z,0,'no backwards correction while prediction is stalled');
- const contact=correction(100,0,0,2,.05,0,30,true,false);assert.ok(contact.x<=.100001);assert.ok(contact.heading<=.050001);
+ const contact=correction(100,0,0,2,.05,0,30,true,false);assert.ok(contact.x<=.600001);assert.ok(contact.heading<=.075001);
 });
 
 test('low-end mobile bike retains wheels and textures with fewer triangles',()=>{
@@ -245,5 +245,5 @@ test('low-end mobile bike retains wheels and textures with fewer triangles',()=>
 });
 
 test('server snapshot projection follows the corner rather than extrapolating straight off track',async()=>{
- const html=readFileSync(new URL('../../index.html',import.meta.url),'utf8'),source=html.slice(html.indexOf('function projectedServerPose('),html.indexOf('// Ease server error'));const project=Function('kerbEdge','roadHalfWidth',source+';return projectedServerPose')(()=>10,()=>8);const {spawn,step,neutralInput}=await import('../src/physics.js');const s=spawn(1);Object.assign(s,{v:40,steer:1});const initial={...s},t=.5;for(let i=0;i<30;i++)step(s,{...neutralInput(),left:true},1/60);const curved=project(initial,t),straight={x:initial.x+Math.sin(initial.h)*initial.v*t,z:initial.z+Math.cos(initial.h)*initial.v*t};const curvedError=Math.hypot(curved.x-s.x,curved.z-s.z),straightError=Math.hypot(straight.x-s.x,straight.z-s.z);assert.ok(curvedError<straightError*.2,`curved ${curvedError} vs straight ${straightError}`);
+ const html=readFileSync(new URL('../../index.html',import.meta.url),'utf8'),source=html.slice(html.indexOf('function projectedServerPose('),html.indexOf('// Reconcile both position'));const project=Function('kerbEdge','roadHalfWidth',source+';return projectedServerPose')(()=>10,()=>8);const {spawn,step,neutralInput}=await import('../src/physics.js');const s=spawn(1);Object.assign(s,{v:40,steer:1});const initial={...s},t=.5;for(let i=0;i<30;i++)step(s,{...neutralInput(),left:true},1/60);const curved=project(initial,t),straight={x:initial.x+Math.sin(initial.h)*initial.v*t,z:initial.z+Math.cos(initial.h)*initial.v*t};const curvedError=Math.hypot(curved.x-s.x,curved.z-s.z),straightError=Math.hypot(straight.x-s.x,straight.z-s.z);assert.ok(curvedError<straightError*.2,`curved ${curvedError} vs straight ${straightError}`);
 });
