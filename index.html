@@ -439,10 +439,10 @@ window.WMCCurrentCircuit=circuitId;
 /* ---------- renderer / scene ---------- */
 var canvas=$('gl');
 var mobileRender=window.matchMedia('(pointer:coarse)').matches;
-// Keep a crisp antialiased mobile image while limiting very high-DPR devices.
-// Adaptive resolution never drops below one drawing pixel per CSS pixel.
-var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
-var mobileMaxRatio=Math.min(window.devicePixelRatio||1,1.5),mobilePixelRatio=Math.min(mobileMaxRatio,1.25),mobileMinRatio=Math.min(mobileMaxRatio,1),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
+// Phones prioritize frame rate over 3D sharpness; the HUD stays native resolution.
+// Starting below one CSS pixel and disabling MSAA greatly reduces GPU fill work.
+var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:!mobileRender});
+var mobileMaxRatio=Math.min(window.devicePixelRatio||1,.85),mobilePixelRatio=Math.min(mobileMaxRatio,.8),mobileMinRatio=Math.min(mobileMaxRatio,.5),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
 renderer.setPixelRatio(mobileRender?mobilePixelRatio:Math.min(window.devicePixelRatio||1,2));
 renderer.shadowMap.enabled=!mobileRender;
 if(!mobileRender)renderer.shadowMap.autoUpdate=true; // Keep the moving bike shadow in sync each frame.
@@ -456,15 +456,15 @@ var HORIZON=0xbcd3e6;
   g.fillStyle=gr;g.fillRect(0,0,2,512);
   scene.background=new THREE.CanvasTexture(c);
 })();
-scene.fog=new THREE.Fog(HORIZON,260,2600);
-var camera=new THREE.PerspectiveCamera(64,1,0.3,4500);
+scene.fog=new THREE.Fog(HORIZON,260,mobileRender?1100:2600);
+var camera=new THREE.PerspectiveCamera(64,1,0.3,mobileRender?1300:4500);
 var hemi=new THREE.HemisphereLight(0xdfeeff,0x4c5b3a,0.85);scene.add(hemi);
 var sun=new THREE.DirectionalLight(0xfff1d6,1.05);
 sun.castShadow=!mobileRender;sun.shadow.mapSize.set(mobileRender?512:1024,mobileRender?512:1024);
 var sc=sun.shadow.camera;sc.left=-22;sc.right=22;sc.top=22;sc.bottom=-22;sc.near=1;sc.far=200;
 sun.shadow.bias=-0.0006;
 scene.add(sun);scene.add(sun.target);
-var maxAniso=mobileRender?Math.min(4,renderer.capabilities.getMaxAnisotropy()):renderer.capabilities.getMaxAnisotropy();
+var maxAniso=mobileRender?1:renderer.capabilities.getMaxAnisotropy();
 
 function resize(){
   var w=window.innerWidth,h=window.innerHeight;
@@ -622,7 +622,7 @@ ribbon(function(i){return -wallEdge(i)},function(i){return -kerbEdge(i)},10,0.02
 /* trees + distant hills */
 (function(){
   var trunkG=new THREE.CylinderGeometry(0.4,0.55,3,6),crownG=new THREE.ConeGeometry(3.2,9,7);
-  var T=260,tr=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x5a3d28}),T);
+  var T=mobileRender?100:260,tr=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x5a3d28}),T);
   var cr=new THREE.InstancedMesh(crownG,new THREE.MeshLambertMaterial({color:0xffffff}),T);
   var m4=new THREE.Matrix4(),p=new THREE.Vector3(),q=new THREE.Quaternion(),sv=new THREE.Vector3(),col=new THREE.Color();
   var n=0,guard=0;
@@ -641,8 +641,8 @@ ribbon(function(i){return -wallEdge(i)},function(i){return -kerbEdge(i)},10,0.02
   tr.castShadow=cr.castShadow=false;
   scene.add(tr);scene.add(cr);
   var hm=new THREE.MeshLambertMaterial({color:0x7d93ab,fog:true});
-  for(var k=0;k<26;k++){
-    var a=k/26*Math.PI*2,r=2300+rnd()*200,h=260+rnd()*340;
+  var hillCount=mobileRender?8:26;for(var k=0;k<hillCount;k++){
+    var a=k/hillCount*Math.PI*2,r=2300+rnd()*200,h=260+rnd()*340;
     var m=new THREE.Mesh(new THREE.ConeGeometry(260+rnd()*200,h,6),hm);
     m.position.set(Math.cos(a)*r,h/2-10,Math.sin(a)*r);scene.add(m);
   }
@@ -765,7 +765,7 @@ function captureMobileParts(root){
     bikeReady();
   }
   try{
-    if(mobileRender)fetch('bike-mobile.glb?v=quality-2').then(function(r){if(!r.ok)throw new Error('mobile bike '+r.status);return r.arrayBuffer()}).then(function(buffer){new THREE.GLTFLoader().parse(buffer,'',onModel,fallback)}).catch(fallback);
+    if(mobileRender)fetch('bike-mobile-low.glb?v=1').then(function(r){if(!r.ok)throw new Error('mobile bike '+r.status);return r.arrayBuffer()}).then(function(buffer){new THREE.GLTFLoader().parse(buffer,'',onModel,fallback)}).catch(fallback);
     else fetch('bike-model.txt').then(function(r){if(!r.ok)throw new Error('bike-model '+r.status);return r.text()})
       .then(function(b64){
         var bin=atob(b64.trim()),len=bin.length,u8=new Uint8Array(len);
@@ -1250,7 +1250,7 @@ function shouldArmWinnerReplay(){
 // No pose reconstruction: wheelies, other bikes and track are the actual scene.
 function beginReplayCinema(now){
  if(!canvas.captureStream||!window.MediaRecorder)return false;
- try{var out=document.createElement('canvas');if(!out.captureStream)return false;var rr=new THREE.WebGLRenderer({canvas:out,antialias:true});replayCinema={renderer:rr};var aspect=Math.max(.25,window.innerWidth/Math.max(1,window.innerHeight)),width=Math.min(854,Math.round(480*aspect)),height=Math.max(1,Math.round(width/aspect));rr.setPixelRatio(1);rr.setSize(width,height,false);var cam=new THREE.PerspectiveCamera(48,width/height,.3,4500);replayCinema={renderer:rr,canvas:out,camera:cam,started:now,nextRender:now};winnerFootage.setHighQuality(true);return true}catch(e){disposeReplayCinema();return false}
+ try{var out=document.createElement('canvas');if(!out.captureStream)return false;var rr=new THREE.WebGLRenderer({canvas:out,antialias:!mobileRender});replayCinema={renderer:rr};var aspect=Math.max(.25,window.innerWidth/Math.max(1,window.innerHeight)),width=Math.min(854,Math.round(480*aspect)),height=Math.max(1,Math.round(width/aspect));rr.setPixelRatio(1);rr.setSize(width,height,false);var cam=new THREE.PerspectiveCamera(48,width/height,.3,4500);replayCinema={renderer:rr,canvas:out,camera:cam,started:now,nextRender:now};winnerFootage.setHighQuality(true);return true}catch(e){disposeReplayCinema();return false}
 }
 function disposeReplayCinema(){if(!replayCinema)return;var rr=replayCinema.renderer;replayCinema=null;if(rr.dispose)rr.dispose();if(rr.forceContextLoss)rr.forceContextLoss()}
 function drawReplayCinema(now){
@@ -1430,9 +1430,9 @@ function frame(now){
   // performance sample; recovery is deliberately slower to avoid oscillation.
   if(mobileRender&&state!=='menu'&&frameMs>0&&frameMs<1000){
     if(!qualityStarted)qualityStarted=now;qualityFrames++;qualityTime+=frameMs;
-    if(now-qualityStarted>=2000&&qualityFrames>=5){var avg=qualityTime/qualityFrames,next=mobilePixelRatio;
-      if(avg>23&&now-qualityLastChange>=2000)next=Math.max(mobileMinRatio,mobilePixelRatio-.1);
-      else if(avg<17.5&&now-qualityLastChange>=6000)next=Math.min(mobileMaxRatio,mobilePixelRatio+.05);
+    if(now-qualityStarted>=1000&&qualityFrames>=5){var avg=qualityTime/qualityFrames,next=mobilePixelRatio;
+      if(avg>25&&now-qualityLastChange>=1000)next=Math.max(mobileMinRatio,mobilePixelRatio-.15);
+      else if(avg<17.5&&now-qualityLastChange>=8000)next=Math.min(mobileMaxRatio,mobilePixelRatio+.05);
       if(Math.abs(next-mobilePixelRatio)>.001){mobilePixelRatio=next;qualityLastChange=now;renderer.setPixelRatio(mobilePixelRatio)}qualityStarted=now;qualityFrames=0;qualityTime=0;
     }
   }else if(frameMs>=1000||state==='menu'){qualityStarted=0;qualityFrames=0;qualityTime=0}
