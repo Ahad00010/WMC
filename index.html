@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="race-results.css?v=5">
-<link rel="stylesheet" href="winner-highlight.css?v=1">
+<link rel="stylesheet" href="winner-highlight.css?v=2">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Saira+Condensed:wght@600;800&display=swap" rel="stylesheet">
 <style>
 /* Touch feedback without the browser's blue tap flash or long-press callout. */
@@ -420,7 +420,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="bike-contact.js?v=4"></script>
 <script src="practice-ai.js?v=4"></script>
 <script src="menu-music.js?v=1"></script>
-<script src="race-results.js?v=5"></script>
+<script src="race-results.js?v=6"></script>
 <script src="winner-replay.js?v=1"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=lap-slider-1" defer></script>
@@ -1213,7 +1213,7 @@ function resetBike(){
   toast('BACK ON TRACK','',900);
 }
 var raceFinishTimer=0,practiceFinishTime=null,resultsMatch=null,resultsStarted=false;
-var resultsSequence=window.WMCRaceResults&&window.WMCRaceResults.create({box:$('raceResults'),rider:function(){return resultsRiderModel},muted:function(){return muted},onShow:function(){$('winnerTransition').hidden=false;state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('hud').hidden=true},onEnd:function(entries){$('winnerTransition').hidden=true;var winner=entries.find(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)});if(winner&&winnerHistory){startWinnerHighlight(winner);return}$('sessionMode').textContent='WMC · RACE';$('sessionResult').textContent=resultsMatch&&resultsMatch.endReason==='opponent_left'?'Session ended · the other rider left.':'Race ended · no winner recorded.';$('sessionEnd').hidden=false}});
+var resultsSequence=window.WMCRaceResults&&window.WMCRaceResults.create({box:$('raceResults'),rider:function(){return resultsRiderModel},muted:function(){return muted},keepMusic:function(entries){return !!winnerHistory&&entries.some(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)})},onShow:function(){$('winnerTransition').hidden=false;state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('hud').hidden=true},onEnd:function(entries){$('winnerTransition').hidden=true;var winner=entries.find(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)});if(winner&&winnerHistory){startWinnerHighlight(winner);return}$('sessionMode').textContent='WMC · RACE';$('sessionResult').textContent=resultsMatch&&resultsMatch.endReason==='opponent_left'?'Session ended · the other rider left.':'Race ended · no winner recorded.';$('sessionEnd').hidden=false}});
 function resultEntries(){var match=resultsMatch||practiceVisualMatch(),profile=window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'};var members=match?match.members:[{id:'practice-self',display_name:profile.display_name,number:profile.number,color:profile.color,grid:1,progress:total/N,finish_at:practiceFinishTime}];return members.map(function(m){return {id:m.id,name:m.display_name,number:m.number,color:m.color,grid:m.grid,progress:m.progress,dnf:m.dnf,finishSeconds:m.finish_at==null?null:resultsMatch?(Number(m.finish_at)-Date.parse(resultsMatch.phase_start))/1000:Number(m.finish_at)}})}
 // Retain a bounded, race-only window for each rider, including AI and remote
 // authoritative snapshots. The winner is only known after classification.
@@ -1242,7 +1242,8 @@ function tickWinnerHighlight(now){
     camera.position.set(p.x+Math.sin(angle)*dist,2.1-progress*.45,p.z+Math.cos(angle)*dist);camera.fov=52-progress*8;camera.updateProjectionMatrix();camera.lookAt(p.x,1,p.z);camera.rotateZ(.025*Math.sin(progress*Math.PI));sun.position.set(p.x+45,70,p.z+30);sun.target.position.set(p.x,0,p.z);renderer.render(scene,camera);
     if(progress>=1){try{var freeze=$('winnerFreeze'),ctx=freeze.getContext('2d');freeze.width=canvas.width;freeze.height=canvas.height;ctx.drawImage(canvas,0,0);freeze.hidden=false}catch(e){/* The unchanged last WebGL frame remains as the fallback. */}}
   }
-  if(progress>=1&&!highlight.frozen){highlight.frozen=true;$('winnerCard').hidden=false;$('winnerMenu').hidden=false}
+  if(progress>=1&&!highlight.frozen){highlight.frozen=true;highlight.cardShownAt=now;$('winnerCard').hidden=false;$('winnerMenu').hidden=false}
+  if(highlight.frozen&&!highlight.musicStopped&&now-highlight.cardShownAt>=7000){var fade=(now-highlight.cardShownAt-7000)/1500;if(resultsSequence)resultsSequence.fadeMusic(fade);if(fade>=1)highlight.musicStopped=true}
 }
 function beginRaceResults(elapsed){if(resultsStarted||!resultsSequence)return;resultsStarted=true;resultsSequence.begin(performance.now(),elapsed||0,resultEntries,circuits[circuitId]||circuits.sepang)}
 function lapDone(){

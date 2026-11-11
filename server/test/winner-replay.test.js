@@ -11,3 +11,5 @@ test('replay interpolates angles over the short arc and avoids fabricating missi
 test('winner graphic uses real name and number safely and omits championship box',()=>{
  const html=readFileSync(new URL('../../index.html',import.meta.url),'utf8'),dom=new JSDOM(html),doc=dom.window.document,card=doc.getElementById('winnerCard');assert.match(card.textContent,/RACE WINNER/);assert.match(card.textContent,/WMC Grand Prix Team/);assert.match(card.textContent,/\+25/);assert.doesNotMatch(card.textContent,/CHAMPIONSHIP/);assert.match(card.querySelector('img').getAttribute('src'),/tissot-reference/);assert.ok(doc.getElementById('winnerMenu'));dom.window.close();
 });
+
+test('winner graphic is narrower and positioned on the right',()=>{const css=readFileSync(new URL('../../winner-highlight.css',import.meta.url),'utf8');const rule=css.match(/\.winner-card\{([^}]*)\}/)[1];assert.match(rule,/right:max\(4vw,20px\)/);assert.match(rule,/width:min\(28vw,320px,60vh\)/);assert.doesNotMatch(rule,/left:/)});
