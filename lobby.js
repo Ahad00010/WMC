@@ -115,7 +115,15 @@
   $('multiLaps').onblur=()=>{if(lapEditing){lapEditing=false;render()}};
   $('fillAI').onchange=()=>{if(!transport||!transport.send('fill_ai',$('fillAI').checked))$('lobbyMessage').textContent='Race server is not connected.'};
   $('startMultiplayer').onclick=()=>{if(!transport||!transport.send('start'))$('lobbyMessage').textContent='Race server is not connected.';else cue('ready')};
-  window.WMCMatch={reset:()=>{if(transport)transport.send('reset')},sendInput,emote:kind=>!!(transport&&transport.send('emote',kind)),chat:text=>!!(transport&&transport.send('chat',text)),leave:leaveSession};
+  function replayURL(matchId){if(!serverUrl||!matchId)return null;const u=new URL(serverUrl);if(u.protocol!=='ws:'&&u.protocol!=='wss:')return null;u.protocol=u.protocol==='wss:'?'https:':'http:';u.pathname='/replay/'+encodeURIComponent(matchId);u.search='';u.hash='';return u.href}
+  async function replayFetch(matchId,clip){
+    const url=replayURL(matchId),token=transport&&transport.ready&&transport.token;if(!url||!token||leaving)return null;
+    try{const response=await fetch(url,{method:clip?'POST':'GET',headers:{Authorization:'Bearer '+token,...(clip?{'Content-Type':clip.blob.type||'video/webm','X-WMC-Duration':String(Math.round(clip.duration))}:{})},body:clip?clip.blob:undefined,cache:'no-store'});
+      if(!response.ok)return null;if(clip)return true;
+      const duration=Number(response.headers.get('X-WMC-Duration')),winner=response.headers.get('X-WMC-Winner'),length=Number(response.headers.get('content-length'));if(!winner||!Number.isFinite(duration)||duration<200||duration>21000||length>48*1024*1024)return null;const blob=await response.blob();if(!blob.size||blob.size>48*1024*1024)return null;return {blob,duration,winner};
+    }catch{return null}
+  }
+  window.WMCMatch={uploadReplay:(id,clip)=>replayFetch(id,clip),fetchReplay:id=>replayFetch(id,null),reset:()=>{if(transport)transport.send('reset')},sendInput,emote:kind=>!!(transport&&transport.send('emote',kind)),chat:text=>!!(transport&&transport.send('chat',text)),leave:leaveSession};
   $('resumeLobby').onclick=()=>{if(snapshot&&snapshot.lobby){$('multiMessage').textContent='';showLobby()}};
   function chooseMultiplayer(mode){cue('select');if(snapshot&&snapshot.lobby){create(mode,window.WMCCurrentCircuit||'sepang');return}window.WMCCircuitSelect('multiplayer',id=>{if(id!==(window.WMCCurrentCircuit||'sepang')){sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-create-lobby',mode);location.reload()}else create(mode,id)})}
   $('multiRace').onclick=()=>chooseMultiplayer('race');$('multiQualRace').onclick=()=>chooseMultiplayer('qualifying_race');
