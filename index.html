@@ -219,7 +219,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 @media(max-height:500px){.mode-dialog{padding:14px 18px}.mode-top h2{font-size:27px;margin:5px 0 10px}.mode-choice{min-height:96px;padding:10px}.mode-choice strong{font-size:22px}.mode-back{margin-top:8px}}
 @media(max-width:360px){.mode-choices{grid-template-columns:1fr}.mode-choice{min-height:80px}}
 
-.friends-panel{display:grid;gap:10px}.friends-intro,.friend-note,.friend-message{margin:0;color:#bfc6cf;font-size:12px}.friend-message{color:#fff}.friend-form{display:flex;gap:8px}.friend-form input{min-width:0;flex:1;background:#0e1116;color:#fff;border:1px solid #5b626e;border-radius:3px;padding:10px;font:16px system-ui;user-select:text;touch-action:auto}.friend-form button,.friend-row button{background:#e4202c;color:#fff;border:0;border-radius:3px;padding:8px 12px;font:700 12px var(--ui);cursor:pointer}.friend-list{display:grid;gap:6px;max-height:28vh;overflow:auto;touch-action:pan-y}.friend-row{display:flex;align-items:center;gap:8px;padding:9px;background:#ffffff0a}.friend-row-name{flex:1;min-width:0}.friend-row-name strong,.friend-row-name small{display:block;overflow:hidden;text-overflow:ellipsis}.friend-row-name small{color:#aab2bd}.friend-row button.alt{background:#343a43}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.lap-setting{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;margin:10px 0;color:#fff;font:700 14px var(--ui)}.lap-setting input{grid-column:1/-1;width:100%;accent-color:#e4202c;touch-action:pan-x;cursor:pointer}.lap-setting output{color:#ff515b;font-size:18px}.lap-setting[hidden]{display:none}.friends-panel{display:grid;gap:10px}.friends-intro,.friend-note,.friend-message{margin:0;color:#bfc6cf;font-size:12px}.friend-message{color:#fff}.friend-form{display:flex;gap:8px}.friend-form input{min-width:0;flex:1;background:#0e1116;color:#fff;border:1px solid #5b626e;border-radius:3px;padding:10px;font:16px system-ui;user-select:text;touch-action:auto}.friend-form button,.friend-row button{background:#e4202c;color:#fff;border:0;border-radius:3px;padding:8px 12px;font:700 12px var(--ui);cursor:pointer}.friend-list{display:grid;gap:6px;max-height:28vh;overflow:auto;touch-action:pan-y}.friend-row{display:flex;align-items:center;gap:8px;padding:9px;background:#ffffff0a}.friend-row-name{flex:1;min-width:0}.friend-row-name strong,.friend-row-name small{display:block;overflow:hidden;text-overflow:ellipsis}.friend-row-name small{color:#aab2bd}.friend-row button.alt{background:#343a43}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 
 .invite-notice{position:fixed;top:calc(var(--gt) + 8px);right:var(--gr);z-index:30;width:min(310px,calc(100vw - 32px));background:#141820;border-left:3px solid #e4202c;padding:12px;box-shadow:0 8px 25px #000a;font:13px var(--ui);display:grid;gap:7px;touch-action:auto}.invite-notice button{background:#e4202c;color:white;border:0;border-radius:3px;padding:8px;font:700 12px var(--ui);cursor:pointer}.invite-notice button+button{background:#343a43}.invite-notice p{margin:0;color:#ffb6b6}
 
@@ -321,10 +321,10 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <button id="multiplayerButton" class="mode-choice" type="button"><span class="choice-label">02 / ONLINE</span><strong>Multiplayer</strong><span>Race with your friends.</span></button>
     </div>
     <div id="modeButtons" class="mode-choices" hidden>
-      <button id="raceMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Race</strong><span>Three laps on your chosen circuit.</span></button>
+      <button id="raceMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Race</strong><span>Choose 1–10 laps on your chosen circuit.</span></button>
       <button id="qualMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Qualifying</strong><span>Set your fastest lap.</span></button>
     </div>
-    <div id="circuitPanel" hidden><p class="circuit-question">Which circuit do you want to race in?</p><div id="circuitChoices" class="circuit-choices"></div><label id="practiceAIOption" class="friends-intro" hidden><input id="practiceAI" type="checkbox"> Fill grid with AI riders (9 AI, 10 riders total)</label></div>
+    <div id="circuitPanel" hidden><p class="circuit-question">Which circuit do you want to race in?</p><label id="practiceLapSetting" class="lap-setting" hidden for="practiceLaps"><span>Race laps (1–10)</span><output id="practiceLapsValue" for="practiceLaps">3</output><input id="practiceLaps" type="range" min="1" max="10" step="1" value="3"></label><div id="circuitChoices" class="circuit-choices"></div><label id="practiceAIOption" class="friends-intro" hidden><input id="practiceAI" type="checkbox"> Fill grid with AI riders (9 AI, 10 riders total)</label></div>
     <div id="multiModes" class="mode-choices" hidden>
       <button id="multiQualRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Qualifying + Race</strong><span>Create a private lobby.</span></button>
       <button id="multiRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Race only</strong><span>Create a private lobby.</span></button>
@@ -333,7 +333,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
     </div>
     <p id="multiMessage" class="friend-message" aria-live="polite"></p>
     <div id="lobbyPanel" class="friends-panel" hidden>
-      <p id="lobbyMode" class="friends-intro"></p><label id="aiSettingLabel" class="friends-intro" hidden><input id="fillAI" type="checkbox"> Fill remaining grid with AI riders <small>(AI races do not affect career stats)</small></label><p id="aiSettingInfo" class="friend-note" hidden></p><div id="lobbyMembers" class="friend-list"></div>
+      <p id="lobbyMode" class="friends-intro"></p><label id="multiLapSetting" class="lap-setting" hidden for="multiLaps"><span>Race laps (1–10)</span><output id="multiLapsValue" for="multiLaps">3</output><input id="multiLaps" type="range" min="1" max="10" step="1" value="3"></label><p id="multiLapsInfo" class="friend-note" hidden></p><label id="aiSettingLabel" class="friends-intro" hidden><input id="fillAI" type="checkbox"> Fill remaining grid with AI riders <small>(AI races do not affect career stats)</small></label><p id="aiSettingInfo" class="friend-note" hidden></p><div id="lobbyMembers" class="friend-list"></div>
       <form id="inviteForm" class="friend-form"><label class="sr-only" for="inviteUsername">Friend username</label><input id="inviteUsername" maxlength="20" placeholder="Friend's username" required><button type="submit">Invite</button></form>
       <p id="lobbyMessage" class="friend-message" aria-live="polite"></p>
       <button type="button" class="go" id="startMultiplayer" disabled>Start match</button><p id="startHint" class="friend-note">The host can start with 2–10 riders.</p>
@@ -411,11 +411,11 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="circuits.js?v=1"></script>
 <script src="race-smoothing.js?v=remote-3"></script>
 <script src="bike-contact.js?v=4"></script>
-<script src="practice-ai.js?v=3"></script>
+<script src="practice-ai.js?v=4"></script>
 <script src="menu-music.js?v=1"></script>
 <script src="race-results.js?v=3"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
-<script src="lobby.js?v=max-riders-11" defer></script>
+<script src="lobby.js?v=lap-slider-1" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -969,7 +969,7 @@ function begin(selected){
   if(state!=='menu'||startBtn.disabled)return;
   closeModes();
   resultsStarted=false;resultsMatch=null;practiceFinishTime=null;if(resultsSequence)resultsSequence.cancel();mode=selected;gridSpot(N-9);lapNo=1;raceTime=0;lapStart=0;lastLap=null;startPracticeAI();
-  clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('ownRaceRow').classList.remove('finished');$('qualOwnRow').classList.remove('finished');$('qualFinishFlag').hidden=true;$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');elLap.textContent='1/'+RACE_LAPS;$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
+  clearTimeout(raceFinishTimer);$('raceTiming').classList.remove('finish');$('ownRaceRow').classList.remove('finished');$('qualOwnRow').classList.remove('finished');$('qualFinishFlag').hidden=true;$('raceFinishFlag').hidden=true;$('raceLapLabel').hidden=false;elLap.classList.remove('race-final-text');var initialLaps=multiplayer?mpRaceLaps:RACE_LAPS;var finalStart=selected==='race'&&initialLaps===1;$('raceLapLabel').hidden=finalStart;elLap.classList.toggle('race-final-text',finalStart);elLap.textContent=finalStart?'LAST LAP':'1/'+initialLaps;$('raceProgress').style.transform='scaleX(0)';elLast.textContent=fmt(null);elBest.textContent=fmt(bestLap);
   keys={};startAudio();if(actx&&actx.state==='suspended')actx.resume().catch(function(){});
   $('menu').hidden=true;$('hud').hidden=false;$('touch').hidden=false;$('pauseButton').hidden=false;$('sessionTools').hidden=false;$('chatButton').hidden=!multiplayer;
   $('raceTiming').hidden=mode==='qualifying';$('qualTower').hidden=mode!=='qualifying';
@@ -992,7 +992,7 @@ function startPracticeAI(){
   practiceAI=null;practiceTowerAt=-Infinity;
   if(!practiceFill||!window.WMCPracticeAI)return;
   var track={N:N,px:px,pz:pz,tx:tx,tz:tz,lx:lx,lz:lz,roadHalfWidth:roadHalfWidth,kerbEdge:kerbEdge,wallEdge:wallEdge};
-  practiceAI=window.WMCPracticeAI.createPracticeAI(track,mode);
+  practiceAI=window.WMCPracticeAI.createPracticeAI(track,mode,RACE_LAPS);
   // Player takes grid slot one, matching the server's staggered grid.
   var start=window.WMCPracticeAI.createPhysics(track).spawn(1);pos.set(start.x,0,start.z);h=start.h;idx=start.idx;total=start.total;lat=start.lat;
   $('raceTiming').classList.add('mp-tower');$('qualTower').classList.add('mp-qual');var rowSize=Math.min(29,Math.max(12,(window.innerHeight-155)/10));$('raceTiming').style.setProperty('--mp-row',rowSize+'px');$('qualTower').style.setProperty('--mp-row',rowSize+'px');
@@ -1013,8 +1013,8 @@ function practiceVisualMatch(){
   return {id:'practice',user_id:'practice-self',phase:mode==='race'?'race':'qualifying',members:members};
 }
 var circuitReturn='practice';
-function openCircuits(from,select){
-  circuitReturn=from;$('practiceAIOption').hidden=from!=='practice';$('playButtons').hidden=true;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('circuitPanel').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='CIRCUIT';
+function openCircuits(from,select,practiceMode){
+  circuitReturn=from;$('practiceLapSetting').hidden=from!=='practice'||practiceMode!=='race';$('practiceAIOption').hidden=from!=='practice';$('playButtons').hidden=true;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('circuitPanel').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='CIRCUIT';
   var box=$('circuitChoices');box.replaceChildren();Object.keys(circuits).forEach(function(id){
     var points=id==='sepang'?sepangOutline:circuits[id].points;if(!points)return;
     var xs=points.map(function(p){return p[0]}),ys=points.map(function(p){return p[1]}),minx=Math.min.apply(null,xs),maxx=Math.max.apply(null,xs),miny=Math.min.apply(null,ys),maxy=Math.max.apply(null,ys),pad=Math.max(maxx-minx,maxy-miny)*.05;
@@ -1022,11 +1022,13 @@ function openCircuits(from,select){
   });if(box.firstElementChild)box.firstElementChild.focus();
 }
 window.WMCCircuitSelect=openCircuits;
-function cancelPracticeLoad(){if(!musicSessionStarting)return;clearTimeout(musicSessionTimer);musicSessionTimer=0;musicSessionStarting=false;try{sessionStorage.removeItem('wmc-practice-pending');sessionStorage.removeItem('wmc-practice-ai');sessionStorage.setItem('wmc-circuit',circuitId)}catch(e){}}
-function startPracticeCircuit(id,selected){if(musicSessionStarting)return;practiceFill=$('practiceAI').checked;if(practiceFill&&!window.WMCPracticeAI){$('modeTitle').textContent='AI UNAVAILABLE — RELOAD';return}if(id===circuitId){$('circuitPanel').hidden=true;begin(selected);return}try{sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-practice-pending',selected);sessionStorage.setItem('wmc-practice-ai',practiceFill?'1':'0');musicSessionStarting=true;musicSessionTimer=setTimeout(function(){try{location.reload()}catch(e){cancelPracticeLoad();$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}},900)}catch(e){$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}}
+function cancelPracticeLoad(){if(!musicSessionStarting)return;clearTimeout(musicSessionTimer);musicSessionTimer=0;musicSessionStarting=false;try{sessionStorage.removeItem('wmc-practice-pending');sessionStorage.removeItem('wmc-practice-ai');sessionStorage.removeItem('wmc-practice-laps');sessionStorage.setItem('wmc-circuit',circuitId)}catch(e){}}
+function startPracticeCircuit(id,selected){if(musicSessionStarting)return;practiceFill=$('practiceAI').checked;if(selected==='race')RACE_LAPS=validPracticeLaps($('practiceLaps').value);if(practiceFill&&!window.WMCPracticeAI){$('modeTitle').textContent='AI UNAVAILABLE — RELOAD';return}if(id===circuitId){$('circuitPanel').hidden=true;begin(selected);return}try{sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-practice-pending',selected);sessionStorage.setItem('wmc-practice-ai',practiceFill?'1':'0');sessionStorage.setItem('wmc-practice-laps',String(RACE_LAPS));musicSessionStarting=true;musicSessionTimer=setTimeout(function(){try{location.reload()}catch(e){cancelPracticeLoad();$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}},900)}catch(e){$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}}
+function validPracticeLaps(value){var n=Number(value);return Number.isInteger(n)&&n>=1&&n<=10?n:3}
+$('practiceLaps').addEventListener('input',function(){$('practiceLapsValue').textContent=this.value});
 $('start').addEventListener('click',showModes);
-$('raceMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'race')})});
-$('qualMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'qualifying')})});
+$('raceMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'race')},'race')});
+$('qualMode').addEventListener('click',function(){openCircuits('practice',function(id){startPracticeCircuit(id,'qualifying')},'qualifying')});
 $('practiceButton').addEventListener('click',function(){$('playButtons').hidden=true;$('multiplayerNotice').hidden=true;$('modeButtons').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='PRACTICE';$('raceMode').focus()});
 document.addEventListener('contextmenu',function(e){if(e.target.closest('button'))e.preventDefault()});
 $('multiplayerButton').addEventListener('click',function(){unlockMatchAudio();$('multiMessage').textContent='';$('playButtons').hidden=true;$('multiModes').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='MULTIPLAYER';window.dispatchEvent(new Event('wmc-lobby-open'))});
@@ -1037,7 +1039,7 @@ $('modeOverlay').addEventListener('click',function(e){if(e.target===this)closeMo
 $('modeBack').addEventListener('click',function(){cancelPracticeLoad();if(!$('circuitPanel').hidden){$('circuitPanel').hidden=true;if(circuitReturn==='practice'){$('modeButtons').hidden=false;$('modeTitle').textContent='PRACTICE'}else{$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}return}if(!$('multiplayerNotice').hidden||!$('lobbyPanel').hidden){$('multiplayerNotice').hidden=true;$('lobbyPanel').hidden=true;$('multiModes').hidden=false;$('modeTitle').textContent='MULTIPLAYER'}else{$('modeButtons').hidden=true;$('multiModes').hidden=true;$('playButtons').hidden=false;$('modeBack').hidden=true;$('modeTitle').textContent='CHOOSE YOUR MODE';$('practiceButton').focus()}});
 $('modeOverlay').addEventListener('keydown',function(e){
   if(e.key!=='Tab')return;
-  var controls=Array.prototype.filter.call(this.querySelectorAll('button,input[type=checkbox]'),function(b){return b.offsetParent!==null&&!b.disabled});
+  var controls=Array.prototype.filter.call(this.querySelectorAll('button,input[type=checkbox],input[type=range]'),function(b){return b.offsetParent!==null&&!b.disabled});
   if(!controls.length)return;
   var first=controls[0],last=controls[controls.length-1];
   if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
@@ -1045,8 +1047,8 @@ $('modeOverlay').addEventListener('keydown',function(e){
 });
 var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={},authoritativeTarget=null,lastTowerUpdate=-Infinity;
 var ownSmoother=new WMCSnapshotSmoother(150),opponentSmoothers={},matchIntroStage='',lastCountdownCue=-1,qualCountdownCue=-1,mpStartAt=0;
-// Old servers omit rules. Keep their 5-lap/10-minute HUD until Render updates.
-var mpRaceLaps=5,mpQualDuration=600000,mpQualMax=5;
+// Old servers may omit rules; use the default race length as a fallback.
+var mpRaceLaps=3,mpQualDuration=600000,mpQualMax=5;
 var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0,sharedQual=null,lastContactSeq=null,lastResetSeq=null,contactCorrectionUntil=0,networkLatency=0,localContactUntil={},contactVisual={};
 function clearInputs(){keys={};document.querySelectorAll('.pad').forEach(function(p){p.classList.remove('on')})}
 function togglePause(){
@@ -1763,7 +1765,7 @@ window.WMCGame={
   input:function(){return {up:held('up'),down:held('down'),left:held('left'),right:held('right'),brake:held('brake')}},
   authoritativeReceive:function(raw,userId,stats){
     if(!raw||raw.phase==='lobby'||!Array.isArray(raw.players))return;
-    mpRaceLaps=raw.rules&&Number.isInteger(raw.rules.raceLaps)?raw.rules.raceLaps:5;mpQualDuration=raw.rules&&Number.isFinite(raw.rules.qualifyingMs)?raw.rules.qualifyingMs:600000;mpQualMax=raw.rules&&Number.isInteger(raw.rules.qualifyingAttempts)?raw.rules.qualifyingAttempts:5;
+    mpRaceLaps=raw.rules&&Number.isInteger(raw.rules.raceLaps)?raw.rules.raceLaps:3;mpQualDuration=raw.rules&&Number.isFinite(raw.rules.qualifyingMs)?raw.rules.qualifyingMs:600000;mpQualMax=raw.rules&&Number.isInteger(raw.rules.qualifyingAttempts)?raw.rules.qualifyingAttempts:5;
     var members=raw.players.map(function(p){var s=p.state||{};return {id:p.id,username:p.username,display_name:p.display_name,number:p.number,color:p.color,grid:p.grid,x:s.x,z:s.z,h:s.h,lean:s.lean,progress:s.total/N,emote:p.emote&&['wheelie','nitro'].includes(p.emote.kind)?{kind:p.emote.kind,until:performance.now()+Math.max(0,p.emote.until-raw.serverTime)}:null,best:p.best,completed:p.completed,dnf:p.dnf,finish_at:p.finishAt,gap:p.gap,wins:stats&&stats[p.id]?stats[p.id].wins:null,podiums:stats&&stats[p.id]?stats[p.id].wins+stats[p.id].seconds+stats[p.id].thirds:null,races:stats&&stats[p.id]?stats[p.id].races:null}});
     mpStartAt=performance.now()+raw.phaseStart-raw.serverTime;
     var match={id:raw.id,mode:raw.mode,phase:raw.phase,endReason:raw.endReason,results_at:raw.resultsStartedAt,completedPhase:raw.completedPhase,phase_start:new Date(raw.phaseStart).toISOString(),server_time:new Date(raw.serverTime).toISOString(),user_id:userId,members:members};
@@ -1792,7 +1794,7 @@ window.WMCGame={
     var towerNow=performance.now();if(!mobileRender||towerNow-lastTowerUpdate>=250){lastTowerUpdate=towerNow;renderQualRoster(match);renderRaceRoster(match)}
   }
 };
-try{var pendingPractice=sessionStorage.getItem('wmc-practice-pending');if(pendingPractice==='race'||pendingPractice==='qualifying'){sessionStorage.removeItem('wmc-practice-pending');practiceFill=sessionStorage.getItem('wmc-practice-ai')==='1';sessionStorage.removeItem('wmc-practice-ai');var practiceWait=setInterval(function(){if(!startBtn.disabled){clearInterval(practiceWait);begin(pendingPractice)}},100)}}catch(e){}
+try{var pendingPractice=sessionStorage.getItem('wmc-practice-pending');if(pendingPractice==='race'||pendingPractice==='qualifying'){sessionStorage.removeItem('wmc-practice-pending');practiceFill=sessionStorage.getItem('wmc-practice-ai')==='1';sessionStorage.removeItem('wmc-practice-ai');RACE_LAPS=validPracticeLaps(sessionStorage.getItem('wmc-practice-laps'));$('practiceLaps').value=String(RACE_LAPS);$('practiceLapsValue').textContent=String(RACE_LAPS);sessionStorage.removeItem('wmc-practice-laps');var practiceWait=setInterval(function(){if(!startBtn.disabled){clearInterval(practiceWait);begin(pendingPractice)}},100)}}catch(e){}
 requestAnimationFrame(frame);
 })();
 </script>

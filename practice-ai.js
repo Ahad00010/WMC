@@ -56,13 +56,14 @@ return function aiInput(s,skill=0){
 
 }
 
-function createPracticeAI(track,mode){
+function createPracticeAI(track,mode,laps=3){
+ if(!Number.isInteger(laps)||laps<1||laps>10)laps=3;
  const physics=createPhysics(track),controller=createAI(track),colors=['blue','red','yellow','orange','green','cyan','purple','pink','white'];
  const riders=Array.from({length:9},(_,i)=>({id:'practice-ai-'+(i+1),display_name:'AI Rider '+(i+1),number:21+i,color:colors[i],grid:i+2,state:physics.spawn(i+2),lap:1,line:0,lapStart:0,attempts:0,best:null,flying:false,invalid:false,completed:false,finish_at:null}));
  let elapsed=0;
  function step(dt,player,previousPlayer){if(!(dt>0))return;const n=Math.ceil(dt/(1/60)),step=dt/n;
   for(let k=0;k<n;k++){elapsed+=step;const active=riders.filter(p=>!p.completed),before=new Map(active.map(p=>[p,{x:p.state.x,z:p.state.z}]));for(const p of riders){if(p.completed)continue;const s=p.state,result=physics.step(s,controller(s,(p.grid%5)-2),step);
-   if(mode==='race'){if(s.total>=track.N*p.lap&&s.v>0){p.lap++;if(p.lap>3){p.completed=true;p.finish_at=elapsed}}}
+   if(mode==='race'){if(s.total>=track.N*p.lap&&s.v>0){p.lap++;if(p.lap>laps){p.completed=true;p.finish_at=elapsed}}}
    else if(!p.flying){if(result.previous<0&&s.total>=0&&s.v>0){p.flying=true;p.line=0;p.lapStart=elapsed;p.invalid=result.offTrack}}
    else{if(result.offTrack)p.invalid=true;if(s.total>=p.line+track.N&&s.v>0){const time=elapsed-p.lapStart;p.attempts++;if(!p.invalid)p.best=p.best==null?time:Math.min(p.best,time);p.line+=track.N;p.lapStart=elapsed;p.invalid=false;if(p.attempts>=3||elapsed>=240)p.completed=true}}
    if(mode==='qualifying'&&elapsed>=240&&!p.flying)p.completed=true;
