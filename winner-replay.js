@@ -31,8 +31,9 @@ function createFootage(env){
   if(!recorder&&!start(source,now))return !!endRace;
   segment.end=now;var crossed=false,sample=now-lastSample>=250;if(sample)lastSample=now;
   (visible||[]).forEach(function(item){if(!item||!item.id)return;if(sample||item.finished)segment.scores[item.id]=(segment.scores[item.id]||0)+1;if(item.finished&&!completed[item.id]){completed[item.id]=true;segment.finishers[item.id]=true;crossed=true}});
-  // Allow the capture stream to sample the rendered finish frame before stopping.
-  if((crossed||endRace)&&segment.closeAt==null)segment.closeAt=now+120;
+  // Keep the crossing and at least seven seconds of real footage, including
+  // when a slow approach crosses just after a recording segment rotated.
+  if((crossed||endRace)&&segment.closeAt==null)segment.closeAt=Math.max(now+120,segment.start+7000);
   if(endRace)segment.endRace=true;
   if(segment.closeAt!=null&&now>=segment.closeAt){var ending=segment.endRace;finishPart(now);if(ending){stopTracks();return true}start(source,now)}
   else if(segment.closeAt==null&&now-segment.start>=20000){finishPart(now);start(source,now)}

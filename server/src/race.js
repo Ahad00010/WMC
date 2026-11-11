@@ -39,9 +39,9 @@ export class RaceRoom {
       const active=[...this.players.values()].filter(p=>!p.dnf&&!p.completed&&p.state);
       // Finished riders continue rolling under their normal controls, but no
       // longer collide or affect timing. Freezing them caused client rewinds.
-      for(const p of this.players.values())if(p.completed&&!p.dnf&&p.state){const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput();this.physics.step(p.state,input,dt)}
+      for(const p of this.players.values())if(p.completed&&!p.dnf&&p.state){const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<500?p.input:neutralInput();this.physics.step(p.state,input,dt)}
       const before=new Map(),results=new Map();
-      for(const p of active){before.set(p,{x:p.state.x,z:p.state.z});const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput();results.set(p,this.physics.step(p.state,input,dt))}
+      for(const p of active){before.set(p,{x:p.state.x,z:p.state.z});const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<500?p.input:neutralInput();results.set(p,this.physics.step(p.state,input,dt))}
       for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
         const a=active[i],b=active[j];if(a.ai&&b.ai)continue;if(bikeContact.resolve(a.state,b.state,before.get(a),before.get(b),dt)){a.state.contactSeq=(a.state.contactSeq||0)+1;b.state.contactSeq=(b.state.contactSeq||0)+1}
       }
