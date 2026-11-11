@@ -430,6 +430,7 @@ var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
 var mobileMaxRatio=Math.min(window.devicePixelRatio||1,1.5),mobilePixelRatio=Math.min(mobileMaxRatio,1.25),mobileMinRatio=Math.min(mobileMaxRatio,1),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
 renderer.setPixelRatio(mobileRender?mobilePixelRatio:Math.min(window.devicePixelRatio||1,2));
 renderer.shadowMap.enabled=!mobileRender;
+if(!mobileRender)renderer.shadowMap.autoUpdate=true; // Keep the moving bike shadow in sync each frame.
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 var scene=new THREE.Scene();
 var HORIZON=0xbcd3e6;
@@ -1306,7 +1307,6 @@ function updateCamera(dt,t){
 
 /* ---------- main loop ---------- */
 var lastT=performance.now(),clock=0,kmhShown=-1,gearShown='',mapT=0,lastRpmLit=-1;
-var desktopShadowThrottled=false,desktopShadowAt=-Infinity;
 var desktopMaxRatio=Math.min(window.devicePixelRatio||1,2),desktopRatio=desktopMaxRatio,desktopSampleStart=0,desktopFrames=0,desktopFrameTime=0,desktopLastChange=0;
 function updateDesktopSessionQuality(now,frameMs){
   if(mobileRender)return; // Mobile rendering and quality settings stay untouched.
@@ -1322,9 +1322,6 @@ function updateDesktopSessionQuality(now,frameMs){
       desktopSampleStart=now;desktopFrames=0;desktopFrameTime=0;
     }
   }else{desktopSampleStart=0;desktopFrames=0;desktopFrameTime=0}
-  if(active){if(!desktopShadowThrottled){desktopShadowThrottled=true;renderer.shadowMap.autoUpdate=false;desktopShadowAt=-Infinity}
-    if(now-desktopShadowAt>=100){renderer.shadowMap.needsUpdate=true;desktopShadowAt=now}
-  }else if(desktopShadowThrottled){desktopShadowThrottled=false;renderer.shadowMap.autoUpdate=true;renderer.shadowMap.needsUpdate=true}
 }
 function frame(now){
   var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000);lastT=now;clock+=dt;
