@@ -41,6 +41,7 @@ test('results entrance forces a visible transition and exit covers the scene in 
 test('grand prix awards MotoGP points to classified finishers only',()=>{
  const x=setup(),w=x.dom.window;x.r.begin(0,0,()=>x.entries,{});x.r.tick(23000);
  assert.deepEqual([...x.box.querySelectorAll('.results-points')].map(e=>e.textContent),['+25','+20','0']);
+ assert.deepEqual([...x.box.querySelectorAll('.results-bike')].map(e=>e.textContent),['WMC93','WMC93','WMC93']);
  assert.deepEqual(Array.from({length:16},(_,i)=>w.WMCRaceResults.racePoints({finishSeconds:50,dnf:false},i)),[25,20,16,13,11,10,9,8,7,6,5,4,3,2,1,0]);
  assert.equal(w.WMCRaceResults.racePoints({finishSeconds:null},0),0);x.dom.window.close();
 });
