@@ -3,8 +3,8 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="race-results.css?v=5">
-<link rel="stylesheet" href="winner-highlight.css?v=4">
+<link rel="stylesheet" href="race-results.css?v=6">
+<link rel="stylesheet" href="winner-highlight.css?v=5">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Saira+Condensed:wght@600;800&display=swap" rel="stylesheet">
 <style>
 /* Touch feedback without the browser's blue tap flash or long-press callout. */
@@ -183,7 +183,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 /* Keep both towers the same size and leave room for landscape controls. */
 .race-tower{width:192px}.race-head{padding:7px 8px 5px}.race-brand{font-size:29px}.race-label{font-size:20px}
 .race-lap-label{font-size:16px}.race-lap-number{font-size:31px;line-height:1}.race-rider{height:29px;font-size:15px}.race-position{width:45px}.race-number{width:50px;font-size:21px}.race-footer{font-size:14px;padding:6px 9px 8px}
-.race-final-text{font:700 27px/1.1 var(--ui);letter-spacing:-.06em;white-space:nowrap;color:transparent;-webkit-text-stroke:1px white}
+.race-final-text{font:400 27px/1.1 MGPInline,Arial,sans-serif;letter-spacing:-.04em;white-space:nowrap;color:white;-webkit-text-stroke:0}
 .qual-flag{font-size:14px;color:#fff}.race-flag{font-size:18px;margin:0 4px;color:#fff}.race-tower.finish .race-progress{background:repeating-conic-gradient(#fff 0% 25%,#222 0% 50%) 0 0/6px 6px}.race-tower.finish .race-progress span{display:none}
 .race-rider.finished .race-position,.qual-row.finished .qual-position{background:repeating-conic-gradient(#444 0% 25%,#151515 0% 50%) 0 0/7px 7px}
 .race-rider.finished .race-position,.qual-row.finished .qual-position{color:#fff;text-shadow:0 1px 2px #000}
@@ -220,7 +220,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 @media(max-height:500px){.mode-dialog{padding:14px 18px}.mode-top h2{font-size:27px;margin:5px 0 10px}.mode-choice{min-height:96px;padding:10px}.mode-choice strong{font-size:22px}.mode-back{margin-top:8px}}
 @media(max-width:360px){.mode-choices{grid-template-columns:1fr}.mode-choice{min-height:80px}}
 
-.lap-setting{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;margin:10px 0;color:#fff;font:700 14px var(--ui)}.lap-setting input{grid-column:1/-1;width:100%;accent-color:#e4202c;touch-action:pan-x;cursor:pointer}.lap-setting output{color:#ff515b;font-size:18px}.lap-setting[hidden]{display:none}.friends-panel{display:grid;gap:10px}.friends-intro,.friend-note,.friend-message{margin:0;color:#bfc6cf;font-size:12px}.friend-message{color:#fff}.friend-form{display:flex;gap:8px}.friend-form input{min-width:0;flex:1;background:#0e1116;color:#fff;border:1px solid #5b626e;border-radius:3px;padding:10px;font:16px system-ui;user-select:text;touch-action:auto}.friend-form button,.friend-row button{background:#e4202c;color:#fff;border:0;border-radius:3px;padding:8px 12px;font:700 12px var(--ui);cursor:pointer}.friend-list{display:grid;gap:6px;max-height:28vh;overflow:auto;touch-action:pan-y}.friend-row{display:flex;align-items:center;gap:8px;padding:9px;background:#ffffff0a}.friend-row-name{flex:1;min-width:0}.friend-row-name strong,.friend-row-name small{display:block;overflow:hidden;text-overflow:ellipsis}.friend-row-name small{color:#aab2bd}.friend-row button.alt{background:#343a43}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.lap-setting{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;margin:10px 0;color:#fff;font:700 14px var(--ui)}.lap-setting input{grid-column:1/-1;width:100%;accent-color:#e4202c;touch-action:pan-x;cursor:pointer}.lap-setting output{color:#ff515b;font-size:18px}.lap-setting select{background:#10151d;color:white;border:1px solid #69717e;border-radius:4px;padding:8px 10px;font:700 14px var(--ui)}.lap-setting[hidden]{display:none}.friends-panel{display:grid;gap:10px}.friends-intro,.friend-note,.friend-message{margin:0;color:#bfc6cf;font-size:12px}.friend-message{color:#fff}.friend-form{display:flex;gap:8px}.friend-form input{min-width:0;flex:1;background:#0e1116;color:#fff;border:1px solid #5b626e;border-radius:3px;padding:10px;font:16px system-ui;user-select:text;touch-action:auto}.friend-form button,.friend-row button{background:#e4202c;color:#fff;border:0;border-radius:3px;padding:8px 12px;font:700 12px var(--ui);cursor:pointer}.friend-list{display:grid;gap:6px;max-height:28vh;overflow:auto;touch-action:pan-y}.friend-row{display:flex;align-items:center;gap:8px;padding:9px;background:#ffffff0a}.friend-row-name{flex:1;min-width:0}.friend-row-name strong,.friend-row-name small{display:block;overflow:hidden;text-overflow:ellipsis}.friend-row-name small{color:#aab2bd}.friend-row button.alt{background:#343a43}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 
 .invite-notice{position:fixed;top:calc(var(--gt) + 8px);right:var(--gr);z-index:30;width:min(310px,calc(100vw - 32px));background:#141820;border-left:3px solid #e4202c;padding:12px;box-shadow:0 8px 25px #000a;font:13px var(--ui);display:grid;gap:7px;touch-action:auto}.invite-notice button{background:#e4202c;color:white;border:0;border-radius:3px;padding:8px;font:700 12px var(--ui);cursor:pointer}.invite-notice button+button{background:#343a43}.invite-notice p{margin:0;color:#ffb6b6}
 
@@ -325,7 +325,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
       <button id="raceMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Race</strong><span>Choose 1–10 laps on your chosen circuit.</span></button>
       <button id="qualMode" class="mode-choice" type="button"><span class="choice-label">PRACTICE</span><strong>Qualifying</strong><span>Set your fastest lap.</span></button>
     </div>
-    <div id="circuitPanel" hidden><p class="circuit-question">Which circuit do you want to race in?</p><label id="practiceLapSetting" class="lap-setting" hidden for="practiceLaps"><span>Race laps (1–10)</span><output id="practiceLapsValue" for="practiceLaps">3</output><input id="practiceLaps" type="range" min="1" max="10" step="1" value="3"></label><div id="circuitChoices" class="circuit-choices"></div><label id="practiceAIOption" class="friends-intro" hidden><input id="practiceAI" type="checkbox"> Fill grid with AI riders (9 AI, 10 riders total)</label></div>
+    <div id="circuitPanel" hidden><p class="circuit-question">Which circuit do you want to race in?</p><label id="practiceLapSetting" class="lap-setting" hidden for="practiceLaps"><span>Race laps (1–10)</span><output id="practiceLapsValue" for="practiceLaps">3</output><input id="practiceLaps" type="range" min="1" max="10" step="1" value="3"></label><label id="practiceSpeedSetting" class="lap-setting" hidden for="practiceSpeed"><span>Bike speed (practice only)</span><select id="practiceSpeed"><option value="1">1× · Normal</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label><div id="circuitChoices" class="circuit-choices"></div><label id="practiceAIOption" class="friends-intro" hidden><input id="practiceAI" type="checkbox"> Fill grid with AI riders (9 AI, 10 riders total)</label></div>
     <div id="multiModes" class="mode-choices" hidden>
       <button id="multiQualRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Qualifying + Race</strong><span>Create a private lobby.</span></button>
       <button id="multiRace" class="mode-choice" type="button"><span class="choice-label">ONLINE</span><strong>Race only</strong><span>Create a private lobby.</span></button>
@@ -421,7 +421,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="bike-contact.js?v=4"></script>
 <script src="practice-ai.js?v=4"></script>
 <script src="menu-music.js?v=1"></script>
-<script src="race-results.js?v=7"></script>
+<script src="race-results.js?v=8"></script>
 <script src="winner-replay.js?v=7"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=shared-replay-1" defer></script>
@@ -996,7 +996,9 @@ function begin(selected){
   }
 }
 // Practice AI is strictly local and never enters multiplayer or career stats.
-var practiceFill=false,practiceAI=null,practiceTowerAt=-Infinity;
+var practiceFill=false,practiceAI=null,practiceTowerAt=-Infinity,practiceSpeed=1;
+function practiceSpeedFactor(){return multiplayer?1:practiceSpeed}
+function validPracticeSpeed(value){var n=Number(value);return Number.isInteger(n)&&n>=1&&n<=4?n:1}
 function startPracticeAI(){
   practiceAI=null;practiceTowerAt=-Infinity;
   if(!practiceFill||!window.WMCPracticeAI)return;
@@ -1008,13 +1010,14 @@ function startPracticeAI(){
 }
 // Advance player and AI in short shared steps for reliable close contact.
 function stepPracticeWithContact(dt){
-  if(!(dt>0))return;var n=Math.ceil(dt/(1/60)),step=dt/n;
+  if(!(dt>0))return;var factor=practiceSpeedFactor(),n=Math.ceil(dt*factor/(1/60)),step=dt/n;
   for(var i=0;i<n;i++){
-    var previous={x:pos.x,z:pos.z};physics(step);
-    var player={x:pos.x,z:pos.z,h:h,v:v,pushX:pushX,pushZ:pushZ};practiceAI.step(step,player,previous);
-    pos.x=player.x;pos.z=player.z;v=player.v;pushX=player.pushX||0;pushZ=player.pushZ||0;nearest();
+    var previous={x:pos.x,z:pos.z};physics(step*factor);
+    var player={x:pos.x,z:pos.z,h:h,v:v*factor,pushX:pushX*factor,pushZ:pushZ*factor};practiceAI.step(step,player,previous);
+    pos.x=player.x;pos.z=player.z;v=player.v/factor;pushX=(player.pushX||0)/factor;pushZ=(player.pushZ||0)/factor;nearest();
   }
 }
+function stepSoloPractice(dt){var factor=practiceSpeedFactor();if(factor===1){physics(dt);return}var n=Math.ceil(dt*factor/(1/60)),step=dt*factor/n;for(var i=0;i<n;i++)physics(step)}
 function practiceVisualMatch(){
   if(!practiceAI)return null;var profile=window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'};
   var me={id:'practice-self',display_name:profile.display_name,number:profile.number,color:profile.color,grid:1,progress:total/N,best:qualBest,completed:state==='finishing'||state==='finished',finish_at:mode==='race'?practiceFinishTime:null,dnf:false};
@@ -1023,7 +1026,7 @@ function practiceVisualMatch(){
 }
 var circuitReturn='practice';
 function openCircuits(from,select,practiceMode){
-  circuitReturn=from;$('practiceLapSetting').hidden=from!=='practice'||practiceMode!=='race';$('practiceAIOption').hidden=from!=='practice';$('playButtons').hidden=true;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('circuitPanel').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='CIRCUIT';
+  circuitReturn=from;$('practiceSpeedSetting').hidden=from!=='practice';$('practiceLapSetting').hidden=from!=='practice'||practiceMode!=='race';$('practiceAIOption').hidden=from!=='practice';$('playButtons').hidden=true;$('modeButtons').hidden=true;$('multiModes').hidden=true;$('lobbyPanel').hidden=true;$('circuitPanel').hidden=false;$('modeBack').hidden=false;$('modeTitle').textContent='CIRCUIT';
   var box=$('circuitChoices');box.replaceChildren();Object.keys(circuits).forEach(function(id){
     var points=id==='sepang'?sepangOutline:circuits[id].points;if(!points)return;
     var xs=points.map(function(p){return p[0]}),ys=points.map(function(p){return p[1]}),minx=Math.min.apply(null,xs),maxx=Math.max.apply(null,xs),miny=Math.min.apply(null,ys),maxy=Math.max.apply(null,ys),pad=Math.max(maxx-minx,maxy-miny)*.05;
@@ -1031,8 +1034,8 @@ function openCircuits(from,select,practiceMode){
   });if(box.firstElementChild)box.firstElementChild.focus();
 }
 window.WMCCircuitSelect=openCircuits;
-function cancelPracticeLoad(){if(!musicSessionStarting)return;clearTimeout(musicSessionTimer);musicSessionTimer=0;musicSessionStarting=false;try{sessionStorage.removeItem('wmc-practice-pending');sessionStorage.removeItem('wmc-practice-ai');sessionStorage.removeItem('wmc-practice-laps');sessionStorage.setItem('wmc-circuit',circuitId)}catch(e){}}
-function startPracticeCircuit(id,selected){if(musicSessionStarting)return;practiceFill=$('practiceAI').checked;if(selected==='race')RACE_LAPS=validPracticeLaps($('practiceLaps').value);if(practiceFill&&!window.WMCPracticeAI){$('modeTitle').textContent='AI UNAVAILABLE — RELOAD';return}if(id===circuitId){$('circuitPanel').hidden=true;begin(selected);return}try{sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-practice-pending',selected);sessionStorage.setItem('wmc-practice-ai',practiceFill?'1':'0');sessionStorage.setItem('wmc-practice-laps',String(RACE_LAPS));musicSessionStarting=true;musicSessionTimer=setTimeout(function(){try{location.reload()}catch(e){cancelPracticeLoad();$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}},900)}catch(e){$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}}
+function cancelPracticeLoad(){if(!musicSessionStarting)return;clearTimeout(musicSessionTimer);musicSessionTimer=0;musicSessionStarting=false;try{sessionStorage.removeItem('wmc-practice-pending');sessionStorage.removeItem('wmc-practice-ai');sessionStorage.removeItem('wmc-practice-laps');sessionStorage.removeItem('wmc-practice-speed');sessionStorage.setItem('wmc-circuit',circuitId)}catch(e){}}
+function startPracticeCircuit(id,selected){if(musicSessionStarting)return;practiceFill=$('practiceAI').checked;practiceSpeed=validPracticeSpeed($('practiceSpeed').value);if(selected==='race')RACE_LAPS=validPracticeLaps($('practiceLaps').value);if(practiceFill&&!window.WMCPracticeAI){$('modeTitle').textContent='AI UNAVAILABLE — RELOAD';return}if(id===circuitId){$('circuitPanel').hidden=true;begin(selected);return}try{sessionStorage.setItem('wmc-circuit',id);sessionStorage.setItem('wmc-practice-pending',selected);sessionStorage.setItem('wmc-practice-ai',practiceFill?'1':'0');sessionStorage.setItem('wmc-practice-laps',String(RACE_LAPS));sessionStorage.setItem('wmc-practice-speed',String(practiceSpeed));musicSessionStarting=true;musicSessionTimer=setTimeout(function(){try{location.reload()}catch(e){cancelPracticeLoad();$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}},900)}catch(e){$('modeTitle').textContent='UNABLE TO LOAD CIRCUIT'}}
 function validPracticeLaps(value){var n=Number(value);return Number.isInteger(n)&&n>=1&&n<=10?n:3}
 $('practiceLaps').addEventListener('input',function(){$('practiceLapsValue').textContent=this.value});
 $('start').addEventListener('click',showModes);
@@ -1075,7 +1078,7 @@ function togglePause(){
 function returnToMenu(){
   stopWinnerHighlight();if(winnerFootage)winnerFootage.clear();disposeReplayCinema();resetSharedReplay();replayFinishPending=false;replayArmed=false;replayDone=false;
   if(resultsSequence)resultsSequence.cancel();resultsStarted=false;resultsMatch=null;practiceFinishTime=null;
-  practiceAI=null;practiceFill=false;cancelPracticeLoad();
+  practiceAI=null;practiceFill=false;if(practiceSpeed!==1){bestLap=null;try{var savedBest=Number(window.localStorage.getItem('apexgp-'+circuitId+'-best'));if(savedBest>0)bestLap=savedBest}catch(e){}}practiceSpeed=1;$('practiceSpeed').value='1';cancelPracticeLoad();
   if(multiplayer&&window.WMCMatch)window.WMCMatch.leave();
   clearRiderTags();resetSessionTools();clearSharedQual();mpMenuOpen=false;predictionReady=false;ownSmoother.clear();opponentSmoothers={};matchIntroStage='';lastCountdownCue=-1;qualCountdownCue=-1;$('matchRoster').dataset.stage='';authoritativeTarget=null;multiplayer=null;mpPhase='';mpDone=false;$('matchNetwork').hidden=true;$('raceTiming').classList.remove('mp-tower');$('qualTower').classList.remove('mp-qual');clearTimeout(mpResultsTimer);mpResultsTimer=0;$('matchIntro').hidden=true;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('qualOwnRow').querySelector('.qual-position').textContent='1';Array.prototype.slice.call($('raceRoster').children).forEach(function(el){if(el.id!=='ownRaceRow')el.remove()});$('ownRaceRow').style.order='';delete $('ownRaceRow').dataset.riderId;delete $('ownRaceRow').dataset.previousOrder;$('ownRaceRow').querySelector('.race-position').textContent='1';$('ownRaceRow').querySelector('.race-gap').hidden=true;$('ownRaceRow')._gapTrend=null;Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   clearTimeout(raceFinishTimer);clearTimeout(qualFinishTimer);clearTimeout(qualBannerTimer);clearTimeout(qualSequenceTimer);
@@ -1239,7 +1242,7 @@ function replayLocalLeading(){
 }
 function shouldArmWinnerReplay(){
  if(!window.WMCWinnerReplay)return false;var laps=multiplayer?mpRaceLaps:RACE_LAPS;
- if(replayLocalLeading())return window.WMCWinnerReplay.nearWinnerFinish(total/N,laps,LEN,Math.abs(v));
+ if(replayLocalLeading())return window.WMCWinnerReplay.nearWinnerFinish(total/N,laps,LEN,Math.abs(v)*practiceSpeedFactor());
  if(multiplayer)return false;
  return !!(practiceAI&&practiceAI.riders.some(function(r){return !r.completed&&window.WMCWinnerReplay.nearFinish(r.state.total/N,laps,LEN)}));
 }
@@ -1284,7 +1287,7 @@ function lapDone(){
   else if(lapNo<=RACE_LAPS)elLap.textContent=lapNo+'/'+RACE_LAPS;
   if(bestLap==null||t<bestLap){
     bestLap=t;elBest.textContent=fmt(t);
-    try{window.localStorage.setItem('apexgp-'+circuitId+'-best',String(t))}catch(e){}
+    try{if(practiceSpeedFactor()===1)window.localStorage.setItem('apexgp-'+circuitId+'-best',String(t))}catch(e){}
     toast('NEW BEST<small>'+fmt(t)+'</small>','good',2200);
   }else{
     toast('LAP '+(lapNo-1)+'<small>'+fmt(t)+'</small>','',1800);
@@ -1452,9 +1455,9 @@ function frame(now){
       $('qualProgress').style.transform='scaleX('+(remaining/(QUAL_DURATION/1000))+')';
       if(remaining<=0&&!qualExpired){qualExpired=true;if(!qualFlying)endQualifying();else $('qualStatus').textContent='FINISH YOUR LAP'}
     }
-    if(state==='racing'&&!multiplayer){if(mode==='qualifying')raceTime=(now-(qualDeadline-QUAL_DURATION))/1000;else raceTime+=dt;if(practiceAI)stepPracticeWithContact(dt);else physics(dt)}
+    if(state==='racing'&&!multiplayer){if(mode==='qualifying')raceTime=(now-(qualDeadline-QUAL_DURATION))/1000;else raceTime+=dt;if(practiceAI)stepPracticeWithContact(dt);else stepSoloPractice(dt)}
   }
-  else if(state==='finishing'&&!multiplayer){physics(dt);if(practiceAI&&mode==='race')practiceAI.step(dt)}
+  else if(state==='finishing'&&!multiplayer){stepSoloPractice(dt);if(practiceAI&&mode==='race')practiceAI.step(dt)}
   else if(state==='menu'||state==='paused'){throttleNow=0}
   if(multiplayer&&authoritativeTarget&&mpPhase===multiplayer.phase){
     var target=authoritativeTarget;
@@ -1488,14 +1491,14 @@ function frame(now){
   bike.fa.rotation.y=steer*0.35;
   bike.rider.position.x=lean*0.2;
   bike.rider.rotation.z=-lean*0.3;
-  bike.rear.rotation.x+=v*dt/bike.rr;bike.front.rotation.x+=v*dt/bike.fr;
+  bike.rear.rotation.x+=v*dt*practiceSpeedFactor()/bike.rr;bike.front.rotation.x+=v*dt*practiceSpeedFactor()/bike.fr;
   bike.tailMat.color.setHex(brakeNow&&state==='racing'?0xff2230:0x6a0a10);
   sun.position.set(pos.x+45,70,pos.z+30);sun.target.position.copy(pos);
   updateCamera(dt,clock);
   audioTick();musicTick(now);expireChatBroadcasts(now);
   /* HUD */
   if(state!=='menu'){
-    var k=Math.round(av*3.6);
+    var k=Math.round(av*3.6*practiceSpeedFactor());
     if(k!==kmhShown){kmhShown=k;elKmh.textContent=k}
     var gs=v<-0.5?'R':(av<0.5&&!throttleNow?'N':String(g));
     if(gs!==gearShown){gearShown=gs;elGear.textContent=gs}
@@ -1867,7 +1870,7 @@ window.WMCGame={
     var towerNow=performance.now();if(!mobileRender||towerNow-lastTowerUpdate>=250){lastTowerUpdate=towerNow;renderQualRoster(match);renderRaceRoster(match)}
   }
 };
-try{var pendingPractice=sessionStorage.getItem('wmc-practice-pending');if(pendingPractice==='race'||pendingPractice==='qualifying'){sessionStorage.removeItem('wmc-practice-pending');practiceFill=sessionStorage.getItem('wmc-practice-ai')==='1';sessionStorage.removeItem('wmc-practice-ai');RACE_LAPS=validPracticeLaps(sessionStorage.getItem('wmc-practice-laps'));$('practiceLaps').value=String(RACE_LAPS);$('practiceLapsValue').textContent=String(RACE_LAPS);sessionStorage.removeItem('wmc-practice-laps');var practiceWait=setInterval(function(){if(!startBtn.disabled){clearInterval(practiceWait);begin(pendingPractice)}},100)}}catch(e){}
+try{var pendingPractice=sessionStorage.getItem('wmc-practice-pending');if(pendingPractice==='race'||pendingPractice==='qualifying'){sessionStorage.removeItem('wmc-practice-pending');practiceFill=sessionStorage.getItem('wmc-practice-ai')==='1';sessionStorage.removeItem('wmc-practice-ai');practiceSpeed=validPracticeSpeed(sessionStorage.getItem('wmc-practice-speed'));$('practiceSpeed').value=String(practiceSpeed);sessionStorage.removeItem('wmc-practice-speed');RACE_LAPS=validPracticeLaps(sessionStorage.getItem('wmc-practice-laps'));$('practiceLaps').value=String(RACE_LAPS);$('practiceLapsValue').textContent=String(RACE_LAPS);sessionStorage.removeItem('wmc-practice-laps');var practiceWait=setInterval(function(){if(!startBtn.disabled){clearInterval(practiceWait);begin(pendingPractice)}},100)}}catch(e){}
 requestAnimationFrame(frame);
 })();
 </script>
