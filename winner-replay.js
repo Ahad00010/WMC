@@ -1,43 +1,38 @@
-/* Bounded race-only motion history: each rider keeps the last six seconds
-   through their actual finish. Coordinates come from live game/server state. */
+/* Record the actual race canvas, not an approximation of rider movements. */
 (function(root){
 'use strict';
-function create(){var riders=Object.create(null),windowMs=6500,interval=100,maxSamples=68;
- function clear(){riders=Object.create(null)}
- function record(id,time,pose,finished){
-  if(!id||!Number.isFinite(time)||!pose||!Number.isFinite(pose.x)||!Number.isFinite(pose.z)||!Number.isFinite(pose.h))return;
-  var r=riders[id]||(riders[id]={samples:[],finished:false});if(r.finished)return;
-  var a=r.samples,last=a[a.length-1];if(last&&time<last.t)return;if(last&&time-last.t<interval&&!finished)return;
-  var sample={t:time,x:pose.x,z:pose.z,h:pose.h,lean:Number.isFinite(pose.lean)?pose.lean:0,pitch:Number.isFinite(pose.pitch)?pose.pitch:0,steer:Number.isFinite(pose.steer)?pose.steer:0,v:Number.isFinite(pose.v)?pose.v:0};
-  if(last&&time===last.t)a[a.length-1]=sample;else a.push(sample);while(a.length>maxSamples||(a.length>2&&a[1].t<time-windowMs))a.shift();if(finished)r.finished=true;
- }
- function clip(id){var r=riders[id];if(!r||r.samples.length<2)return null;var a=r.samples,end=a[a.length-1].t,start=a.length-1;while(start>0&&a[start].t-a[start-1].t<=500&&a[start].t>end-6000)start--;var result=a.slice(start);if(result.length<2||end<=result[0].t)return null;return result.map(function(s){return Object.assign({},s)})}
-
- return {clear:clear,record:record,clip:clip};
-}
- function sample(a,progress){if(!a||!a.length)return null;var start=Math.max(a[0].t,a[a.length-1].t-6000),t=start+Math.max(0,Math.min(1,progress))*(a[a.length-1].t-start),i=1;while(i<a.length&&a[i].t<t)i++;if(i===a.length)return Object.assign({},a[a.length-1]);var before=a[i-1],after=a[i],f=after.t===before.t?1:(t-before.t)/(after.t-before.t),out={};['x','z','lean','pitch','steer','v'].forEach(function(k){out[k]=before[k]+(after[k]-before[k])*f});var delta=((after.h-before.h+Math.PI*3)%(Math.PI*2))-Math.PI;out.h=before.h+delta*f;return out}
-// Capture the actual rendered local view, including wheelies, nitro, and camera.
-// Only the local rider's view is recorded; never label someone else's view as
-// the winner's footage. Small JPEG frames keep memory bounded on mobile.
-function createFootage(doc){
- var frames=[],rider=null,finished=false,last=-Infinity,buffer=null,ctx=null,wheelieAt=null,favorite=null;
- function clear(){frames=[];rider=null;finished=false;last=-Infinity;buffer=null;ctx=null;wheelieAt=null;favorite=null}
- function record(id,time,source,done,wheelie){
-  if(!id||!Number.isFinite(time)||!source||finished||time<last||(!done&&time-last<100))return;
-  if(rider&&rider!==id){clear()}rider=id;
+function createFootage(env){
+ var stream=null,recorder=null,segment=null,best=Object.create(null),generation=0,lastSample=-Infinity,disabled=false,slowStart=null,slowFrames=0,slowTime=0;
+ function stopTracks(){if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}}
+ function clear(){generation++;if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){}}recorder=null;segment=null;stopTracks();best=Object.create(null);lastSample=-Infinity;disabled=false;slowStart=null;slowFrames=0;slowTime=0}
+ function start(source,now){
+  if(disabled||!source.captureStream||!env.MediaRecorder)return false;
   try{
-   if(!source.width||!source.height)return;
-   if(!buffer){buffer=doc.createElement('canvas');ctx=buffer.getContext('2d');if(!ctx)return}
-   var scale=Math.min(1,640/source.width,360/source.height),w=Math.max(1,Math.round(source.width*scale)),h=Math.max(1,Math.round(source.height*scale));
-   if(buffer.width!==w)buffer.width=w;if(buffer.height!==h)buffer.height=h;
-   ctx.drawImage(source,0,0,w,h);var image=buffer.toDataURL('image/jpeg',.72);if(!image||image==='data:,')return;
-   frames.push({t:time,image:image});last=time;while(frames.length>62||(frames.length>2&&frames[1].t<time-6000))frames.shift();if(wheelie&&wheelieAt===null&&!favorite)wheelieAt=time;if(wheelieAt!==null&&!favorite&&time-wheelieAt>=3000){favorite=continuous(frames);if(!favorite)wheelieAt=null}if(done)finished=true;
-  }catch(e){clear()}
+   if(!stream)stream=source.captureStream(12);
+   var types=['video/webm;codecs=vp8','video/webm','video/mp4'],mime=types.find(function(type){return env.MediaRecorder.isTypeSupported&&env.MediaRecorder.isTypeSupported(type)}),options={videoBitsPerSecond:1000000};if(mime)options.mimeType=mime;
+   var r=new env.MediaRecorder(stream,options),g=generation,part={start:now,end:now,scores:Object.create(null),chunks:[]};recorder=r;segment=part;
+   r.ondataavailable=function(e){if(e.data&&e.data.size)part.chunks.push(e.data)};
+   r.onstop=function(){if(g!==generation||!part.chunks.length||part.end-part.start<5500)return;var blob=new env.Blob(part.chunks,{type:r.mimeType||mime||'video/webm'});if(!blob.size)return;Object.keys(part.scores).forEach(function(id){var score=part.scores[id];if(!best[id]||score>best[id].score)best[id]={blob:blob,score:score,duration:part.end-part.start}})};
+   r.onerror=function(){if(g===generation){disabled=true;stopTracks()}};r.start();return true;
+  }catch(e){disabled=true;stopTracks();return false}
  }
- function continuous(a){if(a.length<2)return null;var end=a[a.length-1].t,start=a.length-1;while(start>0&&a[start].t-a[start-1].t<=500&&a[start].t>end-6000)start--;var result=a.slice(start);return end-result[0].t>=5500?result:null}
- function clip(id){if(id!==rider||!finished)return null;var result=favorite||continuous(frames);return result?result.slice():null}
- return {clear:clear,record:record,clip:clip};
+ function finishPart(now){if(!recorder)return;segment.end=now;var r=recorder;recorder=null;segment=null;try{if(r.state!=='inactive')r.stop()}catch(e){disabled=true;stopTracks()}}
+ // Called after the game's regular render; no synchronous canvas reads or JPEG encoding.
+ // visible contains only riders actually near the camera and in its view.
+ function record(now,source,visible,frameMs){
+  if(!Number.isFinite(now)||disabled)return;
+  // A suspended tab is not six seconds of race footage. End before the gap.
+  if(Number.isFinite(frameMs)&&frameMs>=1000&&recorder){finishPart(segment.end);stopTracks()}
+  // Never keep recording at the expense of playable race performance.
+  if(Number.isFinite(frameMs)&&frameMs>0&&frameMs<1000){if(slowStart===null)slowStart=now;slowFrames++;slowTime+=frameMs;if(now-slowStart>=3000){if(slowFrames>10&&slowTime/slowFrames>45){finish(now);disabled=true;return}slowStart=now;slowFrames=0;slowTime=0}}else{slowStart=null;slowFrames=0;slowTime=0}
+  if(!recorder&&!start(source,now))return;
+  if(now-segment.start>=6000){finishPart(now);if(!start(source,now))return}
+  segment.end=now;if(now-lastSample<250)return;lastSample=now;
+  (visible||[]).forEach(function(item){if(!item||!item.id)return;segment.scores[item.id]=(segment.scores[item.id]||0)+1+(item.wheelie?2:0)})
+ }
+ function finish(now){finishPart(now);stopTracks()}
+ function clip(id){return best[id]||null}
+ return {clear:clear,record:record,finish:finish,clip:clip};
 }
-function footageFrame(clip,progress){var t=clip[0].t+Math.max(0,Math.min(1,progress))*(clip[clip.length-1].t-clip[0].t),i=0;while(i+1<clip.length&&clip[i+1].t<=t)i++;return i}
-root.WMCWinnerReplay={create:create,sample:sample,createFootage:createFootage,footageFrame:footageFrame};if(typeof module!=='undefined'&&module.exports)module.exports=root.WMCWinnerReplay;
+root.WMCWinnerReplay={createFootage:createFootage};if(typeof module!=='undefined'&&module.exports)module.exports=root.WMCWinnerReplay;
 })(typeof window!=='undefined'?window:globalThis);
