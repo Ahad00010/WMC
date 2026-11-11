@@ -35,7 +35,7 @@ function step(s,input,dt){
   return {previous,offTrack};
 }
 
-return {spawn,step};
+return {spawn,step,reconcile:nearest};
 }
 export const {spawn,step}=createPhysics(defaultTrack);
 export function parseInput(value){
