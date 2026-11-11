@@ -138,3 +138,5 @@ test('host configures 1–10 laps before start and race completion uses the sele
 });
 
 test('both AI and two-rider sessions survive a forty-second connection interruption',()=>{for(const fillAI of [false,true]){const r=new RaceRoom({id:'rejoin',host_id:'a',mode:'race'});r.join(profile('a'),0);r.join(profile('b'),0);if(fillAI)r.setAI('a',true);r.start('a',0);r.disconnect('b',25000);r.advance(65000,1/60);assert.equal(r.phase,'race');r.join(profile('b'),65000);assert.equal(r.players.get('b').connected,true);assert.equal(r.players.get('b').dnf,false);r.advance(85001,1/60);assert.equal(r.phase,'race')}});
+
+test('server releases stale steering and reverse input instead of spinning for a full second',()=>{const r=room(),p=r.players.get('a'),initial=p.state.h;r.input('a',{up:false,down:true,left:true,right:false,brake:false},r.phaseStart);r.advance(r.phaseStart+600,1/60);assert.equal(p.state.v,0);assert.equal(p.state.h,initial)});

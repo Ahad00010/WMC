@@ -422,7 +422,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="practice-ai.js?v=4"></script>
 <script src="menu-music.js?v=1"></script>
 <script src="race-results.js?v=9"></script>
-<script src="winner-replay.js?v=8"></script>
+<script src="winner-replay.js?v=9"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=connection-2" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -441,7 +441,7 @@ var canvas=$('gl');
 var mobileRender=window.matchMedia('(pointer:coarse)').matches;
 // Preserve road readability on phones while using simplified bike geometry.
 var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
-var mobileMaxRatio=Math.min(window.devicePixelRatio||1,1.25),mobilePixelRatio=Math.min(mobileMaxRatio,1.1),mobileMinRatio=Math.min(mobileMaxRatio,1),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0;
+var mobileMaxRatio=Math.min(window.devicePixelRatio||1,1.25),mobilePixelRatio=Math.min(mobileMaxRatio,1.1),mobileMinRatio=Math.min(mobileMaxRatio,1),qualityStarted=0,qualityFrames=0,qualityTime=0,qualityLastChange=0,mobileFrameAverage=0;
 renderer.setPixelRatio(mobileRender?mobilePixelRatio:Math.min(window.devicePixelRatio||1,2));
 renderer.shadowMap.enabled=!mobileRender;
 if(!mobileRender)renderer.shadowMap.autoUpdate=true; // Keep the moving bike shadow in sync each frame.
@@ -1060,7 +1060,7 @@ var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={
 var ownSmoother=new WMCSnapshotSmoother(150),opponentSmoothers={},matchIntroStage='',lastCountdownCue=-1,qualCountdownCue=-1,mpStartAt=0;
 // Old servers may omit rules; use the default race length as a fallback.
 var mpRaceLaps=3,mpQualDuration=600000,mpQualMax=5;
-var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0,sharedQual=null,lastContactSeq=null,lastResetSeq=null,contactCorrectionUntil=0,networkLatency=0,localContactUntil={},contactVisual={};
+var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0,sharedQual=null,lastContactSeq=null,lastResetSeq=null,contactCorrectionUntil=0,networkLatency=0;
 function clearInputs(){keys={};document.querySelectorAll('.pad').forEach(function(p){p.classList.remove('on')})}
 function togglePause(){
   if(multiplayer){mpMenuOpen=!mpMenuOpen;clearInputs();if(window.WMCMatch)window.WMCMatch.sendInput();$('pauseTitle').textContent='RACE CONTINUES ONLINE';$('pauseOverlay').hidden=!mpMenuOpen;$('touch').hidden=mpMenuOpen;return}
@@ -1249,6 +1249,9 @@ function shouldArmWinnerReplay(){
 // No pose reconstruction: wheelies, other bikes and track are the actual scene.
 function beginReplayCinema(now){
  if(!canvas.captureStream||!window.MediaRecorder)return false;
+ // On a struggling phone, record the real game view instead of rendering the
+ // whole race a second time. The clip still contains the actual race.
+ if(mobileRender&&mobileFrameAverage>40){winnerFootage.setHighQuality(true);return false}
  try{var out=document.createElement('canvas');if(!out.captureStream)return false;var rr=new THREE.WebGLRenderer({canvas:out,antialias:!mobileRender});replayCinema={renderer:rr};var aspect=Math.max(.25,window.innerWidth/Math.max(1,window.innerHeight)),width=Math.min(854,Math.round(480*aspect)),height=Math.max(1,Math.round(width/aspect));rr.setPixelRatio(1);rr.setSize(width,height,false);var cam=new THREE.PerspectiveCamera(48,width/height,.3,4500);replayCinema={renderer:rr,canvas:out,camera:cam,started:now,nextRender:now};winnerFootage.setHighQuality(true);return true}catch(e){disposeReplayCinema();return false}
 }
 function disposeReplayCinema(){if(!replayCinema)return;var rr=replayCinema.renderer;replayCinema=null;if(rr.dispose)rr.dispose();if(rr.forceContextLoss)rr.forceContextLoss()}
@@ -1271,10 +1274,10 @@ function startWinnerHighlight(winner){
   $('winnerFirst').textContent=parts.join(' ');$('winnerLast').textContent=last;$('winnerNumber').textContent=Number.isInteger(winner.number)?winner.number:'–';
   $('winnerNoReplay').textContent='REPLAY UNAVAILABLE';$('winnerHighlight').hidden=false;$('winnerFreeze').classList.add('replay-loading');$('winnerFreeze').hidden=!clip;$('winnerNoReplay').hidden=!!clip;$('winnerCard').hidden=true;$('winnerMenu').hidden=true;
   resetSessionTools();clearRiderTags();clearOpponentBatches();Object.keys(mpOpponentMeshes).forEach(function(id){mpOpponentMeshes[id].visible=false});
-  winnerHighlight={started:performance.now(),clip:clip,frozen:false,waiting:!!clip};state='finished';bike.root.visible=false;if(clip){var video=$('winnerFreeze'),current=winnerHighlight;try{winnerReplayURL=URL.createObjectURL(clip.blob);video.src=winnerReplayURL;video.playbackRate=1;video.currentTime=Math.max(0,(clip.duration-6000)/1000);var playing=video.play();Promise.resolve(playing).then(function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now();video.classList.remove('replay-loading')},function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now();video.hidden=true;$('winnerNoReplay').hidden=false})}catch(e){current.waiting=false;video.hidden=true;$('winnerNoReplay').hidden=false}}
+  winnerHighlight={started:performance.now(),clip:clip,frozen:false,waiting:!!clip};state='finished';bike.root.visible=false;if(clip){var video=$('winnerFreeze'),current=winnerHighlight;try{winnerReplayURL=URL.createObjectURL(clip.blob);video.src=winnerReplayURL;video.playbackRate=1;video.currentTime=Math.max(0,(clip.duration-7000)/1000);var playing=video.play();Promise.resolve(playing).then(function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now();video.classList.remove('replay-loading')},function(){if(winnerHighlight!==current||!current.waiting)return;current.waiting=false;current.started=performance.now();video.hidden=true;$('winnerNoReplay').hidden=false})}catch(e){current.waiting=false;video.hidden=true;$('winnerNoReplay').hidden=false}}
 }
 function tickWinnerHighlight(now){
-  var highlight=winnerHighlight;if(!highlight)return;if(highlight.waiting){if(now-highlight.started<5000)return;highlight.waiting=false;highlight.started=now;$('winnerFreeze').pause();$('winnerFreeze').hidden=true;$('winnerNoReplay').hidden=false}var elapsed=Math.max(0,now-highlight.started),progress=Math.min(1,elapsed/6000);
+  var highlight=winnerHighlight;if(!highlight)return;if(highlight.waiting){if(now-highlight.started<5000)return;highlight.waiting=false;highlight.started=now;$('winnerFreeze').pause();$('winnerFreeze').hidden=true;$('winnerNoReplay').hidden=false}var elapsed=Math.max(0,now-highlight.started),progress=Math.min(1,elapsed/7000);
   if(progress>=1&&!highlight.frozen){highlight.frozen=true;if(highlight.clip)$('winnerFreeze').pause();highlight.cardShownAt=now;$('winnerCard').hidden=false;$('winnerMenu').hidden=false}
   if(highlight.frozen&&!highlight.musicStopped&&now-highlight.cardShownAt>=7000){var fade=(now-highlight.cardShownAt-7000)/1500;if(resultsSequence)resultsSequence.fadeMusic(fade);if(fade>=1)highlight.musicStopped=true}
 }
@@ -1418,18 +1421,32 @@ function updateDesktopSessionQuality(now,frameMs){
     }
   }else{desktopSampleStart=0;desktopFrames=0;desktopFrameTime=0}
 }
+// Ease server error without letting old snapshots steer the player off the road.
+// Actual collisions, lap validity and results are decided by the race server.
+function multiplayerCorrection(dx,dz,heading,angleError,dt,motion,speed,contact,steering){
+  var fx=Math.sin(heading),fz=Math.cos(heading),sideX=fz,sideZ=-fx;
+  var forward=dx*fx+dz*fz,side=dx*sideX+dz*sideZ;
+  var f=1-Math.exp(-dt*(contact?5:2)),limit=(Math.hypot(dx,dz)>12?12:6)*dt,forwardStep=Math.max(-limit,Math.min(limit,forward*f));
+  if(speed>=-.1)forwardStep=Math.max(motion>0?-motion*.5:0,forwardStep);
+  // Suppress small lateral jitter and limit any remaining sideways correction.
+  var deadzone=contact?0:.75,sideError=Math.sign(side)*Math.max(0,Math.abs(side)-deadzone);
+  var sideLimit=(contact?2:1)*dt,sideStep=Math.max(-sideLimit,Math.min(sideLimit,sideError*f));
+  // Old server headings are particularly misleading while the player is turning.
+  var turn=0;if(!steering||contact){var err=Math.sign(angleError)*Math.max(0,Math.abs(angleError)-.08),turnLimit=(contact?1:.6)*dt;turn=Math.max(-turnLimit,Math.min(turnLimit,err*f))}
+  return {x:fx*forwardStep+sideX*sideStep,z:fz*forwardStep+sideZ*sideStep,heading:turn};
+}
 function frame(now){
   if(resultsSequence)resultsSequence.tick(now);
   // The full-screen summary replaces the race view. Don't render or update the
   // hidden track and rider batches behind its WebGL canvas every frame.
   if(resultsSequence&&resultsSequence.isShown()){lastT=now;audioTick();requestAnimationFrame(frame);return}
   if(winnerHighlight){lastT=now;tickWinnerHighlight(now);audioTick();requestAnimationFrame(frame);return}
-  var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000),beforeContact={x:pos.x,z:pos.z};lastT=now;clock+=dt;contactVisual={};
+  var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000);lastT=now;clock+=dt;
   // Sustained slow frames lower resolution gradually. A long pause is not a
   // performance sample; recovery is deliberately slower to avoid oscillation.
   if(mobileRender&&state!=='menu'&&frameMs>0&&frameMs<1000){
     if(!qualityStarted)qualityStarted=now;qualityFrames++;qualityTime+=frameMs;
-    if(now-qualityStarted>=1000&&qualityFrames>=5){var avg=qualityTime/qualityFrames,next=mobilePixelRatio;
+    if(now-qualityStarted>=1000&&qualityFrames>=5){var avg=qualityTime/qualityFrames,next=mobilePixelRatio;mobileFrameAverage=avg;
       if(avg>25&&now-qualityLastChange>=1000)next=Math.max(mobileMinRatio,mobilePixelRatio-.15);
       else if(avg<17.5&&now-qualityLastChange>=8000)next=Math.min(mobileMaxRatio,mobilePixelRatio+.05);
       if(Math.abs(next-mobilePixelRatio)>.001){mobilePixelRatio=next;qualityLastChange=now;renderer.setPixelRatio(mobilePixelRatio)}qualityStarted=now;qualityFrames=0;qualityTime=0;
@@ -1469,21 +1486,12 @@ function frame(now){
     // Correct prediction gradually toward a short extrapolation of the last server state.
     // Never pull a moving bike backwards solely to hide a network correction.
     var age=Math.min(.6,Math.max(0,(now-targetReceivedAt+networkLatency)/1000)),ex=target.x+(Math.sin(target.h)*target.v+(target.pushX||0))*age,ez=target.z+(Math.cos(target.h)*target.v+(target.pushZ||0))*age;
-    var dx=ex-pos.x,dz=ez-pos.z,dist=Math.hypot(dx,dz),correctContact=now<contactCorrectionUntil,f=1-Math.exp(-dt*(correctContact?7:2));
-    // Reconcile prediction errors continuously, never with a 45m teleport.
-    // Backward correction is bounded by half of forward motion so a moving
-    // bike can slow down but cannot visibly move backwards during recovery.
-    var cx=dx*f,cz=dz*f,correction=Math.hypot(cx,cz),limit=(dist>12?12:6)*dt;
-    if(correction>limit){cx*=limit/correction;cz*=limit/correction}
-    var forward=cx*Math.sin(h)+cz*Math.cos(h),motion=(pos.x-prePhysicsX)*Math.sin(h)+(pos.z-prePhysicsZ)*Math.cos(h);
-    // Use actual movement, not speed * dt: prediction can be paused for a
-    // stale connection or stopped by a wall, in which case that estimate would
-    // let reconciliation visibly drag a stationary bike backwards.
-    var minimum=motion>0?-motion*.5:0;if(v<-.1)minimum=-Infinity;
-    if(forward<minimum){cx+=(minimum-forward)*Math.sin(h);cz+=(minimum-forward)*Math.cos(h)}
-    pos.x+=cx;pos.z+=cz;h+=wrap(target.h-h)*f;v+=(target.v-v)*f;
+    var correction=multiplayerCorrection(ex-pos.x,ez-pos.z,h,wrap(target.h-h),dt,(pos.x-prePhysicsX)*Math.sin(h)+(pos.z-prePhysicsZ)*Math.cos(h),v,now<contactCorrectionUntil,held('left')||held('right'));
+    pos.x+=correction.x;pos.z+=correction.z;h+=correction.heading;
+    // An old reverse snapshot must not put a forward-moving bike into reverse.
+    var targetSpeed=target.v;if(v>=0&&!held('down'))targetSpeed=Math.max(0,targetSpeed);
+    v+=(targetSpeed-v)*(1-Math.exp(-dt*2));
     throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');
-    if(state==='racing'&&!mpDone&&dt>0&&now-targetReceivedAt<500)predictBikeContact(now,dt,beforeContact);
   }
   /* rpm */
   var av=Math.abs(v),g=Math.min(6,1+Math.floor(av/14.6)),frac=Math.min(1,(av-(g-1)*14.6)/14.6);
@@ -1564,23 +1572,6 @@ function desktopOpponentMesh(){
   }
   return new THREE.Mesh(desktopOpponentGeometry,desktopOpponentMaterial);
 }
-// Predict contact against the same remote poses used for drawing. The server
-// remains authoritative; this avoids riding through a visible bike while a
-// collision snapshot is in flight. Stale snapshots are never used here.
-function predictBikeContact(now,dt,previous){
-  if(!window.WMCBikeContact||!multiplayer)return;
-  var self={x:pos.x,z:pos.z,h:h,v:v,pushX:pushX,pushZ:pushZ};
-  multiplayer.members.forEach(function(m){
-    if(m.id===multiplayer.user_id||m.completed||m.dnf)return;
-    var smoother=opponentSmoothers[m.id];if(!smoother||smoother.lastArrival==null||now-smoother.lastArrival>500)return;
-    var pose=smoother.sample(now,100),prior=smoother.sample(now-dt*1000,100);if(!pose||!prior||!Number.isFinite(pose.v))return;
-    var other={x:pose.x,z:pose.z,h:pose.h,v:pose.v,pushX:pose.pushX||0,pushZ:pose.pushZ||0};
-    var hit=window.WMCBikeContact.resolve(self,other,previous,prior,dt,now<(localContactUntil[m.id]||0));
-    if(hit)localContactUntil[m.id]=now+250;
-    if(other.x!==pose.x||other.z!==pose.z)contactVisual[m.id]={x:other.x,z:other.z};
-  });
-  pos.x=self.x;pos.z=self.z;v=self.v;pushX=self.pushX||0;pushZ=self.pushZ||0;
-}
 // Each opponent retains an individual pose and emote; both platforms share
 // textured instance batches, with the procedural batch as a loading fallback.
 function clearOpponentBatches(){
@@ -1610,7 +1601,6 @@ function drawMultiplayerBikes(dt){
     if(!obj){if(created>=creationBudget)return;created++;obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group();obj.rotation.order='YXZ';pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.userData.bodyMatrix=new THREE.Matrix4();obj.userData.spawnAt=now;obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
     var grow=Math.min(1,Math.max(.01,(now-obj.userData.spawnAt)/200));obj.scale.setScalar(grow*1.15);var emote=m.emote;obj.userData.pivot.rotation.x=emote&&emote.kind==='wheelie'?-.45*emoteLevel(emote,now):0;drawNitro(obj.userData.nitro,emote,now);
     var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now,100);if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h;obj.rotation.z=Number.isFinite(sample.lean)?-sample.lean:0}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h;obj.rotation.z=Number.isFinite(m.lean)?-m.lean:0}
-    if(contactVisual[m.id])obj.position.set(contactVisual[m.id].x,0,contactVisual[m.id].z);
     var pivot=obj.userData.pivot,assembly=pivot.children[0];obj.updateMatrix();pivot.updateMatrix();assembly.updateMatrix();obj.userData.bodyMatrix.multiplyMatrices(obj.matrix,pivot.matrix).multiply(assembly.matrix);
     opponentBounds.center.set(obj.position.x,1,obj.position.z);
     if(batch&&instanceCount<15&&opponentFrustum.intersectsSphere(opponentBounds)){
@@ -1813,7 +1803,7 @@ function startMultiplayerPhase(match,remaining){
   if(resultsSequence)resultsSequence.cancel();resultsStarted=false;resultsMatch=null;practiceFinishTime=null;
   var target=match.phase;
   if(mpPhase===target)return;
-  clearOpponentBatches();lastTowerUpdate=-Infinity;Array.prototype.forEach.call($('raceRoster').children,function(row){row._gapTrend=null;var gap=row.querySelector('.race-gap');if(gap)gap.hidden=true});clearSharedQual();predictionReady=false;lastContactSeq=null;lastResetSeq=null;contactCorrectionUntil=0;localContactUntil={};contactVisual={};ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
+  clearOpponentBatches();lastTowerUpdate=-Infinity;Array.prototype.forEach.call($('raceRoster').children,function(row){row._gapTrend=null;var gap=row.querySelector('.race-gap');if(gap)gap.hidden=true});clearSharedQual();predictionReady=false;lastContactSeq=null;lastResetSeq=null;contactCorrectionUntil=0;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
   Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   if(target==='qualifying'&&qualCountdownCue!==-1)playMatchCue('go');
   lastCountdownCue=-1;state='menu';begin(target==='qualifying'?'qualifying':'race');$('pauseButton').hidden=false;$('matchIntro').hidden=true;
