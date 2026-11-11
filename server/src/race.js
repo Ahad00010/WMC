@@ -23,7 +23,7 @@ export class RaceRoom {
     if(text.length>180)return null;const clean=text.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,' ').replace(/\s+/g,' ').trim();
     if(!clean||p.chatAt!=null&&now-p.chatAt<1000)return null;p.chatAt=now;return {type:'chat',id:p.profile.id,name:p.profile.display_name,number:p.profile.number,color:p.profile.color,text:clean};
   }
-  reset(id){const p=this.players.get(id);if(!p||!p.connected||!p.state||!['race','qualifying'].includes(this.phase))return;let s=p.state;const {px,pz,tx,tz}=this.track,i=s.idx;s.x=px[i];s.z=pz[i];s.h=Math.atan2(tx[i],tz[i]);s.v=0;s.steer=0;s.lean=0;s.pitch=0;if(this.phase==='qualifying'&&p.flying&&!p.completed&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id,reason:'RESET ON TRACK'})}}
+  reset(id){const p=this.players.get(id);if(!p||!p.connected||!p.state||!['race','qualifying'].includes(this.phase))return;let s=p.state;const {px,pz,tx,tz}=this.track,i=s.idx;s.x=px[i];s.z=pz[i];s.h=Math.atan2(tx[i],tz[i]);s.v=0;s.steer=0;s.lean=0;s.pitch=0;s.pushX=0;s.pushZ=0;if(this.phase==='qualifying'&&p.flying&&!p.completed&&!p.invalid){p.invalid=true;this.events.push({type:'invalid',id,reason:'RESET ON TRACK'})}}
   setCircuit(id,circuit){if(id!==this.host||this.phase!=='lobby')throw Error('Only the host can choose a circuit in the lobby');const track=getTrack(circuit);this.track=track;this.physics=createPhysics(track);this.aiInput=createAI(track);this.circuit=circuit;this.circuitConfigured=true;for(const p of this.players.values())p.circuitReady=false}
   readyCircuit(id,circuit){const p=this.players.get(id);if(!p||!p.connected||circuit!==this.circuit)return false;p.circuitReady=true;return true}
   setAI(id,enabled){if(id!==this.host||this.phase!=='lobby'||typeof enabled!=='boolean')throw Error('Only the host can change AI in the lobby');this.fillAI=enabled}
@@ -35,10 +35,13 @@ export class RaceRoom {
     for(const p of this.players.values())if(!p.connected&&!p.dnf&&p.disconnectedAt!==null&&now-p.disconnectedAt>=GRACE&&!p.completed){p.dnf=true;p.completed=true;this.events.push({type:'dnf',id:p.profile.id});if([...this.players.values()].filter(q=>!q.ai).length===2){this.phase='complete';this.endReason='opponent_left';this.events.push({type:'session_ended',reason:this.endReason});return}}
     if(now>=this.phaseStart){
       const active=[...this.players.values()].filter(p=>!p.dnf&&!p.completed&&p.state);
+      // Finished riders continue rolling under their normal controls, but no
+      // longer collide or affect timing. Freezing them caused client rewinds.
+      for(const p of this.players.values())if(p.completed&&!p.dnf&&p.state){const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput();this.physics.step(p.state,input,dt)}
       const before=new Map(),results=new Map();
       for(const p of active){before.set(p,{x:p.state.x,z:p.state.z});const input=p.ai?this.aiInput(p.state,(p.grid%5)-2):p.connected&&now-p.inputAt<1000?p.input:neutralInput();results.set(p,this.physics.step(p.state,input,dt))}
       for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
-        const a=active[i],b=active[j];if(a.ai&&b.ai)continue;if(bikeContact.resolve(a.state,b.state,before.get(a),before.get(b))){a.state.contactSeq=(a.state.contactSeq||0)+1;b.state.contactSeq=(b.state.contactSeq||0)+1}
+        const a=active[i],b=active[j];if(a.ai&&b.ai)continue;if(bikeContact.resolve(a.state,b.state,before.get(a),before.get(b),dt)){a.state.contactSeq=(a.state.contactSeq||0)+1;b.state.contactSeq=(b.state.contactSeq||0)+1}
       }
       for(const p of active){
         this.physics.reconcile(p.state);const result=results.get(p);result.offTrack=Math.abs(p.state.lat)>this.track.kerbEdge(p.state.idx);

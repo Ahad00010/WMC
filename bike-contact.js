@@ -3,7 +3,7 @@
 (function(root){
 'use strict';
 var DIAMETER=2.2;
-function resolve(a,b,pa,pb){
+function resolve(a,b,pa,pb,dt,suppressImpulse){
   var ax=a.x-pa.x,az=a.z-pa.z,bx=b.x-pb.x,bz=b.z-pb.z,oldA=a.v,oldB=b.v;
   var sx=pb.x-pa.x,sz=pb.z-pa.z,dx=bx-ax,dz=bz-az;
   var endX=b.x-a.x,endZ=b.z-a.z,end2=endX*endX+endZ*endZ,r2=DIAMETER*DIAMETER,t=null;
@@ -16,19 +16,25 @@ function resolve(a,b,pa,pb){
   var d=Math.hypot(endX,endZ),nx=d>1e-8?endX/d:Math.sin(a.h),nz=d>1e-8?endZ/d:Math.cos(a.h);
   var shift=Math.max(0,DIAMETER-d)/2;a.x-=nx*shift;a.z-=nz*shift;b.x+=nx*shift;b.z+=nz*shift;
   var afx=Math.sin(a.h),afz=Math.cos(a.h),bfx=Math.sin(b.h),bfz=Math.cos(b.h);
-  var approachA=(afx*nx+afz*nz)*a.v,approachB=-(bfx*nx+bfz*nz)*b.v,closing=approachA+approachB;
-  var hit=closing>.5;
+  var avx=afx*a.v+(a.pushX||0),avz=afz*a.v+(a.pushZ||0),bvx=bfx*b.v+(b.pushX||0),bvz=bfz*b.v+(b.pushZ||0);
+  var closing=(avx-bvx)*nx+(avz-bvz)*nz,hit=closing>.5&&!suppressImpulse;
   if(hit){
-    // Only reduce speed: no accidental boosts or reverse movement on impact.
-    var loss=Math.min(closing*.45,25);
-    var weightA=Math.max(0,approachA),weightB=Math.max(0,approachB),sum=weightA+weightB;
-    if(sum>0){a.v=Math.sign(a.v)*Math.max(0,Math.abs(a.v)-loss*weightA/sum);b.v=Math.sign(b.v)*Math.max(0,Math.abs(b.v)-loss*weightB/sum)}
+    // Equal-mass impact with a little bounce: transfer momentum to the bike
+    // being hit, retaining sideways motion separately from engine speed.
+    var impulse=Math.min(closing*.55,12);
+    function apply(s,fx,fz,ix,iz){
+      var forward=ix*fx+iz*fz;s.v=Math.max(s.v>=0?0:-9,Math.min(88,s.v+forward));
+      s.pushX=(s.pushX||0)+ix-forward*fx;s.pushZ=(s.pushZ||0)+iz-forward*fz;
+      var side=Math.hypot(s.pushX,s.pushZ);if(side>20){s.pushX*=20/side;s.pushZ*=20/side}
+    }
+    apply(a,afx,afz,-nx*impulse,-nz*impulse);apply(b,bfx,bfz,nx*impulse,nz*impulse);
   }
   // Keep moving for the remainder of the step after the impact. Rewinding
   // both riders to contact every tick made close bikes freeze and stutter.
   if(t!==null){
     var ar=Math.abs(oldA)>1e-8?Math.min(1,Math.abs(a.v/oldA)):1,br=Math.abs(oldB)>1e-8?Math.min(1,Math.abs(b.v/oldB)):1;
-    a.x+=ax*(1-t)*ar;a.z+=az*(1-t)*ar;b.x+=bx*(1-t)*br;b.z+=bz*(1-t)*br;
+    if(Number.isFinite(dt)&&dt>0){var rest=dt*(1-t);a.x+=(afx*a.v+(a.pushX||0))*rest;a.z+=(afz*a.v+(a.pushZ||0))*rest;b.x+=(bfx*b.v+(b.pushX||0))*rest;b.z+=(bfz*b.v+(b.pushZ||0))*rest}
+    else{a.x+=ax*(1-t)*ar;a.z+=az*(1-t)*ar;b.x+=bx*(1-t)*br;b.z+=bz*(1-t)*br}
     var rx=b.x-a.x,rz=b.z-a.z,along=rx*nx+rz*nz;
     // Enforce the original contact plane; Euclidean distance alone would
     // allow a fast bike to emerge on the far side during this same step.
