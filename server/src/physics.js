@@ -26,7 +26,7 @@ function step(s,input,dt){
   const old=s.v;s.v+=a*dt;if((hard||!thr&&!(brk||hard))&&old*s.v<=0)s.v=0;
   const target=(input.left?1:0)-(input.right?1:0);s.steer+=(target-s.steer)*Math.min(1,dt*(target===0?(brk||hard?16:9):5.5));
   const av=Math.abs(s.v),yaw=s.steer*Math.min(1.9,18*grip/Math.max(av,.01))*Math.min(1,av/4)*(s.v>=0?1:-.7);
-  s.h+=yaw*dt;s.x+=Math.sin(s.h)*s.v*dt;s.z+=Math.cos(s.h)*s.v*dt;nearest(s);
+  s.h+=yaw*dt;s.x+=(Math.sin(s.h)*s.v+(s.pushX||0))*dt;s.z+=(Math.cos(s.h)*s.v+(s.pushZ||0))*dt;if(s.pushX||s.pushZ){const damping=Math.exp(-3*dt);s.pushX=(s.pushX||0)*damping;s.pushZ=(s.pushZ||0)*damping}nearest(s);
   const offTrack=Math.abs(s.lat)>kerbEdge(s.idx),wall=wallEdge(s.idx);
   if(Math.abs(s.lat)>wall){const sign=s.lat>0?1:-1,over=s.lat-sign*wall;s.x-=lx[s.idx]*over;s.z-=lz[s.idx]*over;if(s.impact<=0){s.v*=.6;s.impact=.5}s.v-=s.v*Math.min(1,2.2*dt);if(s.v>0)s.h+=wrap(Math.atan2(tx[s.idx],tz[s.idx])-s.h)*Math.min(1,2.5*dt)}
   if(s.impact>0)s.impact-=dt;

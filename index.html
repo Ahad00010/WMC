@@ -162,6 +162,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 @media (prefers-reduced-motion:reduce){.toast,.qual-banner{transition:none}}
 
 @media(max-width:700px),(max-height:500px){
+ .qual-session-status{flex-wrap:wrap}.qual-session-status #qualStatus{flex:0 0 100%;min-width:0}.qual-session-status #qualLapTime{margin-left:auto;white-space:nowrap}
  .qual-banner{width:min(200px,calc(100vw - 32px));bottom:calc(var(--gb) + 78px)}
  .qual-banner-head{padding:4px 7px;font-size:12px}.qual-banner-body{min-height:52px;padding:5px 7px 8px}
  .qual-banner.live .qual-time,.qual-banner.live .qual-delta{font-size:27px}.qual-banner.split .qual-time{font-size:25px}
@@ -224,6 +225,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 #raceRoster,#qualRoster{display:flex;flex-direction:column;overflow:hidden}.race-rider,.qual-row{will-change:transform}.match-intro{animation:match-fade .45s ease both;position:fixed;inset:0;z-index:22;background:#05080f;color:#fff;display:grid;place-items:center;padding:18px;overflow:auto;touch-action:pan-y}.match-intro.match-intro-exit{animation:match-exit .5s ease both;pointer-events:none}@keyframes match-exit{from{opacity:1}to{opacity:0}}.match-intro-content{text-align:center;width:min(600px,100%);animation:match-appear .7s ease both}.match-kicker{font:700 11px var(--ui);letter-spacing:.2em;color:#f03843}.match-intro h2{font:800 clamp(30px,5vw,54px)/1 var(--display);margin:12px 0}.match-intro p{font-size:13px;color:#bec7d0}.match-globe{font-size:54px;animation:match-spin 4s linear infinite}.match-roster{max-height:38vh;overflow:auto;text-align:left;display:grid;gap:4px}.match-roster div{padding:7px 10px;background:#ffffff10;font-size:12px}.match-roster b{color:#fff}.match-roster small{float:right;color:#b6bfcc}@keyframes match-fade{from{opacity:0}to{opacity:1}}@keyframes match-spin{to{transform:rotate(360deg)}}@keyframes match-appear{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.match-intro-content,.match-globe,.match-intro.match-intro-exit{animation:none}}
 
 .match-network{position:absolute;top:calc(var(--gt) + 45px);left:50%;transform:translateX(-50%);background:#721d22;color:white;padding:7px 12px;border-radius:3px;font:700 12px var(--ui);white-space:nowrap}.mp-tower .race-rider{height:var(--mp-row,25px);font-size:clamp(9px,calc(var(--mp-row,25px) * .55),15px)}.mp-tower .race-number{font-size:clamp(11px,calc(var(--mp-row,25px) * .75),21px)}.mp-qual .qual-row{padding:1px 7px;height:var(--mp-row,25px);font-size:clamp(9px,calc(var(--mp-row,25px) * .52),13px)}
+@media(max-width:700px),(max-height:500px){.mp-qual .qual-session-status{height:auto;min-height:var(--mp-row,25px);padding:4px 7px}}
 
 
 /* Two lines stay inside the existing row budget, including a 10-rider mobile grid. */
@@ -260,7 +262,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
     <div class="qual-progress"><span id="qualProgress"></span></div><div class="qual-clock" id="qualClock">4:00</div>
     <div id="qualRoster"><div id="qualOwnRow" class="qual-row"><span class="qual-position">1</span><span class="qual-name rider-short">D EFA</span><span class="qual-stripe"></span><span class="qual-flag" id="qualFinishFlag" hidden aria-label="Finished">&#9873;</span><span class="qual-best" id="qualBest">--:--.---</span></div>
     </div>
-    <div class="qual-row"><span class="qual-name" id="qualStatus">OUT LAP</span><span id="qualLapTime" style="font-variant-numeric:tabular-nums">--:--.---</span></div><div class="qual-footer">#MalaysianGP</div>
+    <div class="qual-row qual-session-status"><span class="qual-name" id="qualStatus">OUT LAP</span><span id="qualLapTime" style="font-variant-numeric:tabular-nums">--:--.---</span></div><div class="qual-footer">#MalaysianGP</div>
   </div>
   <div id="qualGraphics" class="qual-graphics" aria-label="Qualifying lap timing">
   <div class="qual-banner" id="qualBanner" aria-live="polite"><div class="qual-banner-head"><span><b class="qual-rank">1</b> <span class="rider-short">D EFA</span></span><span class="qual-number rider-number">0</span></div><div class="qual-banner-body"><div class="qual-message" id="qualMessage"></div><div class="qual-readout"><div class="qual-time" id="qualTime"></div><div class="qual-delta" id="qualDelta"></div></div><div class="qual-sectors" id="qualSectors"><i></i><i></i><i></i><i></i><span class="qual-marker" id="qualMarker"></span></div></div></div>
@@ -405,9 +407,9 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="race-server-config.js?v=render-1" defer></script>
 <script src="race-transport.js?v=reconnect-2" defer></script>
 <script src="circuits.js?v=1"></script>
-<script src="race-smoothing.js?v=remote-2"></script>
-<script src="bike-contact.js?v=2"></script>
-<script src="practice-ai.js?v=2"></script>
+<script src="race-smoothing.js?v=remote-3"></script>
+<script src="bike-contact.js?v=3"></script>
+<script src="practice-ai.js?v=3"></script>
 <script src="menu-music.js?v=1"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=max-riders-10" defer></script>
@@ -791,6 +793,7 @@ var idx=0,total=0,lat=0,lapNo=1,raceTime=0,lapStart=0,bestLap=null,lastLap=null;
 var RACE_LAPS=3,QUAL_DURATION=240000,QUAL_MAX_LAPS=3;
 var mode='race',qualBest=null,qualFlying=false,qualInvalid=false,qualSector=0,qualLine=0,qualDeadline=0,qualExpired=false,qualBannerTimer=0;
 var qualSectorBest=[null,null,null,null],qualSectorTimes=[],qualSectorColors=[],qualLastSplit=0,qualAnnouncement=false,qualLastResult='',qualAttempts=0,qualSequenceTimer=0,qualFinishTimer=0,qualDeltaText='',qualDeltaColour='#fff';
+var pushX=0,pushZ=0;
 var state='menu',cdT=0,goAt=0,impact=0,wrongT=0,surface='asphalt',rpm=0,throttleNow=0,brakeNow=false;
 var WIN=40;
 var camPos=new THREE.Vector3(),camH=0,shake=new THREE.Vector3(),look=new THREE.Vector3(),tgt=new THREE.Vector3();
@@ -799,7 +802,7 @@ try{var sb=window.localStorage.getItem('apexgp-'+circuitId+'-best');if(sb){bestL
 function wrap(a){while(a>Math.PI)a-=Math.PI*2;while(a<-Math.PI)a+=Math.PI*2;return a}
 function gridSpot(i0){
   idx=i0;total=i0>N/2?i0-N:i0;
-  pos.set(px[idx],0,pz[idx]);h=Math.atan2(tx[idx],tz[idx]);v=0;steer=0;lean=0;pitch=0;lat=0;
+  pos.set(px[idx],0,pz[idx]);h=Math.atan2(tx[idx],tz[idx]);v=0;steer=0;lean=0;pitch=0;pushX=0;pushZ=0;lat=0;
 }
 function globalNearest(){
   var best=1e18,bi=0;
@@ -996,8 +999,8 @@ function stepPracticeWithContact(dt){
   if(!(dt>0))return;var n=Math.ceil(dt/(1/60)),step=dt/n;
   for(var i=0;i<n;i++){
     var previous={x:pos.x,z:pos.z};physics(step);
-    var player={x:pos.x,z:pos.z,h:h,v:v};practiceAI.step(step,player,previous);
-    pos.x=player.x;pos.z=player.z;v=player.v;nearest();
+    var player={x:pos.x,z:pos.z,h:h,v:v,pushX:pushX,pushZ:pushZ};practiceAI.step(step,player,previous);
+    pos.x=player.x;pos.z=player.z;v=player.v;pushX=player.pushX||0;pushZ=player.pushZ||0;nearest();
   }
 }
 function practiceVisualMatch(){
@@ -1041,7 +1044,7 @@ var multiplayer=null,mpPhase='',mpDone=false,mpResultsTimer=0,mpOpponentMeshes={
 var ownSmoother=new WMCSnapshotSmoother(150),opponentSmoothers={},matchIntroStage='',lastCountdownCue=-1,qualCountdownCue=-1,mpStartAt=0;
 // Old servers omit rules. Keep their 5-lap/10-minute HUD until Render updates.
 var mpRaceLaps=5,mpQualDuration=600000,mpQualMax=5;
-var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0,sharedQual=null,lastContactSeq=null,contactCorrectionUntil=0;
+var pausedState='',pauseAt=0,mpMenuOpen=false,predictionReady=false,targetReceivedAt=0,sharedQual=null,lastContactSeq=null,contactCorrectionUntil=0,localContactUntil={},contactVisual={};
 function clearInputs(){keys={};document.querySelectorAll('.pad').forEach(function(p){p.classList.remove('on')})}
 function togglePause(){
   if(multiplayer){mpMenuOpen=!mpMenuOpen;clearInputs();if(window.WMCMatch)window.WMCMatch.sendInput();$('pauseTitle').textContent='RACE CONTINUES ONLINE';$('pauseOverlay').hidden=!mpMenuOpen;$('touch').hidden=mpMenuOpen;return}
@@ -1191,7 +1194,7 @@ function resetBike(){
   if(multiplayer&&window.WMCMatch){window.WMCMatch.reset();return}
   if(state==='racing'&&mode==='qualifying'&&qualFlying&&!qualInvalid){invalidateQual();showQualCancellation('RESET ON TRACK')}
   var i=globalNearest();
-  idx=i;pos.set(px[i],0,pz[i]);h=Math.atan2(tx[i],tz[i]);v=0;steer=0;lean=0;pitch=0;
+  idx=i;pos.set(px[i],0,pz[i]);h=Math.atan2(tx[i],tz[i]);v=0;steer=0;lean=0;pitch=0;pushX=0;pushZ=0;
   toast('BACK ON TRACK','',900);
 }
 var raceFinishTimer=0;
@@ -1260,7 +1263,7 @@ function physics(dt){
   var av=Math.abs(v);
   var yaw=steer*Math.min(1.9,18*grip/Math.max(av,0.01))*Math.min(1,av/4)*(v>=0?1:-0.7);
   h+=yaw*dt;
-  pos.x+=Math.sin(h)*v*dt;pos.z+=Math.cos(h)*v*dt;
+  pos.x+=(Math.sin(h)*v+pushX)*dt;pos.z+=(Math.cos(h)*v+pushZ)*dt;var pushDamping=Math.exp(-3*dt);pushX*=pushDamping;pushZ*=pushDamping;
   /* walls */
   nearest();
   if(!multiplayer&&state==='racing'&&mode==='qualifying'&&Math.abs(lat)>kerbEdge(idx))invalidateQual();
@@ -1340,7 +1343,7 @@ function updateDesktopSessionQuality(now,frameMs){
   }else{desktopSampleStart=0;desktopFrames=0;desktopFrameTime=0}
 }
 function frame(now){
-  var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000);lastT=now;clock+=dt;
+  var frameMs=now-lastT,dt=Math.min(0.05,Math.max(0,frameMs)/1000),beforeContact={x:pos.x,z:pos.z};lastT=now;clock+=dt;contactVisual={};
   // Sustained slow frames lower resolution gradually. A long pause is not a
   // performance sample; recovery is deliberately slower to avoid oscillation.
   if(mobileRender&&state!=='menu'&&frameMs>0&&frameMs<1000){
@@ -1376,15 +1379,16 @@ function frame(now){
   else if(state==='menu'||state==='paused'){throttleNow=0}
   if(multiplayer&&authoritativeTarget&&mpPhase===multiplayer.phase){
     var target=authoritativeTarget;
-    if(!predictionReady){pos.x=target.x;pos.z=target.z;h=target.h;v=target.v;steer=target.steer;lean=target.lean;pitch=target.pitch;idx=target.idx;total=target.total;lat=target.lat;impact=target.impact||0;predictionReady=true}
+    if(!predictionReady){pos.x=target.x;pos.z=target.z;h=target.h;v=target.v;steer=target.steer;lean=target.lean;pitch=target.pitch;idx=target.idx;total=target.total;lat=target.lat;impact=target.impact||0;pushX=target.pushX||0;pushZ=target.pushZ||0;predictionReady=true}
     if((state==='racing'||state==='finishing')&&dt>0&&now-targetReceivedAt<1000){var steps=Math.ceil(dt/(1/60));for(var q=0;q<steps;q++)physics(dt/steps)}
     // Correct prediction gradually toward a short extrapolation of the last server state.
     // Never pull a moving bike backwards solely to hide a network correction.
-    var age=Math.min(.2,Math.max(0,(now-targetReceivedAt)/1000)),ex=target.x+Math.sin(target.h)*target.v*age,ez=target.z+Math.cos(target.h)*target.v*age;
+    var age=Math.min(.2,Math.max(0,(now-targetReceivedAt)/1000)),ex=target.x+(Math.sin(target.h)*target.v+(target.pushX||0))*age,ez=target.z+(Math.cos(target.h)*target.v+(target.pushZ||0))*age;
     var dx=ex-pos.x,dz=ez-pos.z,dist=Math.hypot(dx,dz),correctContact=now<contactCorrectionUntil,f=1-Math.exp(-dt*(correctContact?7:2));
-    if(dist>45){pos.x=target.x;pos.z=target.z;h=target.h;v=target.v;steer=target.steer;lean=target.lean;pitch=target.pitch;idx=target.idx;total=target.total;lat=target.lat}
-    else{var cx=dx*f,cz=dz*f,forward=cx*Math.sin(h)+cz*Math.cos(h);if(v>1&&forward<0&&!correctContact){cx-=forward*Math.sin(h);cz-=forward*Math.cos(h)}if(correctContact){var correction=Math.hypot(cx,cz),limit=4*dt;if(correction>limit){cx*=limit/correction;cz*=limit/correction}}pos.x+=cx;pos.z+=cz;h+=wrap(target.h-h)*f;v+=(target.v-v)*f}
+    if(dist>45){pos.x=target.x;pos.z=target.z;h=target.h;v=target.v;steer=target.steer;lean=target.lean;pitch=target.pitch;idx=target.idx;total=target.total;lat=target.lat;pushX=target.pushX||0;pushZ=target.pushZ||0}
+    else{var cx=dx*f,cz=dz*f,forward=cx*Math.sin(h)+cz*Math.cos(h);if(v>1&&forward<0){cx-=forward*Math.sin(h);cz-=forward*Math.cos(h)}if(correctContact){var correction=Math.hypot(cx,cz),limit=4*dt;if(correction>limit){cx*=limit/correction;cz*=limit/correction}}pos.x+=cx;pos.z+=cz;h+=wrap(target.h-h)*f;v+=(target.v-v)*f}
     throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');
+    if(state==='racing'&&!mpDone&&dt>0&&now-targetReceivedAt<500)predictBikeContact(now,dt,beforeContact);
   }
   /* rpm */
   var av=Math.abs(v),g=Math.min(6,1+Math.floor(av/14.6)),frac=Math.min(1,(av-(g-1)*14.6)/14.6);
@@ -1464,6 +1468,23 @@ function desktopOpponentMesh(){
   }
   return new THREE.Mesh(desktopOpponentGeometry,desktopOpponentMaterial);
 }
+// Predict contact against the same remote poses used for drawing. The server
+// remains authoritative; this avoids riding through a visible bike while a
+// collision snapshot is in flight. Stale snapshots are never used here.
+function predictBikeContact(now,dt,previous){
+  if(!window.WMCBikeContact||!multiplayer)return;
+  var self={x:pos.x,z:pos.z,h:h,v:v,pushX:pushX,pushZ:pushZ};
+  multiplayer.members.forEach(function(m){
+    if(m.id===multiplayer.user_id||m.completed||m.dnf)return;
+    var smoother=opponentSmoothers[m.id];if(!smoother||smoother.lastArrival==null||now-smoother.lastArrival>500)return;
+    var pose=smoother.sample(now,100),prior=smoother.sample(now-dt*1000,100);if(!pose||!prior||!Number.isFinite(pose.v))return;
+    var other={x:pose.x,z:pose.z,h:pose.h,v:pose.v,pushX:pose.pushX||0,pushZ:pose.pushZ||0};
+    var hit=window.WMCBikeContact.resolve(self,other,previous,prior,dt,now<(localContactUntil[m.id]||0));
+    if(hit)localContactUntil[m.id]=now+250;
+    if(other.x!==pose.x||other.z!==pose.z)contactVisual[m.id]={x:other.x,z:other.z};
+  });
+  pos.x=self.x;pos.z=self.z;v=self.v;pushX=self.pushX||0;pushZ=self.pushZ||0;
+}
 // Each opponent retains an individual pose and emote; both platforms share
 // textured instance batches, with the procedural batch as a loading fallback.
 function clearOpponentBatches(){
@@ -1493,6 +1514,7 @@ function drawMultiplayerBikes(dt){
     if(!obj){if(created>=creationBudget)return;created++;obj=new THREE.Group();var pivot=new THREE.Group(),assembly=new THREE.Group();obj.rotation.order='YXZ';pivot.position.z=-.72;assembly.position.z=.72;pivot.add(assembly);obj.add(pivot);obj.userData.pivot=pivot;obj.userData.nitro=createNitro(assembly);obj.userData.bodyMatrix=new THREE.Matrix4();obj.userData.spawnAt=now;obj.position.set(m.x,0,m.z);scene.add(obj);mpOpponentMeshes[m.id]=obj}
     var grow=Math.min(1,Math.max(.01,(now-obj.userData.spawnAt)/200));obj.scale.setScalar(grow*1.15);var emote=m.emote;obj.userData.pivot.rotation.x=emote&&emote.kind==='wheelie'?-.45*emoteLevel(emote,now):0;drawNitro(obj.userData.nitro,emote,now);
     var sample=opponentSmoothers[m.id]&&opponentSmoothers[m.id].sample(now,100);if(sample){obj.position.set(sample.x,0,sample.z);obj.rotation.y=sample.h;obj.rotation.z=Number.isFinite(sample.lean)?-sample.lean:0}else{obj.position.set(m.x,0,m.z);if(m.h!=null)obj.rotation.y=m.h;obj.rotation.z=Number.isFinite(m.lean)?-m.lean:0}
+    if(contactVisual[m.id])obj.position.set(contactVisual[m.id].x,0,contactVisual[m.id].z);
     var pivot=obj.userData.pivot,assembly=pivot.children[0];obj.updateMatrix();pivot.updateMatrix();assembly.updateMatrix();obj.userData.bodyMatrix.multiplyMatrices(obj.matrix,pivot.matrix).multiply(assembly.matrix);
     opponentBounds.center.set(obj.position.x,1,obj.position.z);
     if(batch&&instanceCount<15&&opponentFrustum.intersectsSphere(opponentBounds)){
@@ -1694,7 +1716,7 @@ function renderRaceRoster(match){
 function startMultiplayerPhase(match,remaining){
   var target=match.phase;
   if(mpPhase===target)return;
-  clearOpponentBatches();lastTowerUpdate=-Infinity;Array.prototype.forEach.call($('raceRoster').children,function(row){row._gapTrend=null;var gap=row.querySelector('.race-gap');if(gap)gap.hidden=true});clearSharedQual();predictionReady=false;lastContactSeq=null;contactCorrectionUntil=0;ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
+  clearOpponentBatches();lastTowerUpdate=-Infinity;Array.prototype.forEach.call($('raceRoster').children,function(row){row._gapTrend=null;var gap=row.querySelector('.race-gap');if(gap)gap.hidden=true});clearSharedQual();predictionReady=false;lastContactSeq=null;contactCorrectionUntil=0;localContactUntil={};contactVisual={};ownSmoother.clear();opponentSmoothers={};authoritativeTarget=null;mpPhase=target;mpDone=false;clearTimeout(qualFinishTimer);clearTimeout(raceFinishTimer);clearTimeout(mpResultsTimer);mpResultsTimer=0;Array.prototype.slice.call($('qualRoster').children).forEach(function(el){if(el.id!=='qualOwnRow')el.remove()});$('qualOwnRow').style.order='';delete $('qualOwnRow').dataset.riderId;delete $('qualOwnRow').dataset.previousOrder;$('sessionEnd').hidden=true;
   Object.keys(mpOpponentMeshes).forEach(function(id){scene.remove(mpOpponentMeshes[id]);delete mpOpponentMeshes[id]});
   if(target==='qualifying'&&qualCountdownCue!==-1)playMatchCue('go');
   lastCountdownCue=-1;state='menu';begin(target==='qualifying'?'qualifying':'race');$('pauseButton').hidden=false;$('matchIntro').hidden=true;
@@ -1735,10 +1757,10 @@ window.WMCGame={
     var own=raw.players.find(function(p){return p.id===userId});if(!own||!own.state||mpPhase!==raw.phase)return;
     var receivedAt=performance.now();updateSharedQual(raw,userId,receivedAt);if(raw.phase==='qualifying'&&sharedQual&&sharedQual.records[userId])qualSectorColors=sharedQual.records[userId].colors.slice();ownSmoother.push(own.state,receivedAt,raw.serverTime);raw.players.forEach(function(p){if(p.id===userId||!p.state)return;if(!opponentSmoothers[p.id])opponentSmoothers[p.id]=new WMCSnapshotSmoother(150);opponentSmoothers[p.id].push(p.state,receivedAt,raw.serverTime)});
     if(own.emote&&['wheelie','nitro'].includes(own.emote.kind)&&own.emote.until>raw.serverTime)localEmote={kind:own.emote.kind,until:receivedAt+own.emote.until-raw.serverTime};
-    var contactSeq=own.state.contactSeq||0;if(lastContactSeq!==null&&contactSeq!==lastContactSeq){contactCorrectionUntil=receivedAt+800;if(Math.sign(v)===Math.sign(own.state.v)&&Math.abs(own.state.v)<Math.abs(v))v=own.state.v}lastContactSeq=contactSeq;
+    var contactSeq=own.state.contactSeq||0;if(lastContactSeq!==null&&contactSeq!==lastContactSeq){contactCorrectionUntil=receivedAt+800;pushX=own.state.pushX||0;pushZ=own.state.pushZ||0;if(Number.isFinite(own.state.v))v=own.state.v}lastContactSeq=contactSeq;
     authoritativeTarget=own.state;targetReceivedAt=receivedAt;mpDone=own.completed;qualBest=own.best;qualAttempts=own.attempts;qualInvalid=own.invalid;qualFlying=own.flying;qualSector=own.sector;qualLine=own.line;lapNo=Math.min(mpRaceLaps,own.lap);raceTime=Math.max(0,(raw.serverTime-raw.phaseStart)/1000);lapStart=Math.max(0,(own.lapStart-raw.phaseStart)/1000);
     if(raw.phase==='race'){elBest.textContent=fmt(own.raceBest);elLast.textContent=fmt(own.lastLap);if(own.completed){state='finishing';$('raceFinishFlag').hidden=own.dnf||own.finishAt==null}else if(state!=='countdown'){elLap.textContent=lapNo===mpRaceLaps?'LAST LAP':lapNo+'/'+mpRaceLaps;elLap.classList.toggle('race-final-text',lapNo===mpRaceLaps);$('raceLapLabel').hidden=lapNo===mpRaceLaps}}
-    if(raw.phase==='qualifying'){var seconds=Math.ceil(Math.max(0,(raw.phaseStart+mpQualDuration-raw.serverTime)/1000));$('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');$('qualProgress').style.transform='scaleX('+(seconds/(mpQualDuration/1000))+')';$('qualBest').textContent=fmt(own.best);$('qualStatus').textContent=own.completed?'WAITING FOR RIDERS':own.flying?'LAP '+(own.attempts+1)+' / '+mpQualMax:'OUT LAP';$('qualLapTime').hidden=own.invalid;if(own.completed)state='finishing'}
+    if(raw.phase==='qualifying'){var seconds=Math.ceil(Math.max(0,(raw.phaseStart+mpQualDuration-raw.serverTime)/1000));$('qualClock').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');$('qualProgress').style.transform='scaleX('+(seconds/(mpQualDuration/1000))+')';$('qualBest').textContent=fmt(own.best);$('qualStatus').textContent=own.completed?'WAITING FOR RIDERS':own.flying&&seconds===0?'FINISH YOUR LAP':own.flying?'LAP '+(own.attempts+1)+' / '+mpQualMax:'OUT LAP';$('qualLapTime').hidden=own.invalid;if(own.completed)state='finishing'}
     (raw.events||[]).forEach(function(e){if(e.id!==userId)return;if(e.type==='invalid')showQualCancellation(e.reason);else if(e.type==='sector'){var d=e.delta==null?'':(e.delta>=0?'+':'-')+Math.abs(e.delta).toFixed(3);showQualSplit(e.split,d,e.color|| (e.delta!=null&&e.delta<0?'best':'slow'),e.sector>=2)}else if(e.type==='lap'&&e.valid){if(e.fastest)showFastestLap(e.time);else showQual('',fmt(e.time),false,e.personal?'fast':'slow')}});
   },
   receive:function(match){

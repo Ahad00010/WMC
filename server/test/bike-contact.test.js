@@ -2,10 +2,10 @@ import test from 'node:test';import assert from 'node:assert/strict';import {cre
 const require=createRequire(import.meta.url),contact=require('../../bike-contact.js'),practice=require('../../practice-ai.js');
 const state=(x,z,h,v)=>({x,z,h,v});
 test('swept rear, head-on and side contact separates bikes and reduces only approaching speed',()=>{
- let a=state(0,6,0,60),b=state(0,4,0,10);assert.equal(contact.resolve(a,b,{x:0,z:0},{x:0,z:4}),true);assert.ok(a.z<b.z,'fast rider cannot tunnel through the bike ahead');assert.ok(a.v<60&&a.v>=0);assert.equal(b.v,10);assert.ok(Math.hypot(a.x-b.x,a.z-b.z)>=contact.diameter-1e-8);
+ let a=state(0,6,0,60),b=state(0,4,0,10);assert.equal(contact.resolve(a,b,{x:0,z:0},{x:0,z:4}),true);assert.ok(a.z<b.z,'fast rider cannot tunnel through the bike ahead');assert.ok(a.v<60&&a.v>=0);assert.ok(b.v>10,'the struck bike is pushed forward');assert.ok(Math.hypot(a.x-b.x,a.z-b.z)>=contact.diameter-1e-8);
  a=state(0,5,0,60);b=state(0,1,0,0);assert.equal(contact.resolve(a,b,{x:0,z:0},{x:0,z:1}),true);assert.ok(a.z<b.z,'an initially overlapping bike cannot tunnel through');
  a=state(0,1,0,20);b=state(0,2,Math.PI,20);assert.equal(contact.resolve(a,b,{x:0,z:0},{x:0,z:3}),true);assert.ok(a.v<20&&b.v<20);
- a=state(0,0,Math.PI/2,20);b=state(1,0,0,0);assert.equal(contact.resolve(a,b,{x:-1,z:0},{x:2,z:0}),true);assert.ok(a.v<20);assert.equal(b.v,0);
+ a=state(0,0,Math.PI/2,20);b=state(1,0,0,0);assert.equal(contact.resolve(a,b,{x:-1,z:0},{x:2,z:0}),true);assert.ok(a.v<20);assert.ok(b.pushX>0,'side contact pushes the other bike sideways');
 });
 test('stationary and separating bikes are not repeatedly slowed or boosted',()=>{
  let a=state(0,0,0,0),b=state(0,1,0,0);assert.equal(contact.resolve(a,b,{...a},{...b}),false);assert.equal(a.v,0);assert.equal(b.v,0);assert.ok(Math.hypot(a.x-b.x,a.z-b.z)>=contact.diameter-1e-8);
@@ -24,4 +24,10 @@ test('riders travelling together do not freeze at the contact plane',()=>{
  const a=state(0,0,0,41),b=state(0,contact.diameter,0,40);let hits=0;
  for(let i=0;i<120;i++){const pa={...a},pb={...b};a.z+=a.v/60;b.z+=b.v/60;if(contact.resolve(a,b,pa,pb))hits++;assert.ok(a.z<b.z,'bikes remain in order')}
  assert.ok(a.z>75&&b.z>77,'both riders continue moving while touching');assert.ok(hits<10,'nearly matched bikes do not repeatedly trigger hard collision corrections');
+});
+test('side impacts transfer momentum and drift decays through authoritative physics',async()=>{
+ const {createPhysics}=await import('../src/physics.js'),track=getTrack('sepang'),physics=createPhysics(track),a=physics.spawn(1),b=physics.spawn(2);a.x=0;a.z=0;a.h=Math.PI/2;a.v=20;b.x=1.5;b.z=0;b.h=0;b.v=0;contact.resolve(a,b,{x:-.5,z:0},{x:1.5,z:0},1/60);assert.ok(b.pushX>1,'hit bike gains sideways velocity');const before=b.x;physics.step(b,{up:false,down:false,left:false,right:false,brake:false},1/60);assert.ok(b.x>before,'sideways impulse actually moves the hit bike');const initial=b.pushX;for(let i=0;i<120;i++)physics.step(b,{up:false,down:false,left:false,right:false,brake:false},1/60);assert.ok(Math.abs(b.pushX)<Math.abs(initial)*.01,'sideways impulse settles');
+});
+test('finished multiplayer riders keep moving without changing results while others finish',()=>{
+ const r=new RaceRoom({id:'finish',host_id:'a',mode:'race'});for(const id of ['a','b'])r.join({id,display_name:id,username:id,number:1,color:'red'},0);r.start('a',0);const a=r.players.get('a'),b=r.players.get('b'),s=a.state;Object.assign(s,{x:r.track.px[0],z:r.track.pz[0],h:Math.atan2(r.track.tx[0],r.track.tz[0]),v:60,total:r.track.N*3+1,idx:0});a.lap=3;r.advance(r.phaseStart,1/60);assert.equal(a.completed,true);const finish=a.finishAt,start={x:s.x,z:s.z};for(let i=1;i<=240;i++){const now=r.phaseStart+i*1000/60;r.input('a',{up:true,down:false,left:false,right:false,brake:false},now);r.advance(now,1/60)}assert.equal(b.completed,false);assert.equal(a.finishAt,finish);assert.ok(Math.hypot(s.x-start.x,s.z-start.z)>45,'finished rider continues moving instead of being frozen at the line');assert.equal(r.phase,'race');
 });
