@@ -8,7 +8,7 @@ function createFootage(env){
  function start(source,now){
   if(disabled||!source.captureStream||!env.MediaRecorder)return false;
   try{
-   if(!stream)stream=source.captureStream(18);
+   if(!stream)stream=source.captureStream(30);
    var types=['video/webm;codecs=vp8','video/webm','video/mp4'],mime=types.find(function(type){return env.MediaRecorder.isTypeSupported&&env.MediaRecorder.isTypeSupported(type)}),options={videoBitsPerSecond:6000000};if(mime)options.mimeType=mime;
    var r=new env.MediaRecorder(stream,options),g=generation,part={start:now,end:now,scores:Object.create(null),finishers:Object.create(null),chunks:[]};recorder=r;segment=part;
    r.ondataavailable=function(e){if(e.data&&e.data.size)part.chunks.push(e.data)};
@@ -32,12 +32,15 @@ function createFootage(env){
   if((crossed||endRace)&&segment.closeAt==null)segment.closeAt=now+120;
   if(endRace)segment.endRace=true;
   if(segment.closeAt!=null&&now>=segment.closeAt){var ending=segment.endRace;finishPart(now);if(ending){stopTracks();return true}start(source,now)}
-  else if(segment.closeAt==null&&now-segment.start>=6000){finishPart(now);start(source,now)}
+  else if(segment.closeAt==null&&now-segment.start>=20000){finishPart(now);start(source,now)}
   return false;
  }
  function finish(now){finishPart(now);stopTracks()}
  function clip(id){return best[id]||null}
  return {clear:clear,record:record,finish:finish,clip:clip};
 }
-root.WMCWinnerReplay={createFootage:createFootage};if(typeof module!=='undefined'&&module.exports)module.exports=root.WMCWinnerReplay;
+// Start only in the final approach. Track progress is measured in laps, not
+// straight-line distance, so the start line cannot be mistaken for the finish.
+function nearFinish(progress,laps,trackLength){if(!Number.isFinite(progress)||!Number.isFinite(laps)||!Number.isFinite(trackLength)||laps<1||trackLength<=0)return false;var remaining=(laps-progress)*trackLength;return remaining<=Math.min(1300,trackLength*.4)&&remaining>=-100}
+root.WMCWinnerReplay={createFootage:createFootage,nearFinish:nearFinish};if(typeof module!=='undefined'&&module.exports)module.exports=root.WMCWinnerReplay;
 })(typeof window!=='undefined'?window:globalThis);
