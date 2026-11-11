@@ -1462,7 +1462,11 @@ function frame(now){
   if(multiplayer&&authoritativeTarget&&mpPhase===multiplayer.phase){
     var target=authoritativeTarget;
     if(!predictionReady){pos.x=target.x;pos.z=target.z;h=target.h;v=target.v;steer=target.steer;lean=target.lean;pitch=target.pitch;idx=target.idx;total=target.total;lat=target.lat;impact=target.impact||0;pushX=target.pushX||0;pushZ=target.pushZ||0;predictionReady=true}
-    if((state==='racing'||state==='finishing')&&dt>0&&now-targetReceivedAt<1000){var steps=Math.ceil(dt/(1/60));for(var q=0;q<steps;q++)physics(dt/steps)}
+    // On slow phones simulate the actual elapsed time in bounded substeps, rather
+    // than losing everything above 50 ms on every frame. Long tab suspensions
+    // remain capped and stale connections still stop prediction after one second.
+    var mpDt=frameMs>0&&frameMs<1000?Math.min(.2,frameMs/1000):dt,prePhysicsX=pos.x,prePhysicsZ=pos.z;
+    if((state==='racing'||state==='finishing')&&mpDt>0&&now-targetReceivedAt<1000){var steps=Math.ceil(mpDt/(1/60));for(var q=0;q<steps;q++)physics(mpDt/steps)}
     // Correct prediction gradually toward a short extrapolation of the last server state.
     // Never pull a moving bike backwards solely to hide a network correction.
     var age=Math.min(.6,Math.max(0,(now-targetReceivedAt+networkLatency)/1000)),ex=target.x+(Math.sin(target.h)*target.v+(target.pushX||0))*age,ez=target.z+(Math.cos(target.h)*target.v+(target.pushZ||0))*age;
@@ -1472,8 +1476,12 @@ function frame(now){
     // bike can slow down but cannot visibly move backwards during recovery.
     var cx=dx*f,cz=dz*f,correction=Math.hypot(cx,cz),limit=(dist>12?12:6)*dt;
     if(correction>limit){cx*=limit/correction;cz*=limit/correction}
-    var forward=cx*Math.sin(h)+cz*Math.cos(h),motion=(v+pushX*Math.sin(h)+pushZ*Math.cos(h))*dt;
-    var minimum=motion>0?-motion*.5:-.5*dt;if(forward<minimum){cx+=(minimum-forward)*Math.sin(h);cz+=(minimum-forward)*Math.cos(h)}
+    var forward=cx*Math.sin(h)+cz*Math.cos(h),motion=(pos.x-prePhysicsX)*Math.sin(h)+(pos.z-prePhysicsZ)*Math.cos(h);
+    // Use actual movement, not speed * dt: prediction can be paused for a
+    // stale connection or stopped by a wall, in which case that estimate would
+    // let reconciliation visibly drag a stationary bike backwards.
+    var minimum=motion>0?-motion*.5:0;if(v<-.1)minimum=-Infinity;
+    if(forward<minimum){cx+=(minimum-forward)*Math.sin(h);cz+=(minimum-forward)*Math.cos(h)}
     pos.x+=cx;pos.z+=cz;h+=wrap(target.h-h)*f;v+=(target.v-v)*f;
     throttleNow=held('up')?1:0;brakeNow=held('down')||held('brake');
     if(state==='racing'&&!mpDone&&dt>0&&now-targetReceivedAt<500)predictBikeContact(now,dt,beforeContact);
