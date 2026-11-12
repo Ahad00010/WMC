@@ -138,9 +138,20 @@ func _run() -> void:
   push_error("Profile validation failed")
   quit(1)
   return
+ game.auth.operation = "save"
+ game.auth._response(HTTPRequest.RESULT_SUCCESS, 409, PackedStringArray(), '{"code":"23505"}'.to_utf8_buffer())
+ if not game.profile_error.text.contains("already taken") or game.auth.access_token.is_empty():
+  push_error("Duplicate username error lost the session or was not shown")
+  quit(1)
+  return
+ game.auth.operation = "save"
+ game.auth._response(HTTPRequest.RESULT_SUCCESS, 200, PackedStringArray(), '[{"username":"testrider","display_name":"Test Rider","rider_number":93,"plate_color":"red"}]'.to_utf8_buffer())
+ if game.profile_panel.visible or game.profile.get("rider_number") != 93 or game.auth_button.text != "Edit profile":
+  push_error("Saved profile was not applied to the menu")
+  quit(1)
+  return
  game.auth.access_token = ""
  game.auth.user_id = ""
- game.profile_panel.visible = false
  if game.engine_player == null or not game.engine_player.stream is AudioStreamGenerator:
   push_error("Native engine audio was not initialized")
   quit(1)
