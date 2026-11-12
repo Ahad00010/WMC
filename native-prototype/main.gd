@@ -683,12 +683,12 @@ and keep out of the gravel.", 22, 265)
  if mobile:
   _menu_label(card, "Use the on-screen controls to ride.", 22, 366)
  else:
-  _menu_label(card, "W   Throttle              S   Brake / reverse", 19, 354)
-  _menu_label(card, "A  D   Lean left / right     Space   Hard brake", 19, 391)
+  _menu_label(card, "W   Throttle              S   Brake / reverse", 19, 356)
+  _menu_label(card, "A  D   Lean left / right     Space   Hard brake", 19, 394)
  # Sign-in uses the system browser and retrieves this account's own profile.
  var account_actions := HBoxContainer.new()
  account_actions.name = "AccountActions"
- account_actions.position = Vector2(0, 431)
+ account_actions.position = Vector2(0, 432)
  account_actions.size = Vector2(760, 54)
  account_actions.alignment = BoxContainer.ALIGNMENT_CENTER
  account_actions.add_theme_constant_override("separation", 8)
