@@ -5,6 +5,8 @@ const BIKE = preload("res://assets/bike-mobile.glb")
 const RIDER = preload("res://assets/marc-rider.glb")
 const DISPLAY_FONT = preload("res://assets/MGPDisplay-Medium.otf")
 const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
+const AUTH_SCRIPT = preload("res://auth.gd")
+const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
 const REPLAY_FPS := 24.0
@@ -28,6 +30,14 @@ var hud: Label
 var status: Label
 var results: Control
 var controls: Control
+var menu: Control
+var music: AudioStreamPlayer
+var music_muted := false
+var music_target := 0.0
+var auth_status: Label
+var auth_button: Button
+var sign_out_button: Button
+var auth: Node
 
 func _ready() -> void:
  mobile = OS.has_feature("mobile")
@@ -35,6 +45,8 @@ func _ready() -> void:
  _make_world()
  _make_ui()
  _reset()
+ _make_audio()
+ _make_auth()
 
 func _read_track() -> void:
  var points = JSON.parse_string(FileAccess.get_file_as_string("res://assets/sepang.json"))
@@ -298,6 +310,8 @@ func _reset() -> void:
  bike.position = track[0] + Vector3.UP * 0.05
  var direction := (track[1] - track[0]).normalized()
  heading = atan2(direction.x, direction.z)
+ camera.position = bike.position - direction * 7.0 + Vector3.UP * 3.0
+ camera.look_at(bike.position + direction * 7.0 + Vector3.UP, Vector3.UP)
  speed = 0.0
  steer = 0.0
  elapsed = 0.0
@@ -312,15 +326,16 @@ func _physics_process(dt: float) -> void:
   return
  elapsed += dt
  var throttle: bool = Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch.accelerate
- var braking: bool = Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch.brake
+ var hard_brake: bool = Input.is_key_pressed(KEY_SPACE)
+ var braking: bool = hard_brake or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch.brake
  var left: bool = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or touch.left
  var right: bool = Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or touch.right
  var turn := float(int(left) - int(right))
  steer = move_toward(steer, turn, dt * 3.5)
- if throttle:
+ if braking:
+  speed = maxf(speed - (40.0 if hard_brake else 22.0) * dt, 0.0)
+ elif throttle:
   speed = minf(speed + 9.0 * dt, 75.0)
- elif braking:
-  speed = maxf(speed - 22.0 * dt, 0.0)
  else:
   speed = maxf(speed - 1.8 * dt, 0.0)
  heading += steer * dt * clampf(speed / 35.0, 0.0, 1.0) * 0.8
@@ -348,8 +363,15 @@ func _physics_process(dt: float) -> void:
   speed = maxf(0, speed - 14.0 * dt)
  camera.position = bike.position - forward * 7.0 + Vector3.UP * 3.0
  camera.look_at(bike.position + forward * 7.0 + Vector3.UP, Vector3.UP)
+ camera.rotate_object_local(Vector3.BACK, -visual.rotation.z * 0.07)
 
 func _process(dt: float) -> void:
+ if music:
+  var volume := db_to_linear(music.volume_db)
+  volume = move_toward(volume, 0.0 if music_muted else music_target, dt * 0.55 / 0.85)
+  music.volume_db = linear_to_db(maxf(volume, 0.0001))
+  if music_target == 0.0 and volume <= 0.0001 and music.playing:
+   music.stop()
  if active and replay_enabled:
   replay_clock += dt
   if replay_clock >= 1.0 / REPLAY_FPS:
@@ -376,6 +398,7 @@ func _button(parent: Control, text: String, pos: Vector2, size: Vector2) -> Butt
  button.text = text
  button.position = pos
  button.size = size
+ button.focus_mode = Control.FOCUS_NONE
  button.add_theme_font_override("font", TEXT_FONT)
  button.add_theme_font_size_override("font_size", 22)
  parent.add_child(button)
@@ -385,8 +408,9 @@ func _make_ui() -> void:
  var layer := CanvasLayer.new()
  add_child(layer)
  controls = Control.new()
- controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  layer.add_child(controls)
+ controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ controls.visible = false
  hud = _label(controls, "", 24, Vector2(26, 24))
  status = _label(controls, "Press START / RESTART to drive | replay view is a rendering test only", 17, Vector2(26, 64))
  var start := _button(controls, "START / RESTART", Vector2(25, 110), Vector2(220, 52))
@@ -428,8 +452,106 @@ func _make_ui() -> void:
  result_rider.add_theme_font_override("font", DISPLAY_FONT)
  var back := _button(results, "BACK TO TRACK", Vector2(410, 400), Vector2(260, 55))
  back.pressed.connect(func(): results.visible = false; active = true)
+ _make_menu(layer)
 
 func _show_results() -> void:
  active = false
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
  results.visible = true
+
+
+func _make_audio() -> void:
+ music = AudioStreamPlayer.new()
+ var soundtrack = MENU_MUSIC.duplicate()
+ soundtrack.loop = true
+ music.stream = soundtrack
+ music.volume_db = -80.0
+ add_child(music)
+ music_target = 0.55
+ music.play()
+
+func _make_auth() -> void:
+ auth = AUTH_SCRIPT.new()
+ add_child(auth)
+ auth.status_changed.connect(func(message: String): auth_status.text = message)
+ auth.profile_loaded.connect(func(profile: Dictionary):
+  auth_status.text = "@%s  ·  #%s  ·  %s" % [profile.get("username", "rider"), profile.get("rider_number", "—"), profile.get("plate_color", "")]
+  auth_button.visible = false
+  sign_out_button.visible = true
+ )
+
+func _make_menu(layer: CanvasLayer) -> void:
+ menu = Control.new()
+ layer.add_child(menu)
+ menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ var shade := ColorRect.new()
+ shade.color = Color(0.03, 0.04, 0.06, 0.72)
+ menu.add_child(shade)
+ shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ var card := Control.new()
+ card.position = Vector2(460, 100)
+ card.size = Vector2(480, 560)
+ menu.add_child(card)
+ var eyebrow := _label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 11, Vector2(0, 0))
+ eyebrow.add_theme_color_override("font_color", Color("ec2939"))
+ var brand := _label(card, "WMC", 86, Vector2(0, 28))
+ brand.add_theme_font_override("font", DISPLAY_FONT)
+ _label(card, "World Motorbike Championship", 18, Vector2(0, 126))
+ var description := _label(card, "Stay on the asphalt, brake before the corners,
+and keep out of the gravel.", 15, Vector2(0, 170))
+ description.add_theme_color_override("font_color", Color("c5cad1"))
+ if mobile:
+  _label(card, "Use the on-screen controls to ride.", 15, Vector2(0, 255))
+ else:
+  _label(card, "W   Throttle              S   Brake / reverse", 14, Vector2(0, 246))
+  _label(card, "A  D   Lean left / right     Space   Hard brake", 14, Vector2(0, 275))
+ # Sign-in uses the system browser and retrieves this account's own profile.
+ var sound := _button(card, "Sound: on", Vector2(0, 326), Vector2(108, 38))
+ sound.add_theme_font_size_override("font_size", 13)
+ sound.pressed.connect(func():
+  music_muted = not music_muted
+  sound.text = "Sound: off" if music_muted else "Sound: on"
+ )
+ auth_button = _button(card, "Sign in with Google", Vector2(116, 326), Vector2(180, 38))
+ auth_button.add_theme_font_size_override("font_size", 13)
+ auth_button.pressed.connect(func(): auth.sign_in())
+ sign_out_button = _button(card, "Sign out", Vector2(116, 326), Vector2(110, 38))
+ sign_out_button.add_theme_font_size_override("font_size", 13)
+ sign_out_button.visible = false
+ sign_out_button.pressed.connect(func():
+  auth.sign_out()
+  auth_button.visible = true
+  sign_out_button.visible = false
+ )
+ auth_status = _label(card, "", 12, Vector2(0, 369))
+ var play := _button(card, "PLAY", Vector2(0, 400), Vector2(125, 55))
+ play.add_theme_font_override("font", DISPLAY_FONT)
+ play.add_theme_font_size_override("font_size", 25)
+ var red := StyleBoxFlat.new()
+ red.bg_color = Color("e4202c")
+ play.add_theme_stylebox_override("normal", red)
+ var hover := red.duplicate()
+ hover.bg_color = Color("ff3442")
+ play.add_theme_stylebox_override("hover", hover)
+ play.add_theme_stylebox_override("pressed", hover)
+ play.pressed.connect(_start_from_menu)
+ var credit := _label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0
+Native prototype · practice only", 11, Vector2(0, 477))
+ credit.add_theme_color_override("font_color", Color("9da3aa"))
+
+func _start_from_menu() -> void:
+ if not menu.visible:
+  return
+ menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ music_target = 0.0
+ var tween := create_tween()
+ tween.tween_property(menu, "modulate:a", 0.0, 0.45)
+ tween.tween_callback(func():
+  menu.visible = false
+  _reset()
+  controls.visible = true
+  results.visible = false
+  active = true
+  status.text = "Native benchmark: replay view OFF | 24 fps target | no video recording"
+ )

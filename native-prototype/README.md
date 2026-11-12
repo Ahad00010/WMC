@@ -15,3 +15,5 @@ Toggle **REPLAY VIEW** while driving to render a second live camera view at a ta
 ## Local build
 
 Open `native-prototype/project.godot` with Godot 4.4.1. Install the matching export templates and Android SDK/JDK 17 in Godot editor settings, then export using the Windows and Android presets. The GitHub workflow documents a repeatable CI build.
+
+The opening screen and soundtrack are native approximations of the web menu. Play starts the prototype immediately. Hold Space for hard braking; controls use no keyboard focus to prevent Space activating UI buttons. The camera now banks subtly with the bike as in the web game. The native Google sign-in uses your system browser and PKCE, keeping tokens only in memory and retrieving your existing rider profile; new profiles must be created in the web game. It uses an app-local callback on port 18674, so browser or device restrictions may affect it and real Windows/Android sign-in testing is required. Signing out clears the prototype's in-memory token; your browser's Google session is not signed out.

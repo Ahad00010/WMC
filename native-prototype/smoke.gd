@@ -16,6 +16,15 @@ func _run() -> void:
   push_error("Circuit visuals did not initialize")
   quit(1)
   return
+ if not game.menu.visible or game.controls.visible or game.music == null or game.auth == null:
+  push_error("Native opening screen did not initialize")
+  quit(1)
+  return
+ for button in game.controls.find_children("*", "Button", true, false):
+  if button.focus_mode != Control.FOCUS_NONE:
+   push_error("Driving controls can accidentally activate a focused button")
+   quit(1)
+   return
  var start = game.bike.position
  game.active = true
  game.touch["accelerate"] = true
@@ -23,6 +32,19 @@ func _run() -> void:
   game._physics_process(1.0 / 60.0)
  if game.speed <= 0.0 or game.bike.position.distance_to(start) < 1.0:
   push_error("Native bike failed to accelerate")
+  quit(1)
+  return
+ var before_brake: float = game.speed
+ var before_position: Vector3 = game.bike.position
+ var key := InputEventKey.new()
+ key.keycode = KEY_SPACE
+ key.pressed = true
+ Input.parse_input_event(key)
+ game._physics_process(0.1)
+ key.pressed = false
+ Input.parse_input_event(key)
+ if game.speed >= before_brake or game.bike.position.distance_to(before_position) > 10.0:
+  push_error("Hard brake did not slow the bike without resetting")
   quit(1)
   return
  game.replay_enabled = true
