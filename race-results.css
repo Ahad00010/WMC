@@ -31,3 +31,6 @@
 .race-results.championship .results-row{grid-template-columns:72px 80px minmax(0,1fr) 145px 80px 40px 40px}
 .race-results.championship .results-points{white-space:nowrap;font-variant-numeric:tabular-nums}
 .results-note{margin:-20px 0 8px;color:#ddd;font:700 15px MGPText,WMCResultText,sans-serif}.results-note[hidden]{display:none}
+
+/* The longer championship heading must fit beside the unchanged rider scene. */
+.race-results.championship .results-title{font-size:60px}

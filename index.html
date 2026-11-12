@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="race-results.css?v=7">
+<link rel="stylesheet" href="race-results.css?v=8">
 <link rel="stylesheet" href="winner-highlight.css?v=5">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Saira+Condensed:wght@600;800&display=swap" rel="stylesheet">
 <style>
@@ -422,7 +422,7 @@ button.go:focus-visible,.pad:focus-visible{outline:3px solid var(--amber);outlin
 <script src="practice-ai.js?v=4"></script>
 <script src="menu-music.js?v=1"></script>
 <script src="race-results.js?v=9"></script>
-<script src="winner-replay.js?v=9"></script>
+<script src="winner-replay.js?v=10"></script>
 <script src="qualifying-colors.js?v=balanced-1"></script>
 <script src="lobby.js?v=connection-2" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1219,7 +1219,7 @@ var raceFinishTimer=0,practiceFinishTime=null,resultsMatch=null,resultsStarted=f
 var resultsSequence=window.WMCRaceResults&&window.WMCRaceResults.create({box:$('raceResults'),rider:function(){return resultsRiderModel},muted:function(){return muted},careerEligible:function(){return !!resultsMatch&&!resultsMatch.endReason&&!resultsMatch.members.some(function(m){return m.ai})},championship:function(){if(!resultsMatch||!resultsMatch.matchId||resultsMatch.endReason||resultsMatch.members.some(function(m){return m.ai})||!window.WMCAuth)return Promise.resolve({unavailable:true});return window.WMCAuth.client.rpc('wmc_session_championship',{match_id:resultsMatch.matchId}).then(function(r){return r.error?null:r.data}).catch(function(){return null})},keepMusic:function(entries){return !!winnerFootage&&entries.some(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)})},onShow:function(){$('winnerTransition').hidden=false;state='finished';v=0;throttleNow=0;clearInputs();$('touch').hidden=true;$('hud').hidden=true},onEnd:function(entries){$('winnerTransition').hidden=true;var winner=entries.find(function(e){return !e.dnf&&Number.isFinite(e.finishSeconds)});if(winner&&winnerFootage){showWinnerWhenReady(winner);return}$('sessionMode').textContent='WMC · RACE';$('sessionResult').textContent=resultsMatch&&resultsMatch.endReason==='connection_lost'?'Session ended · another rider lost connection.':resultsMatch&&resultsMatch.endReason==='opponent_left'?'Session ended · the other rider left.':'Race ended · no winner recorded.';$('sessionEnd').hidden=false}});
 function resultEntries(){var match=resultsMatch||practiceVisualMatch(),profile=window.WMCRiderProfile||{display_name:'D EFA',number:0,color:'red'};var members=match?match.members:[{id:'practice-self',display_name:profile.display_name,number:profile.number,color:profile.color,grid:1,progress:total/N,finish_at:practiceFinishTime}];return members.map(function(m){return {id:m.id,name:m.display_name,number:m.number,color:m.color,grid:m.grid,progress:m.progress,dnf:m.dnf,ai:m.ai,finishSeconds:m.finish_at==null?null:resultsMatch?(Number(m.finish_at)-Date.parse(resultsMatch.phase_start))/1000:Number(m.finish_at)}})}
 // Record the broadcast view, tagging riders visible in each short segment.
-var winnerFootage=window.WMCWinnerReplay?window.WMCWinnerReplay.createFootage(window):null,winnerHighlight=null,winnerReplayURL=null,replayFinishPending=false,replayArmed=false,replayDone=false,replayCinema=null,replayProjection=new THREE.Vector3(),replayVisibilityAt=-Infinity,sharedReplay=null,sharedReplayTimer=0,sharedReplayGeneration=0,sharedReplayPolling=false;
+var winnerFootage=window.WMCWinnerReplay?window.WMCWinnerReplay.createFootage(window,{mobile:mobileRender}):null,winnerHighlight=null,winnerReplayURL=null,replayFinishPending=false,replayArmed=false,replayDone=false,replayCinema=null,replayProjection=new THREE.Vector3(),replayVisibilityAt=-Infinity,sharedReplay=null,sharedReplayTimer=0,sharedReplayGeneration=0,sharedReplayPolling=false;
 function resetSharedReplay(){sharedReplayGeneration++;clearTimeout(sharedReplayTimer);sharedReplayTimer=0;sharedReplay=null;sharedReplayPolling=false}
 if(winnerFootage)winnerFootage.onClip(function(id,clip){if(!multiplayer||!multiplayer.matchId||id!==multiplayer.user_id||!clip.atFinish||!window.WMCMatch||!window.WMCMatch.uploadReplay)return;var matchId=multiplayer.matchId,gen=sharedReplayGeneration,attempt=0;function upload(){if(gen!==sharedReplayGeneration||!multiplayer||multiplayer.matchId!==matchId)return;window.WMCMatch.uploadReplay(matchId,clip).then(function(ok){if(!ok&&++attempt<4&&gen===sharedReplayGeneration)setTimeout(upload,2500)})}upload()});
 function pollSharedReplay(){
@@ -1252,11 +1252,11 @@ function beginReplayCinema(now){
  // On a struggling phone, record the real game view instead of rendering the
  // whole race a second time. The clip still contains the actual race.
  if(mobileRender&&mobileFrameAverage>40){winnerFootage.setHighQuality(true);return false}
- try{var out=document.createElement('canvas');if(!out.captureStream)return false;var rr=new THREE.WebGLRenderer({canvas:out,antialias:!mobileRender});replayCinema={renderer:rr};var aspect=Math.max(.25,window.innerWidth/Math.max(1,window.innerHeight)),width=Math.min(854,Math.round(480*aspect)),height=Math.max(1,Math.round(width/aspect));rr.setPixelRatio(1);rr.setSize(width,height,false);var cam=new THREE.PerspectiveCamera(48,width/height,.3,4500);replayCinema={renderer:rr,canvas:out,camera:cam,started:now,nextRender:now};winnerFootage.setHighQuality(true);return true}catch(e){disposeReplayCinema();return false}
+ try{var out=document.createElement('canvas');if(!out.captureStream)return false;var rr=new THREE.WebGLRenderer({canvas:out,antialias:!mobileRender});replayCinema={renderer:rr};var aspect=Math.max(.25,window.innerWidth/Math.max(1,window.innerHeight)),dimensions=window.WMCWinnerReplay.captureSize(Math.round(720*aspect),720,mobileRender),width=dimensions.width,height=dimensions.height;rr.setPixelRatio(1);rr.setSize(width,height,false);var cam=new THREE.PerspectiveCamera(48,width/height,.3,4500);replayCinema={renderer:rr,canvas:out,camera:cam,started:now,nextRender:now};winnerFootage.setHighQuality(true);return true}catch(e){disposeReplayCinema();return false}
 }
 function disposeReplayCinema(){if(!replayCinema)return;var rr=replayCinema.renderer;replayCinema=null;if(rr.dispose)rr.dispose();if(rr.forceContextLoss)rr.forceContextLoss()}
 function drawReplayCinema(now){
- var c=replayCinema;if(!c)return;if(now<c.nextRender&&!replayFinishPending)return;c.nextRender=Math.max(c.nextRender+1000/30,now);var context=c.renderer.getContext&&c.renderer.getContext();if(context&&context.isContextLost&&context.isContextLost())throw Error('Replay context lost');var shot=Math.floor((now-c.started)/2000)%3,angles=[.65,1.8,3.25],distances=[5.4,5.8,6.4],angle=h+angles[shot],d=distances[shot];c.camera.position.set(pos.x+Math.sin(angle)*d,shot===2?2.6:1.8,pos.z+Math.cos(angle)*d);c.camera.lookAt(pos.x,1,pos.z);c.camera.updateMatrixWorld();c.renderer.render(scene,c.camera);
+ var c=replayCinema;if(!c)return;if(now<c.nextRender&&!replayFinishPending)return;c.nextRender=Math.max(c.nextRender+1000/24,now);var context=c.renderer.getContext&&c.renderer.getContext();if(context&&context.isContextLost&&context.isContextLost())throw Error('Replay context lost');var shot=Math.floor((now-c.started)/2000)%3,angles=[.65,1.8,3.25],distances=[5.4,5.8,6.4],angle=h+angles[shot],d=distances[shot];c.camera.position.set(pos.x+Math.sin(angle)*d,shot===2?2.6:1.8,pos.z+Math.cos(angle)*d);c.camera.lookAt(pos.x,1,pos.z);c.camera.updateMatrixWorld();c.renderer.render(scene,c.camera);
 }
 function replayLeaderFinished(){
   if(multiplayer)return multiplayer.members.some(function(m){return !m.dnf&&m.finish_at!=null});

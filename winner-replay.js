@@ -1,15 +1,16 @@
 /* Record the actual race canvas, not an approximation of rider movements. */
 (function(root){
 'use strict';
-function captureSize(width,height){var scale=Math.min(1,854/width,480/height);return {width:Math.max(1,Math.round(width*scale)),height:Math.max(1,Math.round(height*scale))}}
-function createFootage(env){
- var stream=null,recorder=null,segment=null,best=Object.create(null),completed=Object.create(null),generation=0,lastSample=-Infinity,disabled=false,slowStart=null,slowFrames=0,slowTime=0,highQuality=false,clipHandler=null,scaledCanvas=null,lastDraw=-Infinity;
+function captureSize(width,height,mobile){var scale=Math.min(1,(mobile?854:1280)/width,(mobile?480:720)/height);return {width:Math.max(1,Math.round(width*scale)),height:Math.max(1,Math.round(height*scale))}}
+function createFootage(env,options){
+ var mobile=!!(options&&options.mobile),fps=24,interval=1000/fps;
+ var stream=null,recorder=null,segment=null,best=Object.create(null),completed=Object.create(null),generation=0,lastSample=-Infinity,disabled=false,slowStart=null,slowFrames=0,slowTime=0,highQuality=false,clipHandler=null,scaledCanvas=null,nextDraw=-Infinity;
  function stopTracks(){if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}}
- function clear(){generation++;if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){}}recorder=null;segment=null;stopTracks();best=Object.create(null);completed=Object.create(null);lastSample=-Infinity;disabled=false;slowStart=null;slowFrames=0;slowTime=0;highQuality=false;scaledCanvas=null;lastDraw=-Infinity}
+ function clear(){generation++;if(recorder&&recorder.state!=='inactive'){try{recorder.stop()}catch(e){}}recorder=null;segment=null;stopTracks();best=Object.create(null);completed=Object.create(null);lastSample=-Infinity;disabled=false;slowStart=null;slowFrames=0;slowTime=0;highQuality=false;scaledCanvas=null;nextDraw=-Infinity}
  function start(source,now){
   if(disabled)return false;if(!source.captureStream||!env.MediaRecorder){disabled=true;return false;}
   try{
-   if(!stream)stream=source.captureStream(30);
+   if(!stream)stream=source.captureStream(fps);
    var types=['video/webm;codecs=vp8','video/webm','video/mp4'],mime=types.find(function(type){return env.MediaRecorder.isTypeSupported&&env.MediaRecorder.isTypeSupported(type)}),options={videoBitsPerSecond:2500000};if(mime)options.mimeType=mime;
    var r=new env.MediaRecorder(stream,options),g=generation,part={start:now,end:now,scores:Object.create(null),finishers:Object.create(null),chunks:[]};recorder=r;segment=part;
    r.ondataavailable=function(e){if(e.data&&e.data.size)part.chunks.push(e.data)};
@@ -27,7 +28,7 @@ function createFootage(env){
   // Never keep recording at the expense of playable race performance.
   if(!highQuality&&Number.isFinite(frameMs)&&frameMs>0&&frameMs<1000){if(slowStart===null)slowStart=now;slowFrames++;slowTime+=frameMs;if(now-slowStart>=3000){if(slowFrames>10&&slowTime/slowFrames>45){finish(now);disabled=true;return}slowStart=now;slowFrames=0;slowTime=0}}else{slowStart=null;slowFrames=0;slowTime=0}
   // The fallback game canvas can be full resolution; capture a scaled real frame instead.
-  if(source.width>0&&source.height>0){var size=captureSize(source.width,source.height);if(size.width!==source.width||size.height!==source.height){if(!scaledCanvas){try{scaledCanvas=env.document.createElement('canvas');scaledCanvas.width=size.width;scaledCanvas.height=size.height}catch(e){disabled=true;return !!endRace}}if(now-lastDraw>=1000/30||endRace){try{scaledCanvas.getContext('2d').drawImage(source,0,0,scaledCanvas.width,scaledCanvas.height);lastDraw=now}catch(e){disabled=true;return !!endRace}}source=scaledCanvas}}
+  if(source.width>0&&source.height>0){var size=captureSize(source.width,source.height,mobile);if(scaledCanvas||size.width!==source.width||size.height!==source.height){if(!scaledCanvas){try{scaledCanvas=env.document.createElement('canvas');scaledCanvas.width=size.width;scaledCanvas.height=size.height}catch(e){disabled=true;return !!endRace}}if(scaledCanvas.width!==size.width||scaledCanvas.height!==size.height){scaledCanvas.width=size.width;scaledCanvas.height=size.height;nextDraw=-Infinity}if(now>=nextDraw||endRace){try{scaledCanvas.getContext('2d').drawImage(source,0,0,scaledCanvas.width,scaledCanvas.height);nextDraw=Number.isFinite(nextDraw)?Math.max(nextDraw+interval,now):now+interval}catch(e){disabled=true;return !!endRace}}source=scaledCanvas}}
   if(!recorder&&!start(source,now))return !!endRace;
   segment.end=now;var crossed=false,sample=now-lastSample>=250;if(sample)lastSample=now;
   (visible||[]).forEach(function(item){if(!item||!item.id)return;if(sample||item.finished)segment.scores[item.id]=(segment.scores[item.id]||0)+1;if(item.finished&&!completed[item.id]){completed[item.id]=true;segment.finishers[item.id]=true;crossed=true}});
