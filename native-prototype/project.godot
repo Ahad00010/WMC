@@ -1,7 +1,7 @@
 ; Standalone native performance prototype. No WebView or browser runtime.
 config_version=5
 [application]
-config/name="WMC Native Prototype"
+config/name="WMC"
 config/icon="res://assets/wmc-icon.png"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
@@ -9,6 +9,7 @@ config/features=PackedStringArray("4.4", "GL Compatibility")
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 ; Sensor landscape allows either landscape rotation without ever requesting portrait.
 window/handheld/orientation=4
 [rendering]

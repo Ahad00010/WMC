@@ -6,6 +6,7 @@ const RIDER = preload("res://assets/marc-rider.glb")
 const DISPLAY_FONT = preload("res://assets/MGPDisplay-Medium.otf")
 const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
 const AUTH_SCRIPT = preload("res://auth.gd")
+const TOUCH_PAD = preload("res://touch_pad.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
@@ -29,6 +30,8 @@ var elapsed := 0.0
 var active := false
 var mobile := false
 var touch := {"accelerate": false, "brake": false, "left": false, "right": false}
+var touch_pads := {}
+var fingers := {}
 var hud: Label
 var controls: Control
 var pause_panel: Control
@@ -338,8 +341,7 @@ func _reset() -> void:
  paused = false
  replay_enabled = false
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
- for key in touch:
-  touch[key] = false
+ _clear_touch()
 
 # Project onto nearby road segments, rather than measuring to sparse point
 # samples. This keeps surface classification stable through corners.
@@ -473,13 +475,31 @@ func _make_ui() -> void:
  controls.visible = false
  hud = _label(controls, "", 24, Vector2(26, 24))
  if mobile:
-  var pause_button := _button(controls, "Ⅱ", Vector2(1185, 20), Vector2(65, 55))
+  var pause_button := _button(controls, "Ⅱ", Vector2.ZERO, Vector2(65, 55))
+  pause_button.anchor_left = 1.0
+  pause_button.anchor_right = 1.0
+  pause_button.offset_left = -95
+  pause_button.offset_right = -30
+  pause_button.offset_top = 20
+  pause_button.offset_bottom = 75
   pause_button.pressed.connect(_pause_game)
-  for item in [["◀", "left", Vector2(35, 575)], ["▶", "right", Vector2(175, 575)], ["BRAKE", "brake", Vector2(930, 575)], ["GAS", "accelerate", Vector2(1090, 575)]]:
-   var key: String = item[1]
-   var button := _button(controls, item[0], item[2], Vector2(125, 100))
-   button.button_down.connect(func(): touch[key] = true)
-   button.button_up.connect(func(): touch[key] = false)
+  touch_pads.clear()
+  # Anchored to screen edges so extra-wide phones are fully usable.
+  for item in [["◀", "left", false, 24], ["▶", "right", false, 150], ["BRAKE", "brake", true, 150], ["GAS", "accelerate", true, 24]]:
+   var pad = TOUCH_PAD.new()
+   pad.caption = item[0]
+   controls.add_child(pad)
+   var right: bool = item[2]
+   var inset: float = item[3]
+   pad.anchor_left = 1.0 if right else 0.0
+   pad.anchor_right = pad.anchor_left
+   pad.anchor_top = 1.0
+   pad.anchor_bottom = 1.0
+   pad.offset_left = -inset - 110 if right else inset
+   pad.offset_right = pad.offset_left + 110
+   pad.offset_top = -145
+   pad.offset_bottom = -35
+   touch_pads[item[1]] = pad
  else:
   _label(controls, "W / ↑ GAS    S / ↓ BRAKE    A D / ← → STEER    ESC PAUSE", 18, Vector2(26, 680))
  _make_pause_menu(layer)
@@ -496,9 +516,46 @@ func _unhandled_key_input(event: InputEvent) -> void:
    return
   get_viewport().set_input_as_handled()
 
+func _input(event: InputEvent) -> void:
+ if not mobile or not active:
+  return
+ if event is InputEventScreenTouch:
+  if event.pressed and not event.canceled:
+   _set_finger(event.index, event.position)
+  else:
+   fingers.erase(event.index)
+   _refresh_touch()
+ elif event is InputEventScreenDrag:
+  if fingers.has(event.index):
+   _set_finger(event.index, event.position)
+
+func _set_finger(index: int, position: Vector2) -> void:
+ var selected := ""
+ for key in touch_pads:
+  var pad: Control = touch_pads[key]
+  if pad.get_global_rect().has_point(position):
+   selected = key
+   break
+ # Track a finger even when it drags outside a pad so it can slide back in.
+ fingers[index] = selected
+ _refresh_touch()
+
+func _refresh_touch() -> void:
+ for key in touch:
+  touch[key] = fingers.values().has(key)
+  if touch_pads.has(key):
+   touch_pads[key].pressed = touch[key]
+
+func _notification(what: int) -> void:
+ if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+  _clear_touch()
+
 func _clear_touch() -> void:
+ fingers.clear()
  for key in touch:
   touch[key] = false
+  if touch_pads.has(key):
+   touch_pads[key].pressed = false
 
 func _make_pause_menu(layer: CanvasLayer) -> void:
  pause_panel = Control.new()
@@ -509,11 +566,15 @@ func _make_pause_menu(layer: CanvasLayer) -> void:
  shade.color = Color(0.02, 0.03, 0.05, 0.82)
  pause_panel.add_child(shade)
  shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- var title := _label(pause_panel, "PAUSED", 58, Vector2(500, 200))
+ var pause_card := Control.new()
+ pause_panel.add_child(pause_card)
+ pause_card.set_anchors_preset(Control.PRESET_CENTER)
+ pause_card.position = Vector2(-140, -160)
+ var title := _label(pause_card, "PAUSED", 58, Vector2(0, 0))
  title.add_theme_font_override("font", DISPLAY_FONT)
- var resume := _button(pause_panel, "RESUME", Vector2(500, 320), Vector2(280, 55))
+ var resume := _button(pause_card, "RESUME", Vector2(0, 120), Vector2(280, 55))
  resume.pressed.connect(_resume_game)
- var home := _button(pause_panel, "MAIN MENU", Vector2(500, 390), Vector2(280, 55))
+ var home := _button(pause_card, "MAIN MENU", Vector2(0, 190), Vector2(280, 55))
  home.pressed.connect(_return_to_menu)
 
 func _pause_game() -> void:
@@ -595,9 +656,10 @@ func _make_menu(layer: CanvasLayer) -> void:
  shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
  var card := Control.new()
- card.position = Vector2(460, 100)
- card.size = Vector2(480, 560)
  menu.add_child(card)
+ card.set_anchors_preset(Control.PRESET_CENTER)
+ card.position = Vector2(-240, -260)
+ card.size = Vector2(480, 560)
  var eyebrow := _label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 11, Vector2(0, 0))
  eyebrow.add_theme_color_override("font_color", Color("ec2939"))
  var brand := _label(card, "WMC", 86, Vector2(0, 28))
@@ -649,7 +711,7 @@ and keep out of the gravel.", 15, Vector2(0, 170))
  play.add_theme_stylebox_override("pressed", hover)
  play.pressed.connect(_start_from_menu)
  var credit := _label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0
-Native prototype · practice only", 11, Vector2(0, 477))
+WMC · practice only", 11, Vector2(0, 477))
  credit.add_theme_color_override("font_color", Color("9da3aa"))
 
 func _start_from_menu() -> void:
@@ -702,9 +764,10 @@ func _make_profile_editor(layer: CanvasLayer) -> void:
  profile_panel.add_child(backdrop)
  backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  var card := Control.new()
- card.position = Vector2(390, 45)
- card.size = Vector2(500, 630)
  profile_panel.add_child(card)
+ card.set_anchors_preset(Control.PRESET_CENTER)
+ card.position = Vector2(-250, -315)
+ card.size = Vector2(500, 630)
  var title := _label(card, "RIDER PROFILE", 38, Vector2(0, 0))
  title.add_theme_font_override("font", DISPLAY_FONT)
  _label(card, "DISPLAY NAME", 16, Vector2(0, 70))

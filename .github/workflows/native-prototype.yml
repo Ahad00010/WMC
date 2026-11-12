@@ -68,18 +68,18 @@ jobs:
           set -o pipefail
           for target in Windows Android; do
             extension=exe; [ "$target" = Android ] && extension=apk
-            if ! godot --headless --path native-prototype --export-debug "$target" "build/WMC-Native-Prototype.$extension" > /tmp/export.log 2>&1; then
+            if ! godot --headless --path native-prototype --export-debug "$target" "build/WMC.$extension" > /tmp/export.log 2>&1; then
               echo "::error::EXPORT TARGET $target LOG BASE64 $(base64 -w0 /tmp/export.log)"
               exit 1
             fi
           done
       - uses: actions/upload-artifact@v4
         with:
-          name: WMC-native-prototype-Windows
-          path: native-prototype/build/WMC-Native-Prototype.exe
+          name: WMC-Windows
+          path: native-prototype/build/WMC.exe
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: WMC-native-prototype-Android
-          path: native-prototype/build/WMC-Native-Prototype.apk
+          name: WMC-Android
+          path: native-prototype/build/WMC.apk
           if-no-files-found: error

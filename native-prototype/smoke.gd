@@ -162,21 +162,56 @@ func _run() -> void:
   push_error("Main menu did not reset the session")
   quit(1)
   return
- # Build the mobile UI in headless CI and verify its touch targets never overlap.
- if ProjectSettings.get_setting("display/window/handheld/orientation") != DisplayServer.SCREEN_SENSOR_LANDSCAPE:
-  push_error("Mobile orientation must allow landscape only")
+ # Exercise separate simultaneous screen touches, slide-out, cancellation and pause.
+ if ProjectSettings.get_setting("display/window/handheld/orientation") != DisplayServer.SCREEN_SENSOR_LANDSCAPE or ProjectSettings.get_setting("display/window/stretch/aspect") != "expand":
+  push_error("Mobile display must fill the screen in landscape")
   quit(1)
   return
  game.mobile = true
  game._make_ui()
- var mobile_buttons = game.controls.find_children("*", "Button", true, false)
- var steering = []
- for button in mobile_buttons:
-  if button.text == "◀" or button.text == "▶":
-   steering.append(button)
- if steering.size() != 2 or steering[0].get_rect().intersects(steering[1].get_rect()):
-  push_error("Mobile steering buttons overlap or are missing")
+ game.controls.visible = true
+ game.active = true
+ await process_frame
+ var left_pad: Control = game.touch_pads["left"]
+ var right_pad: Control = game.touch_pads["right"]
+ var gas_pad: Control = game.touch_pads["accelerate"]
+ if left_pad.get_global_rect().intersects(right_pad.get_global_rect()):
+  push_error("Mobile steering buttons overlap")
   quit(1)
   return
+ var steer_touch := InputEventScreenTouch.new()
+ steer_touch.index = 0
+ steer_touch.position = left_pad.get_global_rect().get_center()
+ steer_touch.pressed = true
+ game._input(steer_touch)
+ var gas_touch := InputEventScreenTouch.new()
+ gas_touch.index = 1
+ gas_touch.position = gas_pad.get_global_rect().get_center()
+ gas_touch.pressed = true
+ game._input(gas_touch)
+ if not game.touch.left or not game.touch.accelerate or not left_pad.pressed or not gas_pad.pressed:
+  push_error("Simultaneous steering and throttle did not work")
+  quit(1)
+  return
+ var drag := InputEventScreenDrag.new()
+ drag.index = 0
+ drag.position = right_pad.get_global_rect().get_center()
+ game._input(drag)
+ if game.touch.left or not game.touch.right or not game.touch.accelerate:
+  push_error("Sliding between steering controls broke multitouch")
+  quit(1)
+  return
+ gas_touch.pressed = false
+ game._input(gas_touch)
+ if game.touch.accelerate or not game.touch.right:
+  push_error("Releasing one finger released the wrong control")
+  quit(1)
+  return
+ game._pause_game()
+ if game.touch.right or not game.fingers.is_empty():
+  push_error("Pausing left a touch control stuck")
+  quit(1)
+  return
+ game._resume_game()
  game.queue_free()
  quit(0)
