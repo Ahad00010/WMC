@@ -63,7 +63,7 @@ jobs:
           for target in Windows Android; do
             extension=exe; [ "$target" = Android ] && extension=apk
             if ! godot --headless --path native-prototype --export-debug "$target" "build/WMC-Native-Prototype.$extension" > /tmp/export.log 2>&1; then
-              tail -40 /tmp/export.log | while IFS= read -r line; do echo "::error::$line"; done
+              echo "::error::EXPORT TARGET $target LOG BASE64 $(base64 -w0 /tmp/export.log)"
               exit 1
             fi
           done
