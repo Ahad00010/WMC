@@ -651,7 +651,7 @@ func _make_auth() -> void:
 
 func _menu_label(card: Control, text: String, font_size: int, y: float) -> Label:
  var label := _label(card, text, font_size, Vector2(0, y))
- label.size.x = 480
+ label.size.x = 760
  label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
  return label
 
@@ -667,50 +667,51 @@ func _make_menu(layer: CanvasLayer) -> void:
  var card := Control.new()
  menu.add_child(card)
  card.set_anchors_preset(Control.PRESET_CENTER)
- card.offset_left = -240
- card.offset_top = -260
- card.offset_right = 240
- card.offset_bottom = 300
- var eyebrow := _menu_label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 11, 0)
+ card.offset_left = -380
+ card.offset_top = -320
+ card.offset_right = 380
+ card.offset_bottom = 320
+ var eyebrow := _menu_label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 16, 0)
  eyebrow.add_theme_color_override("font_color", Color("ec2939"))
- var brand := _menu_label(card, "WMC", 86, 28)
+ var brand := _menu_label(card, "WMC", 120, 32)
+ brand.name = "Brand"
  brand.add_theme_font_override("font", DISPLAY_FONT)
- _menu_label(card, "World Motorbike Championship", 18, 126)
+ _menu_label(card, "World Motorbike Championship", 25, 185)
  var description := _menu_label(card, "Stay on the asphalt, brake before the corners,
-and keep out of the gravel.", 15, 170)
+and keep out of the gravel.", 22, 227)
  description.add_theme_color_override("font_color", Color("c5cad1"))
  if mobile:
-  _menu_label(card, "Use the on-screen controls to ride.", 15, 255)
+  _menu_label(card, "Use the on-screen controls to ride.", 22, 302)
  else:
-  _menu_label(card, "W   Throttle              S   Brake / reverse", 14, 246)
-  _menu_label(card, "A  D   Lean left / right     Space   Hard brake", 14, 275)
+  _menu_label(card, "W   Throttle              S   Brake / reverse", 19, 290)
+  _menu_label(card, "A  D   Lean left / right     Space   Hard brake", 19, 319)
  # Sign-in uses the system browser and retrieves this account's own profile.
  var account_actions := HBoxContainer.new()
  account_actions.name = "AccountActions"
- account_actions.position = Vector2(0, 326)
- account_actions.size = Vector2(480, 38)
+ account_actions.position = Vector2(0, 363)
+ account_actions.size = Vector2(760, 54)
  account_actions.alignment = BoxContainer.ALIGNMENT_CENTER
  account_actions.add_theme_constant_override("separation", 8)
  card.add_child(account_actions)
- var sound := _button(account_actions, "Sound: on", Vector2.ZERO, Vector2(108, 38))
- sound.custom_minimum_size = Vector2(108, 38)
- sound.add_theme_font_size_override("font_size", 13)
+ var sound := _button(account_actions, "Sound: on", Vector2.ZERO, Vector2(155, 54))
+ sound.custom_minimum_size = Vector2(155, 54)
+ sound.add_theme_font_size_override("font_size", 18)
  sound.pressed.connect(func():
   music_muted = not music_muted
   sound.text = "Sound: off" if music_muted else "Sound: on"
  )
- auth_button = _button(account_actions, "Sign in with Google", Vector2.ZERO, Vector2(180, 38))
- auth_button.custom_minimum_size = Vector2(180, 38)
- auth_button.add_theme_font_size_override("font_size", 13)
+ auth_button = _button(account_actions, "Sign in with Google", Vector2.ZERO, Vector2(245, 54))
+ auth_button.custom_minimum_size = Vector2(245, 54)
+ auth_button.add_theme_font_size_override("font_size", 18)
  auth_button.pressed.connect(func():
   if auth.access_token.is_empty():
    auth.sign_in()
   else:
    _open_profile_editor()
  )
- sign_out_button = _button(account_actions, "Sign out", Vector2.ZERO, Vector2(90, 38))
- sign_out_button.custom_minimum_size = Vector2(90, 38)
- sign_out_button.add_theme_font_size_override("font_size", 13)
+ sign_out_button = _button(account_actions, "Sign out", Vector2.ZERO, Vector2(130, 54))
+ sign_out_button.custom_minimum_size = Vector2(130, 54)
+ sign_out_button.add_theme_font_size_override("font_size", 18)
  sign_out_button.visible = false
  sign_out_button.pressed.connect(func():
   auth.sign_out()
@@ -719,11 +720,11 @@ and keep out of the gravel.", 15, 170)
   profile_panel.visible = false
   sign_out_button.visible = false
  )
- auth_status = _menu_label(card, "", 12, 369)
- var play := _button(card, "PLAY", Vector2(177.5, 400), Vector2(125, 55))
+ auth_status = _menu_label(card, "", 16, 424)
+ var play := _button(card, "PLAY", Vector2(280, 463), Vector2(200, 72))
  play.name = "Play"
  play.add_theme_font_override("font", DISPLAY_FONT)
- play.add_theme_font_size_override("font_size", 25)
+ play.add_theme_font_size_override("font_size", 36)
  var red := StyleBoxFlat.new()
  red.bg_color = Color("e4202c")
  play.add_theme_stylebox_override("normal", red)
@@ -733,7 +734,7 @@ and keep out of the gravel.", 15, 170)
  play.add_theme_stylebox_override("pressed", hover)
  play.pressed.connect(_start_from_menu)
  var credit := _menu_label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0
-WMC · practice only", 11, 477)
+WMC · practice only", 14, 564)
  credit.add_theme_color_override("font_color", Color("9da3aa"))
 
 func _start_from_menu() -> void:

@@ -23,7 +23,7 @@ func _run() -> void:
  # Check the actual resolved layout, not just visibility. Anchored positions
  # must remain centered after the parent is resized to a wide mobile aspect.
  var overlays = [game.menu, game.pause_panel, game.profile_panel]
- var widths = [480.0, 280.0, 500.0]
+ var widths = [760.0, 280.0, 500.0]
  for n in range(overlays.size()):
   var panel: Control = overlays[n]
   var card: Control = panel.get_child(1)
@@ -44,8 +44,26 @@ func _run() -> void:
     push_error("Menu label is not centered: %s" % child.text)
     quit(1)
     return
+ var visible_items = []
+ for child in menu_card.get_children():
+  if child is Control and child.visible and not (child is Label and child.text.is_empty()):
+   if child.position.x < 0 or child.position.y < 0 or child.position.x + child.size.x > menu_card.size.x + 1 or child.position.y + child.size.y > menu_card.size.y + 1:
+    push_error("Menu item outside card: %s" % child.name)
+    quit(1)
+    return
+   for previous in visible_items:
+    if child.get_rect().intersects(previous.get_rect()):
+     push_error("Menu items overlap: %s and %s" % [child.name, previous.name])
+     quit(1)
+     return
+   visible_items.append(child)
+ var brand: Label = menu_card.get_node("Brand")
+ if brand.get_theme_font_size("font_size") < 115:
+  push_error("Menu branding is too small")
+  quit(1)
+  return
  var play: Button = menu_card.get_node("Play")
- if absf(play.position.x + play.size.x * 0.5 - menu_card.size.x * 0.5) > 1.0:
+ if play.size.x < 190 or play.size.y < 70 or absf(play.position.x + play.size.x * 0.5 - menu_card.size.x * 0.5) > 1.0:
   push_error("Play button is not centered")
   quit(1)
   return
