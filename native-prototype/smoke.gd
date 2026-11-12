@@ -36,6 +36,31 @@ func _run() -> void:
     quit(1)
     return
   panel.size = original_size
+ # The contents themselves (not merely the card) must be centered.
+ var menu_card: Control = game.menu.get_child(1)
+ for child in menu_card.get_children():
+  if child is Label:
+   if child.horizontal_alignment != HORIZONTAL_ALIGNMENT_CENTER or absf(child.position.x + child.size.x * 0.5 - menu_card.size.x * 0.5) > 1.0:
+    push_error("Menu label is not centered: %s" % child.text)
+    quit(1)
+    return
+ var play: Button = menu_card.get_node("Play")
+ if absf(play.position.x + play.size.x * 0.5 - menu_card.size.x * 0.5) > 1.0:
+  push_error("Play button is not centered")
+  quit(1)
+  return
+ var actions: HBoxContainer = menu_card.get_node("AccountActions")
+ for signed_in in [false, true]:
+  game.sign_out_button.visible = signed_in
+  await process_frame
+  var visible_buttons = actions.get_children().filter(func(button): return button.visible)
+  var first: Control = visible_buttons.front()
+  var last: Control = visible_buttons.back()
+  if absf((first.position.x + last.position.x + last.size.x) * 0.5 - actions.size.x * 0.5) > 1.0:
+   push_error("Account buttons are not centered")
+   quit(1)
+   return
+ game.sign_out_button.visible = false
  for button in game.controls.find_children("*", "Button", true, false):
   if button.focus_mode != Control.FOCUS_NONE:
    push_error("Driving controls can accidentally activate a focused button")

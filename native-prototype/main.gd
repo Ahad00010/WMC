@@ -649,6 +649,12 @@ func _make_auth() -> void:
   profile_error.text = message
  )
 
+func _menu_label(card: Control, text: String, font_size: int, y: float) -> Label:
+ var label := _label(card, text, font_size, Vector2(0, y))
+ label.size.x = 480
+ label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+ return label
+
 func _make_menu(layer: CanvasLayer) -> void:
  menu = Control.new()
  layer.add_child(menu)
@@ -665,27 +671,36 @@ func _make_menu(layer: CanvasLayer) -> void:
  card.offset_top = -260
  card.offset_right = 240
  card.offset_bottom = 300
- var eyebrow := _label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 11, Vector2(0, 0))
+ var eyebrow := _menu_label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 11, 0)
  eyebrow.add_theme_color_override("font_color", Color("ec2939"))
- var brand := _label(card, "WMC", 86, Vector2(0, 28))
+ var brand := _menu_label(card, "WMC", 86, 28)
  brand.add_theme_font_override("font", DISPLAY_FONT)
- _label(card, "World Motorbike Championship", 18, Vector2(0, 126))
- var description := _label(card, "Stay on the asphalt, brake before the corners,
-and keep out of the gravel.", 15, Vector2(0, 170))
+ _menu_label(card, "World Motorbike Championship", 18, 126)
+ var description := _menu_label(card, "Stay on the asphalt, brake before the corners,
+and keep out of the gravel.", 15, 170)
  description.add_theme_color_override("font_color", Color("c5cad1"))
  if mobile:
-  _label(card, "Use the on-screen controls to ride.", 15, Vector2(0, 255))
+  _menu_label(card, "Use the on-screen controls to ride.", 15, 255)
  else:
-  _label(card, "W   Throttle              S   Brake / reverse", 14, Vector2(0, 246))
-  _label(card, "A  D   Lean left / right     Space   Hard brake", 14, Vector2(0, 275))
+  _menu_label(card, "W   Throttle              S   Brake / reverse", 14, 246)
+  _menu_label(card, "A  D   Lean left / right     Space   Hard brake", 14, 275)
  # Sign-in uses the system browser and retrieves this account's own profile.
- var sound := _button(card, "Sound: on", Vector2(0, 326), Vector2(108, 38))
+ var account_actions := HBoxContainer.new()
+ account_actions.name = "AccountActions"
+ account_actions.position = Vector2(0, 326)
+ account_actions.size = Vector2(480, 38)
+ account_actions.alignment = BoxContainer.ALIGNMENT_CENTER
+ account_actions.add_theme_constant_override("separation", 8)
+ card.add_child(account_actions)
+ var sound := _button(account_actions, "Sound: on", Vector2.ZERO, Vector2(108, 38))
+ sound.custom_minimum_size = Vector2(108, 38)
  sound.add_theme_font_size_override("font_size", 13)
  sound.pressed.connect(func():
   music_muted = not music_muted
   sound.text = "Sound: off" if music_muted else "Sound: on"
  )
- auth_button = _button(card, "Sign in with Google", Vector2(116, 326), Vector2(180, 38))
+ auth_button = _button(account_actions, "Sign in with Google", Vector2.ZERO, Vector2(180, 38))
+ auth_button.custom_minimum_size = Vector2(180, 38)
  auth_button.add_theme_font_size_override("font_size", 13)
  auth_button.pressed.connect(func():
   if auth.access_token.is_empty():
@@ -693,7 +708,8 @@ and keep out of the gravel.", 15, Vector2(0, 170))
   else:
    _open_profile_editor()
  )
- sign_out_button = _button(card, "Sign out", Vector2(304, 326), Vector2(90, 38))
+ sign_out_button = _button(account_actions, "Sign out", Vector2.ZERO, Vector2(90, 38))
+ sign_out_button.custom_minimum_size = Vector2(90, 38)
  sign_out_button.add_theme_font_size_override("font_size", 13)
  sign_out_button.visible = false
  sign_out_button.pressed.connect(func():
@@ -703,8 +719,9 @@ and keep out of the gravel.", 15, Vector2(0, 170))
   profile_panel.visible = false
   sign_out_button.visible = false
  )
- auth_status = _label(card, "", 12, Vector2(0, 369))
- var play := _button(card, "PLAY", Vector2(0, 400), Vector2(125, 55))
+ auth_status = _menu_label(card, "", 12, 369)
+ var play := _button(card, "PLAY", Vector2(177.5, 400), Vector2(125, 55))
+ play.name = "Play"
  play.add_theme_font_override("font", DISPLAY_FONT)
  play.add_theme_font_size_override("font_size", 25)
  var red := StyleBoxFlat.new()
@@ -715,8 +732,8 @@ and keep out of the gravel.", 15, Vector2(0, 170))
  play.add_theme_stylebox_override("hover", hover)
  play.add_theme_stylebox_override("pressed", hover)
  play.pressed.connect(_start_from_menu)
- var credit := _label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0
-WMC · practice only", 11, Vector2(0, 477))
+ var credit := _menu_label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0
+WMC · practice only", 11, 477)
  credit.add_theme_color_override("font_color", Color("9da3aa"))
 
 func _start_from_menu() -> void:
