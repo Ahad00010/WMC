@@ -63,3 +63,5 @@ test('championship never displays stale totals before the match is recorded and 
 test('unavailable championship does not invent a leader',async()=>{
  const x=setup(),w=x.dom.window;const r=w.WMCRaceResults.create({box:x.box,rider:()=>null,muted:()=>false,onShow(){},onEnd(){},championship:async()=>({unavailable:true})});r.begin(0,0,()=>x.entries,{});r.tick(23000);await new Promise(resolve=>setImmediate(resolve));r.tick(43000);assert.match(x.box.textContent,/standings unavailable/);assert.equal(x.box.querySelector('.results-winner-word').hidden,true);w.close();
 });
+
+test('championship title is reduced to fit the unchanged results scene',()=>{const css=readFileSync(new URL('../../race-results.css',import.meta.url),'utf8');assert.match(css,/\.race-results\.championship \.results-title\{font-size:60px\}/)});
