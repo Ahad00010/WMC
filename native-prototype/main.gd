@@ -475,7 +475,7 @@ func _make_ui() -> void:
  if mobile:
   var pause_button := _button(controls, "Ⅱ", Vector2(1185, 20), Vector2(65, 55))
   pause_button.pressed.connect(_pause_game)
-  for item in [["◀", "left", Vector2(35, 575)], ["▶", "right", Vector2(145, 575)], ["BRAKE", "brake", Vector2(930, 575)], ["GAS", "accelerate", Vector2(1090, 575)]]:
+  for item in [["◀", "left", Vector2(35, 575)], ["▶", "right", Vector2(175, 575)], ["BRAKE", "brake", Vector2(930, 575)], ["GAS", "accelerate", Vector2(1090, 575)]]:
    var key: String = item[1]
    var button := _button(controls, item[0], item[2], Vector2(125, 100))
    button.button_down.connect(func(): touch[key] = true)

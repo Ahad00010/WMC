@@ -162,5 +162,21 @@ func _run() -> void:
   push_error("Main menu did not reset the session")
   quit(1)
   return
+ # Build the mobile UI in headless CI and verify its touch targets never overlap.
+ if ProjectSettings.get_setting("display/window/handheld/orientation") != DisplayServer.SCREEN_SENSOR_LANDSCAPE:
+  push_error("Mobile orientation must allow landscape only")
+  quit(1)
+  return
+ game.mobile = true
+ game._make_ui()
+ var mobile_buttons = game.controls.find_children("*", "Button", true, false)
+ var steering = []
+ for button in mobile_buttons:
+  if button.text == "◀" or button.text == "▶":
+   steering.append(button)
+ if steering.size() != 2 or steering[0].get_rect().intersects(steering[1].get_rect()):
+  push_error("Mobile steering buttons overlap or are missing")
+  quit(1)
+  return
  game.queue_free()
  quit(0)
