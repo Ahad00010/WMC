@@ -4,13 +4,11 @@ An independent Godot 4.4.1 project, not an APK WebView and not a replacement for
 
 ## Test it
 
-The `Build native prototype` GitHub Actions workflow builds a Windows EXE and an Android debug APK. Download the two named artifacts from a successful workflow run. The Android debug APK is signed with a CI-generated debug key, so it is for testing, not Play Store release; a later CI run may not install over an earlier one unless you uninstall it first. Windows may show a SmartScreen warning for an unsigned EXE. Back up any device data before uninstalling. This prototype does not connect to accounts or award points.
+The `Build native prototype` GitHub Actions workflow builds a Windows EXE and an Android debug APK. Download the two named artifacts from a successful workflow run. The Android debug APK is signed with a CI-generated debug key, so it is for testing, not Play Store release; a later CI run may not install over an earlier one unless you uninstall it first. Windows may show a SmartScreen warning for an unsigned EXE. Back up any device data before uninstalling. This prototype can read the signed-in rider profile, but it does not award points.
 
-Use W / up for gas, S / down to brake and A/D or arrows to steer on Windows. On Android, use the on-screen buttons. Start/restart puts the bike at the start; the results button previews a simple results layout. The FPS counter is the native game frame rate.
+Use W / up for gas, S / down to brake, Space for hard braking, and A/D or arrows to steer on Windows. Press Escape to pause or resume. Android uses on-screen driving controls and a pause button. The pause menu offers Resume and Main Menu. The FPS counter is the native game frame rate. The engine sound is synthesized from the same waveform and RPM formula as the website; the menu sound toggle controls both engine and music.
 
-Toggle **REPLAY VIEW** while driving to render a second live camera view at a target of 24 fps (up to 1080p on PC, 480p on mobile). Compare FPS with it on and off on the same section of track. It is deliberately off by default.
-
-**Important:** This only measures the extra camera rendering cost. It does **not** encode, record, share, or play video, so it cannot establish whether the real replay will run smoothly. Native cross-platform hardware video encoding and real finish footage must be implemented and measured separately; this prototype does not fake a replay from positions. The results screen is a static visual preview, not the original animated results or Marc scene. There are no opponents, lap timing, networking, collision rules, championship, menus or audio yet. Use it to decide whether a full migration is worth pursuing, not as a replacement for the current game.
+**Important:** The prototype still does **not** encode, record, share, or play replay video. Native cross-platform video encoding and real finish footage must be implemented and measured separately; this prototype does not fake a replay from positions. There are no opponents, lap timing, networking, collision rules, championship or finished results yet. Use it to decide whether a full migration is worth pursuing, not as a replacement for the current game.
 
 ## Local build
 

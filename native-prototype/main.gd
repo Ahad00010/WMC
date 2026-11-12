@@ -10,6 +10,8 @@ const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
 const REPLAY_FPS := 24.0
+const MAX_SPEED := 88.0
+const ENGINE_RATE := 22050.0
 var track: Array[Vector3] = []
 var bike: Node3D
 var visual: Node3D
@@ -27,9 +29,16 @@ var active := false
 var mobile := false
 var touch := {"accelerate": false, "brake": false, "left": false, "right": false}
 var hud: Label
-var status: Label
-var results: Control
 var controls: Control
+var pause_panel: Control
+var paused := false
+var engine_player: AudioStreamPlayer
+var engine_playback: AudioStreamGeneratorPlayback
+var engine_phase := 0.0
+var engine_sub_phase := 0.0
+var engine_filtered := 0.0
+var engine_rpm := 0.18
+var engine_gain := 0.0
 var menu: Control
 var music: AudioStreamPlayer
 var music_muted := false
@@ -316,6 +325,7 @@ func _reset() -> void:
  steer = 0.0
  elapsed = 0.0
  active = false
+ paused = false
  replay_enabled = false
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
  for key in touch:
@@ -333,11 +343,13 @@ func _physics_process(dt: float) -> void:
  var turn := float(int(left) - int(right))
  steer = move_toward(steer, turn, dt * 3.5)
  if braking:
-  speed = maxf(speed - (40.0 if hard_brake else 22.0) * dt, 0.0)
+  speed = maxf(speed - (40.0 if hard_brake else 30.0) * dt, 0.0)
  elif throttle:
-  speed = minf(speed + 9.0 * dt, 75.0)
+  # Same acceleration curve and top speed as the website's race physics.
+  var acceleration := 17.0 * (1.0 - pow(clampf(speed / MAX_SPEED, 0.0, 1.0), 1.6))
+  speed = minf(speed + acceleration * dt, MAX_SPEED)
  else:
-  speed = maxf(speed - 1.8 * dt, 0.0)
+  speed = maxf(speed - (1.3 + 0.0007 * speed * speed) * dt, 0.0)
  heading += steer * dt * clampf(speed / 35.0, 0.0, 1.0) * 0.8
  var forward := Vector3(sin(heading), 0, cos(heading))
  bike.position += forward * speed * dt
@@ -372,6 +384,7 @@ func _process(dt: float) -> void:
   music.volume_db = linear_to_db(maxf(volume, 0.0001))
   if music_target == 0.0 and volume <= 0.0001 and music.playing:
    music.stop()
+ _update_engine(dt)
  if active and replay_enabled:
   replay_clock += dt
   if replay_clock >= 1.0 / REPLAY_FPS:
@@ -412,52 +425,77 @@ func _make_ui() -> void:
  controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  controls.visible = false
  hud = _label(controls, "", 24, Vector2(26, 24))
- status = _label(controls, "Press START / RESTART to drive | replay view is a rendering test only", 17, Vector2(26, 64))
- var start := _button(controls, "START / RESTART", Vector2(25, 110), Vector2(220, 52))
- start.pressed.connect(func():
-  _reset()
-  active = true
-  results.visible = false
-  status.text = "Native benchmark: replay view OFF | 24 fps target | no video recording"
- )
- var benchmark := _button(controls, "REPLAY VIEW: OFF", Vector2(25, 174), Vector2(220, 52))
- benchmark.pressed.connect(func():
-  replay_enabled = not replay_enabled
-  replay_clock = 0.0
-  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
-  benchmark.text = "REPLAY VIEW: ON" if replay_enabled else "REPLAY VIEW: OFF"
-  status.text = "Native benchmark: replay view %s | 24 fps target | no video recording" % ("ON" if replay_enabled else "OFF")
- )
- var finish := _button(controls, "RESULTS PREVIEW", Vector2(25, 238), Vector2(220, 52))
- finish.pressed.connect(_show_results)
  if mobile:
+  var pause_button := _button(controls, "Ⅱ", Vector2(1185, 20), Vector2(65, 55))
+  pause_button.pressed.connect(_pause_game)
   for item in [["◀", "left", Vector2(35, 575)], ["▶", "right", Vector2(145, 575)], ["BRAKE", "brake", Vector2(930, 575)], ["GAS", "accelerate", Vector2(1090, 575)]]:
    var key: String = item[1]
    var button := _button(controls, item[0], item[2], Vector2(125, 100))
    button.button_down.connect(func(): touch[key] = true)
    button.button_up.connect(func(): touch[key] = false)
  else:
-  _label(controls, "W / ↑ GAS    S / ↓ BRAKE    A D / ← → STEER", 18, Vector2(26, 680))
- results = ColorRect.new()
- results.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- results.color = Color("11101b")
- results.visible = false
- layer.add_child(results)
- var title := _label(results, "GRAND PRIX RESULTS", 65, Vector2(410, 120))
- title.add_theme_font_override("font", DISPLAY_FONT)
- _label(results, "WMC    #MalaysianGP", 25, Vector2(410, 55))
- _label(results, "1     93    NATIVE PROTOTYPE     +25     WMC93", 25, Vector2(410, 260))
- _label(results, "RESULTS UI PREVIEW — NOT A RECORDED RACE", 18, Vector2(410, 320))
- var result_rider := _label(results, "WINNER", 64, Vector2(65, 300))
- result_rider.add_theme_font_override("font", DISPLAY_FONT)
- var back := _button(results, "BACK TO TRACK", Vector2(410, 400), Vector2(260, 55))
- back.pressed.connect(func(): results.visible = false; active = true)
+  _label(controls, "W / ↑ GAS    S / ↓ BRAKE    A D / ← → STEER    ESC PAUSE", 18, Vector2(26, 680))
+ _make_pause_menu(layer)
  _make_menu(layer)
 
-func _show_results() -> void:
+func _unhandled_key_input(event: InputEvent) -> void:
+ if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+  if active:
+   _pause_game()
+  elif paused:
+   _resume_game()
+  else:
+   return
+  get_viewport().set_input_as_handled()
+
+func _clear_touch() -> void:
+ for key in touch:
+  touch[key] = false
+
+func _make_pause_menu(layer: CanvasLayer) -> void:
+ pause_panel = Control.new()
+ layer.add_child(pause_panel)
+ pause_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ pause_panel.visible = false
+ var shade := ColorRect.new()
+ shade.color = Color(0.02, 0.03, 0.05, 0.82)
+ pause_panel.add_child(shade)
+ shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ var title := _label(pause_panel, "PAUSED", 58, Vector2(500, 200))
+ title.add_theme_font_override("font", DISPLAY_FONT)
+ var resume := _button(pause_panel, "RESUME", Vector2(500, 320), Vector2(280, 55))
+ resume.pressed.connect(_resume_game)
+ var home := _button(pause_panel, "MAIN MENU", Vector2(500, 390), Vector2(280, 55))
+ home.pressed.connect(_return_to_menu)
+
+func _pause_game() -> void:
+ if not active:
+  return
  active = false
+ paused = true
+ _clear_touch()
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
- results.visible = true
+ pause_panel.visible = true
+
+func _resume_game() -> void:
+ if not paused:
+  return
+ paused = false
+ pause_panel.visible = false
+ _clear_touch()
+ active = true
+
+func _return_to_menu() -> void:
+ _reset()
+ pause_panel.visible = false
+ controls.visible = false
+ menu.modulate.a = 1.0
+ menu.mouse_filter = Control.MOUSE_FILTER_STOP
+ menu.visible = true
+ music_target = 0.55
+ if not music.playing:
+  music.volume_db = -80.0
+  music.play()
 
 
 func _make_audio() -> void:
@@ -467,6 +505,14 @@ func _make_audio() -> void:
  music.stream = soundtrack
  music.volume_db = -80.0
  add_child(music)
+ engine_player = AudioStreamPlayer.new()
+ var generator := AudioStreamGenerator.new()
+ generator.mix_rate = ENGINE_RATE
+ generator.buffer_length = 0.12
+ engine_player.stream = generator
+ add_child(engine_player)
+ engine_player.play()
+ engine_playback = engine_player.get_stream_playback() as AudioStreamGeneratorPlayback
  music_target = 0.55
  music.play()
 
@@ -551,7 +597,30 @@ func _start_from_menu() -> void:
   menu.visible = false
   _reset()
   controls.visible = true
-  results.visible = false
   active = true
-  status.text = "Native benchmark: replay view OFF | 24 fps target | no video recording"
  )
+
+# Synthesize the same sawtooth + half-frequency square blend used on the website.
+# It follows the simulated RPM and is silent in menus and while paused.
+func _update_engine(dt: float) -> void:
+ if engine_playback == null:
+  return
+ var throttle: bool = active and (Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch.accelerate)
+ var gear := mini(6, 1 + floori(absf(speed) / 14.6))
+ var fraction := minf(1.0, (absf(speed) - (gear - 1) * 14.6) / 14.6)
+ var target_rpm := 0.18 if absf(speed) < 0.5 and not throttle else 0.3 + 0.7 * fraction
+ engine_rpm = lerpf(engine_rpm, target_rpm, minf(1.0, dt * 10.0))
+ var desired_gain := (0.03 + 0.05 * float(throttle) + 0.02 * engine_rpm) if active and not music_muted else 0.0
+ engine_gain = lerpf(engine_gain, desired_gain, minf(1.0, dt * 16.0))
+ var frequency := 48.0 + engine_rpm * 190.0
+ var cutoff := 500.0 + engine_rpm * 1400.0 + float(throttle) * 500.0
+ var filter := 1.0 - exp(-TAU * cutoff / ENGINE_RATE)
+ var count := mini(engine_playback.get_frames_available(), 4096)
+ for i in range(count):
+  engine_phase = fposmod(engine_phase + frequency / ENGINE_RATE, 1.0)
+  engine_sub_phase = fposmod(engine_sub_phase + frequency * 0.5 / ENGINE_RATE, 1.0)
+  var saw := 2.0 * engine_phase - 1.0
+  var square := 1.0 if engine_sub_phase < 0.5 else -1.0
+  engine_filtered += filter * ((saw + square) * 0.5 - engine_filtered)
+  var sample := engine_filtered * engine_gain
+  engine_playback.push_frame(Vector2(sample, sample))
