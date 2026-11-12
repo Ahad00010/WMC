@@ -328,13 +328,17 @@ func _physics_process(dt: float) -> void:
  bike.position += forward * speed * dt
  bike.rotation.y = heading
  visual.rotation.z = lerpf(visual.rotation.z, -steer * clampf(speed / 50.0, 0.0, 1.0) * 0.35, minf(1, dt * 6))
- # Search the entire short point list; geometry remains native, not a WebView.
+ # Driving advances only a few metres per physics tick. Search locally so the
+ # denser, better-looking road does not add a full-lap scan on every frame.
  var best := INF
- for i in range(track.size()):
+ var closest := nearest
+ for offset in range(-40, 41):
+  var i := posmod(nearest + offset, track.size())
   var dist := bike.position.distance_squared_to(track[i])
   if dist < best:
    best = dist
-   nearest = i
+   closest = i
+ nearest = closest
  # Approximate the distance to the nearest road segment.
  var prev := track[(nearest - 1 + track.size()) % track.size()]
  var current := track[nearest]
