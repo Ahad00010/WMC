@@ -668,27 +668,27 @@ func _make_menu(layer: CanvasLayer) -> void:
  menu.add_child(card)
  card.set_anchors_preset(Control.PRESET_CENTER)
  card.offset_left = -380
- card.offset_top = -320
+ card.offset_top = -330
  card.offset_right = 380
- card.offset_bottom = 320
+ card.offset_bottom = 330
  var eyebrow := _menu_label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 16, 0)
  eyebrow.add_theme_color_override("font_color", Color("ec2939"))
  var brand := _menu_label(card, "WMC", 120, 32)
  brand.name = "Brand"
  brand.add_theme_font_override("font", DISPLAY_FONT)
- _menu_label(card, "World Motorbike Championship", 25, 185)
+ _menu_label(card, "World Motorbike Championship", 25, 212)
  var description := _menu_label(card, "Stay on the asphalt, brake before the corners,
-and keep out of the gravel.", 22, 227)
+and keep out of the gravel.", 22, 265)
  description.add_theme_color_override("font_color", Color("c5cad1"))
  if mobile:
-  _menu_label(card, "Use the on-screen controls to ride.", 22, 302)
+  _menu_label(card, "Use the on-screen controls to ride.", 22, 366)
  else:
-  _menu_label(card, "W   Throttle              S   Brake / reverse", 19, 290)
-  _menu_label(card, "A  D   Lean left / right     Space   Hard brake", 19, 319)
+  _menu_label(card, "W   Throttle              S   Brake / reverse", 19, 354)
+  _menu_label(card, "A  D   Lean left / right     Space   Hard brake", 19, 391)
  # Sign-in uses the system browser and retrieves this account's own profile.
  var account_actions := HBoxContainer.new()
  account_actions.name = "AccountActions"
- account_actions.position = Vector2(0, 363)
+ account_actions.position = Vector2(0, 431)
  account_actions.size = Vector2(760, 54)
  account_actions.alignment = BoxContainer.ALIGNMENT_CENTER
  account_actions.add_theme_constant_override("separation", 8)
@@ -720,8 +720,8 @@ and keep out of the gravel.", 22, 227)
   profile_panel.visible = false
   sign_out_button.visible = false
  )
- auth_status = _menu_label(card, "", 16, 424)
- var play := _button(card, "PLAY", Vector2(280, 463), Vector2(200, 72))
+ auth_status = _menu_label(card, "", 16, 487)
+ var play := _button(card, "PLAY", Vector2(280, 522), Vector2(200, 72))
  play.name = "Play"
  play.add_theme_font_override("font", DISPLAY_FONT)
  play.add_theme_font_size_override("font_size", 36)
@@ -734,7 +734,7 @@ and keep out of the gravel.", 22, 227)
  play.add_theme_stylebox_override("pressed", hover)
  play.pressed.connect(_start_from_menu)
  var credit := _menu_label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0
-WMC · practice only", 14, 564)
+WMC · practice only", 14, 600)
  credit.add_theme_color_override("font_color", Color("9da3aa"))
 
 func _start_from_menu() -> void:
