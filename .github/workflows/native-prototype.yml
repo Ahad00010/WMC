@@ -49,13 +49,24 @@ jobs:
           SETTINGS
       - name: Import and test project
         run: |
-          godot --headless --editor --path native-prototype --import
-          godot --headless --path native-prototype --quit-after 5
+          set -o pipefail
+          godot --headless --editor --path native-prototype --import 2>&1 | tee /tmp/godot-import.log
+          godot --headless --path native-prototype --quit-after 5 2>&1 | tee /tmp/godot-run.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log; then
+            while IFS= read -r line; do echo "::error::$line"; done < <(grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log)
+            exit 1
+          fi
       - name: Export Windows and Android debug builds
         run: |
           mkdir -p native-prototype/build
-          godot --headless --path native-prototype --export-debug Windows build/WMC-Native-Prototype.exe
-          godot --headless --path native-prototype --export-debug Android build/WMC-Native-Prototype.apk
+          set -o pipefail
+          for target in Windows Android; do
+            extension=exe; [ "$target" = Android ] && extension=apk
+            if ! godot --headless --path native-prototype --export-debug "$target" "build/WMC-Native-Prototype.$extension" > /tmp/export.log 2>&1; then
+              tail -40 /tmp/export.log | while IFS= read -r line; do echo "::error::$line"; done
+              exit 1
+            fi
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: WMC-native-prototype-Windows
