@@ -134,10 +134,10 @@ func _physics_process(dt: float) -> void:
  if not active:
   return
  elapsed += dt
- var throttle := Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch.accelerate
- var braking := Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch.brake
- var left := Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or touch.left
- var right := Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or touch.right
+ var throttle: bool = Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch.accelerate
+ var braking: bool = Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch.brake
+ var left: bool = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or touch.left
+ var right: bool = Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or touch.right
  var turn := float(int(left) - int(right))
  steer = move_toward(steer, turn, dt * 3.5)
  if throttle:
