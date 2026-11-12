@@ -40,9 +40,12 @@ func _run() -> void:
  key.keycode = KEY_SPACE
  key.pressed = true
  Input.parse_input_event(key)
+ await process_frame
  game._physics_process(0.1)
- key.pressed = false
- Input.parse_input_event(key)
+ var release := InputEventKey.new()
+ release.keycode = KEY_SPACE
+ release.pressed = false
+ Input.parse_input_event(release)
  if game.speed >= before_brake or game.bike.position.distance_to(before_position) > 10.0:
   push_error("Hard brake did not slow the bike without resetting")
   quit(1)
