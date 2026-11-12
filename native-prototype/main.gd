@@ -569,7 +569,10 @@ func _make_pause_menu(layer: CanvasLayer) -> void:
  var pause_card := Control.new()
  pause_panel.add_child(pause_card)
  pause_card.set_anchors_preset(Control.PRESET_CENTER)
- pause_card.position = Vector2(-140, -160)
+ pause_card.offset_left = -140
+ pause_card.offset_top = -160
+ pause_card.offset_right = 140
+ pause_card.offset_bottom = 100
  var title := _label(pause_card, "PAUSED", 58, Vector2(0, 0))
  title.add_theme_font_override("font", DISPLAY_FONT)
  var resume := _button(pause_card, "RESUME", Vector2(0, 120), Vector2(280, 55))
@@ -658,8 +661,10 @@ func _make_menu(layer: CanvasLayer) -> void:
  var card := Control.new()
  menu.add_child(card)
  card.set_anchors_preset(Control.PRESET_CENTER)
- card.position = Vector2(-240, -260)
- card.size = Vector2(480, 560)
+ card.offset_left = -240
+ card.offset_top = -260
+ card.offset_right = 240
+ card.offset_bottom = 300
  var eyebrow := _label(card, "TIME ATTACK · PETRONAS SEPANG INTERNATIONAL CIRCUIT", 11, Vector2(0, 0))
  eyebrow.add_theme_color_override("font_color", Color("ec2939"))
  var brand := _label(card, "WMC", 86, Vector2(0, 28))
@@ -766,8 +771,10 @@ func _make_profile_editor(layer: CanvasLayer) -> void:
  var card := Control.new()
  profile_panel.add_child(card)
  card.set_anchors_preset(Control.PRESET_CENTER)
- card.position = Vector2(-250, -315)
- card.size = Vector2(500, 630)
+ card.offset_left = -250
+ card.offset_top = -315
+ card.offset_right = 250
+ card.offset_bottom = 315
  var title := _label(card, "RIDER PROFILE", 38, Vector2(0, 0))
  title.add_theme_font_override("font", DISPLAY_FONT)
  _label(card, "DISPLAY NAME", 16, Vector2(0, 70))

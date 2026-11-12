@@ -20,6 +20,22 @@ func _run() -> void:
   push_error("Native opening screen did not initialize")
   quit(1)
   return
+ # Check the actual resolved layout, not just visibility. Anchored positions
+ # must remain centered after the parent is resized to a wide mobile aspect.
+ var overlays = [game.menu, game.pause_panel, game.profile_panel]
+ var widths = [480.0, 280.0, 500.0]
+ for n in range(overlays.size()):
+  var panel: Control = overlays[n]
+  var card: Control = panel.get_child(1)
+  var original_size := panel.size
+  for panel_width in [1280.0, 1600.0]:
+   panel.size = Vector2(panel_width, 720)
+   var expected_x: float = (panel_width - widths[n]) / 2.0
+   if absf(card.position.x - expected_x) > 1.0 or card.position.x < 0 or card.position.x + widths[n] > panel_width:
+    push_error("Overlay %d is off-screen at width %d: %s" % [n, panel_width, card.position])
+    quit(1)
+    return
+  panel.size = original_size
  for button in game.controls.find_children("*", "Button", true, false):
   if button.focus_mode != Control.FOCUS_NONE:
    push_error("Driving controls can accidentally activate a focused button")
