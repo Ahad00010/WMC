@@ -1,0 +1,68 @@
+name: Build native prototype
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'arena/**']
+    paths: ['native-prototype/**', '.github/workflows/native-prototype.yml']
+  pull_request:
+    paths: ['native-prototype/**', '.github/workflows/native-prototype.yml']
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Godot and export templates
+        shell: bash
+        run: |
+          set -euxo pipefail
+          version=4.4.1-stable
+          base=https://github.com/godotengine/godot-builds/releases/download/$version
+          wget -q "$base/Godot_v${version}_linux.x86_64.zip" -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v${version}_linux.x86_64 /usr/local/bin/godot
+          wget -q "$base/Godot_v${version}_export_templates.tpz" -O /tmp/templates.zip
+          mkdir -p "$HOME/.local/share/godot/export_templates/${version/-/.}"
+          unzip -q /tmp/templates.zip -d /tmp/godot-templates
+          cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/${version/-/.}/"
+      - name: Configure Android SDK and debug signing
+        shell: bash
+        run: |
+          set -euxo pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+          mkdir -p "$HOME/.config/godot" "$HOME/.android"
+          keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<SETTINGS
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/debug_keystore = "$HOME/.android/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          SETTINGS
+      - name: Import and test project
+        run: |
+          godot --headless --editor --path native-prototype --import
+          godot --headless --path native-prototype --quit-after 5
+      - name: Export Windows and Android debug builds
+        run: |
+          mkdir -p native-prototype/build
+          godot --headless --path native-prototype --export-debug Windows build/WMC-Native-Prototype.exe
+          godot --headless --path native-prototype --export-debug Android build/WMC-Native-Prototype.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-native-prototype-Windows
+          path: native-prototype/build/WMC-Native-Prototype.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-native-prototype-Android
+          path: native-prototype/build/WMC-Native-Prototype.apk
+          if-no-files-found: error
