@@ -1,7 +1,7 @@
 /* Record the actual race canvas, not an approximation of rider movements. */
 (function(root){
 'use strict';
-function captureSize(width,height,mobile){var scale=Math.min(1,(mobile?854:1280)/width,(mobile?480:720)/height);return {width:Math.max(1,Math.round(width*scale)),height:Math.max(1,Math.round(height*scale))}}
+function captureSize(width,height,mobile){var scale=Math.min(1,(mobile?854:1920)/width,(mobile?480:1080)/height);return {width:Math.max(1,Math.round(width*scale)),height:Math.max(1,Math.round(height*scale))}}
 function createFootage(env,options){
  var mobile=!!(options&&options.mobile),fps=24,interval=1000/fps;
  var stream=null,recorder=null,segment=null,best=Object.create(null),completed=Object.create(null),generation=0,lastSample=-Infinity,disabled=false,slowStart=null,slowFrames=0,slowTime=0,highQuality=false,clipHandler=null,scaledCanvas=null,nextDraw=-Infinity;
