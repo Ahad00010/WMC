@@ -11,6 +11,11 @@ func _run() -> void:
   push_error("Missing native track or bike")
   quit(1)
   return
+ var road = game.get_node_or_null("Track_asphalt")
+ if road == null or road.material_override.albedo_texture == null or game.get_node_or_null("Track_Barriers") == null or game.get_node_or_null("Track_Trees") == null:
+  push_error("Circuit visuals did not initialize")
+  quit(1)
+  return
  var start = game.bike.position
  game.active = true
  game.touch["accelerate"] = true

@@ -5,6 +5,7 @@ const BIKE = preload("res://assets/bike-mobile.glb")
 const RIDER = preload("res://assets/marc-rider.glb")
 const DISPLAY_FONT = preload("res://assets/MGPDisplay-Medium.otf")
 const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
+const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
 const REPLAY_FPS := 24.0
 var track: Array[Vector3] = []
@@ -37,8 +38,16 @@ func _ready() -> void:
 
 func _read_track() -> void:
  var points = JSON.parse_string(FileAccess.get_file_as_string("res://assets/sepang.json"))
- for point in points:
-  track.append(Vector3(float(point[0]), 0.0, float(point[1])))
+ # Subdivide the original centreline so kerb markings and barriers remain
+ # evenly spaced on long straights as well as around bends.
+ for i in range(points.size()):
+  var point: Array = points[i]
+  var next: Array = points[(i + 1) % points.size()]
+  var a := Vector3(float(point[0]), 0.0, float(point[1]))
+  var b := Vector3(float(next[0]), 0.0, float(next[1]))
+  var count := maxi(1, ceili(a.distance_to(b) / 5.0))
+  for j in range(count):
+   track.append(a.lerp(b, float(j) / float(count)))
 
 func _material(color: Color) -> StandardMaterial3D:
  var mat := StandardMaterial3D.new()
@@ -68,28 +77,10 @@ func _make_world() -> void:
  ground.position.y = -0.1
  ground.material_override = _material(Color("4b7542"))
  add_child(ground)
- var vertices := PackedVector3Array()
- var normals := PackedVector3Array()
- for i in range(track.size()):
-  var a := track[i]
-  var b := track[(i + 1) % track.size()]
-  var previous := track[(i - 1 + track.size()) % track.size()]
-  var following := track[(i + 2) % track.size()]
-  var side_a := Vector3(-(b - previous).z, 0, (b - previous).x).normalized() * ROAD_WIDTH
-  var side_b := Vector3(-(following - a).z, 0, (following - a).x).normalized() * ROAD_WIDTH
-  for vertex in [a - side_a, b - side_b, b + side_b, a - side_a, b + side_b, a + side_a]:
-   vertices.append(vertex)
-   normals.append(Vector3.UP)
- var arrays := []
- arrays.resize(Mesh.ARRAY_MAX)
- arrays[Mesh.ARRAY_VERTEX] = vertices
- arrays[Mesh.ARRAY_NORMAL] = normals
- var road_mesh := ArrayMesh.new()
- road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
- var road := MeshInstance3D.new()
- road.mesh = road_mesh
- road.material_override = _material(Color("33373c"))
- add_child(road)
+ _make_track_surfaces()
+ _make_barriers()
+ _make_start_finish()
+ _make_trees()
  bike = Node3D.new()
  add_child(bike)
  visual = Node3D.new()
@@ -115,6 +106,192 @@ func _make_world() -> void:
  replay_camera.far = 2200
  replay_view.add_child(replay_camera)
  replay_camera.current = true
+
+
+func _textured_material() -> StandardMaterial3D:
+ var mat := _material(Color.WHITE)
+ var image := ASPHALT.get_image()
+ image.generate_mipmaps()
+ mat.albedo_texture = ImageTexture.create_from_image(image)
+ mat.texture_repeat = true
+ mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+ return mat
+
+# Continuous road and shoulders follow the same centreline as the driving logic.
+# They are grouped into a handful of meshes, not thousands of individual objects.
+func _ribbon(inner: float, outer: float, height: float, kind: String) -> void:
+ var vertices := PackedVector3Array()
+ var normals := PackedVector3Array()
+ var uvs := PackedVector2Array()
+ var colors := PackedColorArray()
+ var distance := 0.0
+ for i in range(track.size()):
+  var a := track[i]
+  var b := track[(i + 1) % track.size()]
+  var previous := track[(i - 1 + track.size()) % track.size()]
+  var following := track[(i + 2) % track.size()]
+  var side_a := Vector3(-(b - previous).z, 0, (b - previous).x).normalized()
+  var side_b := Vector3(-(following - a).z, 0, (following - a).x).normalized()
+  var length := a.distance_to(b)
+  var aa := a + side_a * inner + Vector3.UP * height
+  var ab := a + side_a * outer + Vector3.UP * height
+  var ba := b + side_b * inner + Vector3.UP * height
+  var bb := b + side_b * outer + Vector3.UP * height
+  var tile := 12.0
+  var ua := inner / tile
+  var ub := outer / tile
+  var va := distance / tile
+  var vb := (distance + length) / tile
+  var tint := Color.WHITE
+  if kind == "kerb":
+   tint = Color("d62730") if int(distance / 6.0) % 2 == 0 else Color("f1f0e8")
+  for entry in [[aa,Vector2(ua,va)], [ba,Vector2(ua,vb)], [bb,Vector2(ub,vb)], [aa,Vector2(ua,va)], [bb,Vector2(ub,vb)], [ab,Vector2(ub,va)]]:
+   vertices.append(entry[0])
+   uvs.append(entry[1])
+   normals.append(Vector3.UP)
+   colors.append(tint)
+  distance += length
+ var arrays := []
+ arrays.resize(Mesh.ARRAY_MAX)
+ arrays[Mesh.ARRAY_VERTEX] = vertices
+ arrays[Mesh.ARRAY_NORMAL] = normals
+ arrays[Mesh.ARRAY_TEX_UV] = uvs
+ arrays[Mesh.ARRAY_COLOR] = colors
+ var mesh := ArrayMesh.new()
+ mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+ var surface := MeshInstance3D.new()
+ surface.name = "Track_" + kind
+ surface.mesh = mesh
+ if kind == "asphalt":
+  surface.material_override = _textured_material()
+ elif kind == "kerb":
+  var material := _material(Color.WHITE)
+  material.vertex_color_use_as_albedo = true
+  surface.material_override = material
+ else:
+  surface.material_override = _material(Color("ad9b75"))
+ add_child(surface)
+
+func _make_track_surfaces() -> void:
+ _ribbon(-ROAD_WIDTH, ROAD_WIDTH, 0.01, "asphalt")
+ _ribbon(ROAD_WIDTH, ROAD_WIDTH + 2.0, 0.025, "kerb")
+ _ribbon(-ROAD_WIDTH - 2.0, -ROAD_WIDTH, 0.025, "kerb")
+ _ribbon(ROAD_WIDTH + 2.0, ROAD_WIDTH + 9.0, 0.0, "gravel")
+ _ribbon(-ROAD_WIDTH - 9.0, -ROAD_WIDTH - 2.0, 0.0, "gravel")
+
+func _make_barriers() -> void:
+ var box := BoxMesh.new()
+ box.size = Vector3(0.7, 1.05, 5.2)
+ box.material = _material(Color.WHITE)
+ var instances := MultiMesh.new()
+ instances.transform_format = MultiMesh.TRANSFORM_3D
+ instances.use_colors = true
+ instances.mesh = box
+ instances.instance_count = track.size() * 2
+ var count := 0
+ for i in range(track.size()):
+  var a := track[i]
+  var b := track[(i + 1) % track.size()]
+  var forward := (b - a).normalized()
+  var side := Vector3(-forward.z, 0, forward.x)
+  var basis := Basis(Vector3.UP, atan2(forward.x, forward.z)).scaled(Vector3(1, 1, a.distance_to(b) / 5.0))
+  for direction in [-1, 1]:
+   instances.set_instance_transform(count, Transform3D(basis, (a + b) * 0.5 + side * direction * (ROAD_WIDTH + 9.4) + Vector3.UP * 0.525))
+   instances.set_instance_color(count, Color("e53639") if int(i / 3) % 2 == 0 else Color("f3f2ec"))
+   count += 1
+ # Multimesh vertex colors tint its white material.
+ box.material.vertex_color_use_as_albedo = true
+ var barriers := MultiMeshInstance3D.new()
+ barriers.name = "Track_Barriers"
+ barriers.multimesh = instances
+ add_child(barriers)
+
+func _box(parent: Node3D, size: Vector3, position: Vector3, material: Material) -> void:
+ var box := BoxMesh.new()
+ box.size = size
+ var node := MeshInstance3D.new()
+ node.mesh = box
+ node.material_override = material
+ node.position = position
+ parent.add_child(node)
+
+func _make_start_finish() -> void:
+ var group := Node3D.new()
+ group.position = track[0]
+ var forward := (track[1] - track[0]).normalized()
+ group.rotation.y = atan2(forward.x, forward.z)
+ add_child(group)
+ var dark := _material(Color("20242c"))
+ var red := _material(Color("dc2733"))
+ var white := _material(Color("f5f5f0"))
+ for side in [-1, 1]:
+  _box(group, Vector3(0.8, 8.0, 0.8), Vector3(side * 15.0, 4, 0), dark)
+  # Lightweight grandstands alongside the start straight.
+  for tier in range(4):
+   var height := 1.3 * (tier + 1)
+   _box(group, Vector3(4, height, 80), Vector3(side * (25.0 + tier * 4.0), height * 0.5, 30), _material(Color("4a4d55")))
+  _box(group, Vector3(18, 0.6, 80), Vector3(side * 31.0, 9, 30), red)
+ _box(group, Vector3(31, 2.3, 0.7), Vector3(0, 8, 0), dark)
+ var sign := Label3D.new()
+ sign.text = "WMC     START  /  FINISH"
+ sign.font_size = 80
+ sign.pixel_size = 0.01
+ sign.position = Vector3(0, 8, -0.4)
+ sign.rotation.y = PI
+ sign.modulate = Color.WHITE
+ group.add_child(sign)
+ # Actual chequered line on the track.
+ for x in range(18):
+  for z in range(2):
+   _box(group, Vector3(1.0, 0.02, 0.8), Vector3(-8.5 + x, 0.05, -1.0 + z * 0.8), white if (x + z) % 2 == 0 else dark)
+
+func _make_trees() -> void:
+ var rng := RandomNumberGenerator.new()
+ rng.seed = 9310
+ var trunk := CylinderMesh.new()
+ trunk.top_radius = 0.3
+ trunk.bottom_radius = 0.45
+ trunk.height = 3
+ trunk.material = _material(Color("5a4030"))
+ var crown := CylinderMesh.new()
+ crown.top_radius = 0
+ crown.bottom_radius = 3.3
+ crown.height = 9
+ crown.radial_segments = 7
+ crown.material = _material(Color("285d2c"))
+ var trunks := MultiMesh.new()
+ var crowns := MultiMesh.new()
+ for multi in [trunks, crowns]:
+  multi.transform_format = MultiMesh.TRANSFORM_3D
+  multi.instance_count = 150 if mobile else 220
+ trunks.mesh = trunk
+ crowns.mesh = crown
+ var placed := 0
+ var attempts := 0
+ while placed < trunks.instance_count and attempts < 5000:
+  attempts += 1
+  var x := rng.randf_range(-1300, 1300)
+  var z := rng.randf_range(-1300, 1300)
+  var point := Vector3(x, 0, z)
+  var clear := point.distance_to(track[0]) > 110
+  for i in range(0, track.size(), 10):
+   if point.distance_squared_to(track[i]) < 70.0 * 70.0:
+    clear = false
+    break
+  if not clear:
+   continue
+  var scale := rng.randf_range(0.85, 1.35)
+  var basis := Basis.IDENTITY.scaled(Vector3.ONE * scale)
+  trunks.set_instance_transform(placed, Transform3D(basis, point + Vector3.UP * 1.5 * scale))
+  crowns.set_instance_transform(placed, Transform3D(basis, point + Vector3.UP * 7.5 * scale))
+  placed += 1
+ trunks.visible_instance_count = placed
+ crowns.visible_instance_count = placed
+ for multi in [trunks, crowns]:
+  var node := MultiMeshInstance3D.new()
+  node.name = "Track_Trees"
+  node.multimesh = multi
+  add_child(node)
 
 func _reset() -> void:
  nearest = 0
