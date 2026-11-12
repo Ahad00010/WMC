@@ -3,6 +3,7 @@ extends Node
 # Native system-browser OAuth with PKCE. Tokens are held only in memory.
 signal status_changed(message: String)
 signal profile_loaded(profile: Dictionary)
+signal profile_error(message: String)
 const URL := "https://siwvtpijqgtshaknzoyb.supabase.co"
 const KEY := "sb_publishable_YZDH8wjnu0_NoZZN1FXkhQ_c3Gvyqoa"
 const PORT := 18674
@@ -12,6 +13,8 @@ var peer: StreamPeerTCP
 var input := ""
 var verifier := ""
 var access_token := ""
+var user_id := ""
+var operation := ""
 var pending_at := 0
 var request: HTTPRequest
 
@@ -96,41 +99,86 @@ func _process(_delta: float) -> void:
  status_changed.emit("Finishing sign-in…")
  var payload := JSON.stringify({"auth_code": code, "code_verifier": verifier})
  verifier = ""
+ operation = "token"
  var err := request.request(URL + "/auth/v1/token?grant_type=pkce", ["apikey: " + KEY, "Content-Type: application/json"], HTTPClient.METHOD_POST, payload)
  if err != OK:
   status_changed.emit("Could not contact sign-in service")
 
 func _response(result: int, status: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
- if result != HTTPRequest.RESULT_SUCCESS or status < 200 or status >= 300:
-  access_token = ""
-  status_changed.emit("Sign-in or profile request failed; try again")
-  return
+ var current := operation
+ operation = ""
  var data = JSON.parse_string(body.get_string_from_utf8())
- if data is Dictionary and data.has("access_token"):
+ if result != HTTPRequest.RESULT_SUCCESS or status < 200 or status >= 300:
+  if current == "save":
+   var message := "Could not save profile. Please try again."
+   if data is Dictionary and data.get("code", "") == "23505":
+    message = "That username is already taken."
+   elif status == 401 or status == 403:
+    message = "Session expired. Sign in again."
+   profile_error.emit(message)
+  else:
+   access_token = ""
+   user_id = ""
+   status_changed.emit("Sign-in or profile request failed; try again")
+  return
+ if current == "token" and data is Dictionary and data.has("access_token"):
   access_token = str(data.access_token)
   var user = data.get("user", {})
   if not user is Dictionary or not user.has("id"):
    access_token = ""
    status_changed.emit("Sign-in response missing user")
    return
-  var id: String = str(user.id)
-  var path := "/rest/v1/rider_profiles?select=username,display_name,rider_number,plate_color&id=eq." + id.uri_encode()
+  user_id = str(user.id)
+  var path := "/rest/v1/rider_profiles?select=username,display_name,rider_number,plate_color&id=eq." + user_id.uri_encode()
+  operation = "load"
   var err := request.request(URL + path, ["apikey: " + KEY, "Authorization: Bearer " + access_token], HTTPClient.METHOD_GET)
   if err != OK:
-   access_token = ""
+   operation = ""
    status_changed.emit("Could not load your rider profile")
- elif data is Array:
-  if data.size() == 0:
-   status_changed.emit("No rider profile yet — create one in the web game")
-  elif data[0] is Dictionary:
+ elif (current == "load" or current == "save") and data is Array:
+  if data.is_empty() and current == "load":
+   profile_loaded.emit({})
+  elif not data.is_empty() and data[0] is Dictionary:
    profile_loaded.emit(data[0])
+  else:
+   profile_error.emit("Profile could not be saved; please try again")
  else:
-  access_token = ""
-  status_changed.emit("Unexpected sign-in response")
+  status_changed.emit("Unexpected sign-in or profile response")
+
+func save_profile(display_name: String, username: String, number: int, color: String) -> void:
+ if access_token.is_empty() or user_id.is_empty():
+  profile_error.emit("Sign in first")
+  return
+ if request.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+  profile_error.emit("Please wait for the current request")
+  return
+ var name_pattern := RegEx.new()
+ name_pattern.compile("^\\S+\\s+\\S+(?:\\s+.*\\S)?$")
+ var username_pattern := RegEx.new()
+ username_pattern.compile("^[a-z0-9_]{3,20}$")
+ var name := " ".join(display_name.strip_edges().split(" ", false))
+ var handle := username.strip_edges().to_lower()
+ if name.length() > 15 or name_pattern.search(name) == null:
+  profile_error.emit("Use at least two names, no more than 15 characters.")
+  return
+ if username_pattern.search(handle) == null:
+  profile_error.emit("Username must be 3–20 letters, numbers or underscores.")
+  return
+ if number < 10 or number > 99 or color not in ["blue", "red", "yellow", "orange", "green", "cyan", "purple", "pink", "white", "black", "silver"]:
+  profile_error.emit("Choose a two-digit number and a plate color.")
+  return
+ var payload := JSON.stringify({"id": user_id, "display_name": name, "username": handle, "rider_number": number, "plate_color": color})
+ operation = "save"
+ var err := request.request(URL + "/rest/v1/rider_profiles?on_conflict=id&select=username,display_name,rider_number,plate_color", ["apikey: " + KEY, "Authorization: Bearer " + access_token, "Content-Type: application/json", "Prefer: resolution=merge-duplicates,return=representation"], HTTPClient.METHOD_POST, payload)
+ if err != OK:
+  operation = ""
+  profile_error.emit("Could not contact profile service.")
 
 func sign_out() -> void:
  listener.stop()
  verifier = ""
  request.cancel_request()
  access_token = ""
+ user_id = ""
+ operation = ""
  status_changed.emit("Signed out on this device")

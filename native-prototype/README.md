@@ -1,6 +1,6 @@
 # WMC native prototype
 
-An independent Godot 4.4.1 project, not an APK WebView and not a replacement for the existing game. It is a **performance/feel prototype**, not a complete game. It uses the existing Sepang centreline, Ducati and rider assets; the road geometry and controls are deliberately simplified and are not a port of the authoritative multiplayer physics.
+An independent Godot 4.4.1 project, not an APK WebView and not a replacement for the existing game. It is a **performance/feel prototype**, not a complete game. It uses the existing Sepang centreline, Ducati and rider assets; the road geometry and controls are approximate; the acceleration, steering, reverse and track boundaries follow the website formulas but are not a full port of the authoritative multiplayer physics.
 
 ## Test it
 
@@ -14,4 +14,4 @@ Use W / up for gas, S / down to brake, Space for hard braking, and A/D or arrows
 
 Open `native-prototype/project.godot` with Godot 4.4.1. Install the matching export templates and Android SDK/JDK 17 in Godot editor settings, then export using the Windows and Android presets. The GitHub workflow documents a repeatable CI build.
 
-The opening screen and soundtrack are native approximations of the web menu. Play starts the prototype immediately. Hold Space for hard braking; controls use no keyboard focus to prevent Space activating UI buttons. The camera now banks subtly with the bike as in the web game. The native Google sign-in uses your system browser and PKCE, keeping tokens only in memory and retrieving your existing rider profile; new profiles must be created in the web game. It uses an app-local callback on port 18674, so browser or device restrictions may affect it and real Windows/Android sign-in testing is required. Signing out clears the prototype's in-memory token; your browser's Google session is not signed out.
+The opening screen and soundtrack are native approximations of the web menu. Play starts the prototype immediately. Hold Space for hard braking; controls use no keyboard focus to prevent Space activating UI buttons. The camera now banks subtly with the bike as in the web game. The native Google sign-in uses your system browser and PKCE, keeping tokens only in memory and retrieving your existing rider profile; you can edit or create the rider profile from the native menu. It uses an app-local callback on port 18674, so browser or device restrictions may affect it and real Windows/Android sign-in testing is required. Signing out clears the prototype's in-memory token; your browser's Google session is not signed out.

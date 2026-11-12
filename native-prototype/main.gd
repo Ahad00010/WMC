@@ -23,6 +23,7 @@ var replay_clock := 0.0
 var speed := 0.0
 var heading := 0.0
 var steer := 0.0
+var impact_cooldown := 0.0
 var nearest := 0
 var elapsed := 0.0
 var active := false
@@ -47,6 +48,14 @@ var auth_status: Label
 var auth_button: Button
 var sign_out_button: Button
 var auth: Node
+var profile: Dictionary = {}
+var profile_panel: Control
+var profile_error: Label
+var profile_name: LineEdit
+var profile_username: LineEdit
+var profile_number: SpinBox
+var profile_color: OptionButton
+var profile_save: Button
 
 func _ready() -> void:
  mobile = OS.has_feature("mobile")
@@ -323,6 +332,7 @@ func _reset() -> void:
  camera.look_at(bike.position + direction * 7.0 + Vector3.UP, Vector3.UP)
  speed = 0.0
  steer = 0.0
+ impact_cooldown = 0.0
  elapsed = 0.0
  active = false
  paused = false
@@ -331,48 +341,85 @@ func _reset() -> void:
  for key in touch:
   touch[key] = false
 
+# Project onto nearby road segments, rather than measuring to sparse point
+# samples. This keeps surface classification stable through corners.
+func _track_projection() -> Dictionary:
+ var best := INF
+ var closest := nearest
+ var best_point := Vector3.ZERO
+ var best_side := Vector3.RIGHT
+ for offset in range(-40, 41):
+  var i := posmod(nearest + offset, track.size())
+  var a := track[i]
+  var b := track[(i + 1) % track.size()]
+  var point := Geometry3D.get_closest_point_to_segment(bike.position, a, b)
+  var d := bike.position.distance_squared_to(point)
+  if d < best:
+   best = d
+   closest = i
+   best_point = point
+   var tangent := (b - a).normalized()
+   best_side = Vector3(-tangent.z, 0, tangent.x)
+ nearest = closest
+ return {"point": best_point, "side": best_side, "lat": (bike.position - best_point).dot(best_side)}
+
 func _physics_process(dt: float) -> void:
  if not active:
   return
  elapsed += dt
  var throttle: bool = Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch.accelerate
  var hard_brake: bool = Input.is_key_pressed(KEY_SPACE)
- var braking: bool = hard_brake or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch.brake
+ var braking: bool = Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch.brake
  var left: bool = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or touch.left
  var right: bool = Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or touch.right
- var turn := float(int(left) - int(right))
- steer = move_toward(steer, turn, dt * 3.5)
- if braking:
-  speed = maxf(speed - (40.0 if hard_brake else 30.0) * dt, 0.0)
- elif throttle:
-  # Same acceleration curve and top speed as the website's race physics.
-  var acceleration := 17.0 * (1.0 - pow(clampf(speed / MAX_SPEED, 0.0, 1.0), 1.6))
-  speed = minf(speed + acceleration * dt, MAX_SPEED)
- else:
-  speed = maxf(speed - (1.3 + 0.0007 * speed * speed) * dt, 0.0)
- heading += steer * dt * clampf(speed / 35.0, 0.0, 1.0) * 0.8
+ var surface := _track_projection()
+ var offset: float = absf(surface.lat)
+ var grip := 0.5 if offset > ROAD_WIDTH + 2.0 else (0.92 if offset > ROAD_WIDTH else 1.0)
+ var max_speed := MAX_SPEED * 0.36 if offset > ROAD_WIDTH + 2.0 else MAX_SPEED
+ var acceleration := 0.0
+ if throttle:
+  acceleration = 17.0 * (1.0 - pow(maxf(speed, 0.0) / max_speed, 1.6))
+  if speed < 0:
+   acceleration = 22.0
+ if braking or hard_brake:
+  if hard_brake:
+   acceleration = -40.0 * grip if speed > 0 else (40.0 * grip if speed < 0 else 0.0)
+  elif speed > 0.4:
+   acceleration = -30.0 * grip
+  elif not throttle:
+   acceleration = -9.0 if speed > -9.0 else 0.0
+ if not throttle and not braking and not hard_brake:
+  acceleration = -(1.3 + 0.0007 * speed * speed) * signf(speed)
+ if speed > max_speed:
+  acceleration -= minf(40.0, (speed - max_speed) * 3.0 + 8.0)
+ acceleration -= 2.2 * absf(steer) * (absf(speed) / MAX_SPEED) * signf(speed)
+ var old_speed := speed
+ speed += acceleration * dt
+ if (hard_brake or (not throttle and not braking)) and old_speed * speed <= 0:
+  speed = 0.0
+ var target := float(int(left) - int(right))
+ var response := 5.5 if target != 0.0 else (16.0 if braking or hard_brake else 9.0)
+ steer = lerpf(steer, target, minf(1.0, dt * response))
+ var absolute_speed := absf(speed)
+ # The old prototype turned at a fixed rate even at high speed, throwing the
+ # bike straight into gravel in normal corners. Match the website's speed/grip curve.
+ var yaw := steer * minf(1.9, 18.0 * grip / maxf(absolute_speed, 0.01)) * minf(1.0, absolute_speed / 4.0) * (1.0 if speed >= 0 else -0.7)
+ heading += yaw * dt
  var forward := Vector3(sin(heading), 0, cos(heading))
  bike.position += forward * speed * dt
+ surface = _track_projection()
+ var lateral: float = surface.lat
+ var wall := ROAD_WIDTH + 9.0
+ if absf(lateral) > wall:
+  var side: Vector3 = surface.side
+  bike.position -= side * (lateral - signf(lateral) * wall)
+  if impact_cooldown <= 0.0:
+   speed *= 0.6
+   impact_cooldown = 0.5
+  speed -= speed * minf(1.0, 2.2 * dt)
+ impact_cooldown = maxf(0.0, impact_cooldown - dt)
  bike.rotation.y = heading
- visual.rotation.z = lerpf(visual.rotation.z, -steer * clampf(speed / 50.0, 0.0, 1.0) * 0.35, minf(1, dt * 6))
- # Driving advances only a few metres per physics tick. Search locally so the
- # denser, better-looking road does not add a full-lap scan on every frame.
- var best := INF
- var closest := nearest
- for offset in range(-40, 41):
-  var i := posmod(nearest + offset, track.size())
-  var dist := bike.position.distance_squared_to(track[i])
-  if dist < best:
-   best = dist
-   closest = i
- nearest = closest
- # Approximate the distance to the nearest road segment.
- var prev := track[(nearest - 1 + track.size()) % track.size()]
- var current := track[nearest]
- var next := track[(nearest + 1) % track.size()]
- var distance := minf(bike.position.distance_to(Geometry3D.get_closest_point_to_segment(bike.position, prev, current)), bike.position.distance_to(Geometry3D.get_closest_point_to_segment(bike.position, current, next)))
- if distance > ROAD_WIDTH + 2.0:
-  speed = maxf(0, speed - 14.0 * dt)
+ visual.rotation.z = lerpf(visual.rotation.z, -steer * clampf(absolute_speed / 24.0, 0.0, 1.0) * 1.05, minf(1, dt * 6.5))
  camera.position = bike.position - forward * 7.0 + Vector3.UP * 3.0
  camera.look_at(bike.position + forward * 7.0 + Vector3.UP, Vector3.UP)
  camera.rotate_object_local(Vector3.BACK, -visual.rotation.z * 0.07)
@@ -437,6 +484,7 @@ func _make_ui() -> void:
   _label(controls, "W / ↑ GAS    S / ↓ BRAKE    A D / ← → STEER    ESC PAUSE", 18, Vector2(26, 680))
  _make_pause_menu(layer)
  _make_menu(layer)
+ _make_profile_editor(layer)
 
 func _unhandled_key_input(event: InputEvent) -> void:
  if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
@@ -520,10 +568,21 @@ func _make_auth() -> void:
  auth = AUTH_SCRIPT.new()
  add_child(auth)
  auth.status_changed.connect(func(message: String): auth_status.text = message)
- auth.profile_loaded.connect(func(profile: Dictionary):
-  auth_status.text = "@%s  ·  #%s  ·  %s" % [profile.get("username", "rider"), profile.get("rider_number", "—"), profile.get("plate_color", "")]
-  auth_button.visible = false
+ auth.profile_loaded.connect(func(data: Dictionary):
+  profile = data.duplicate()
+  auth_button.text = "Edit profile"
   sign_out_button.visible = true
+  profile_save.disabled = false
+  if profile.is_empty():
+   auth_status.text = "Complete your rider profile"
+   _open_profile_editor()
+  else:
+   auth_status.text = "@%s  ·  #%s  ·  %s" % [profile.get("username", "rider"), profile.get("rider_number", "—"), profile.get("plate_color", "")]
+   profile_panel.visible = false
+ )
+ auth.profile_error.connect(func(message: String):
+  profile_save.disabled = false
+  profile_error.text = message
  )
 
 func _make_menu(layer: CanvasLayer) -> void:
@@ -561,13 +620,20 @@ and keep out of the gravel.", 15, Vector2(0, 170))
  )
  auth_button = _button(card, "Sign in with Google", Vector2(116, 326), Vector2(180, 38))
  auth_button.add_theme_font_size_override("font_size", 13)
- auth_button.pressed.connect(func(): auth.sign_in())
- sign_out_button = _button(card, "Sign out", Vector2(116, 326), Vector2(110, 38))
+ auth_button.pressed.connect(func():
+  if auth.access_token.is_empty():
+   auth.sign_in()
+  else:
+   _open_profile_editor()
+ )
+ sign_out_button = _button(card, "Sign out", Vector2(304, 326), Vector2(90, 38))
  sign_out_button.add_theme_font_size_override("font_size", 13)
  sign_out_button.visible = false
  sign_out_button.pressed.connect(func():
   auth.sign_out()
-  auth_button.visible = true
+  auth_button.text = "Sign in with Google"
+  profile.clear()
+  profile_panel.visible = false
   sign_out_button.visible = false
  )
  auth_status = _label(card, "", 12, Vector2(0, 369))
@@ -624,3 +690,73 @@ func _update_engine(dt: float) -> void:
   engine_filtered += filter * ((saw + square) * 0.5 - engine_filtered)
   var sample := engine_filtered * engine_gain
   engine_playback.push_frame(Vector2(sample, sample))
+
+
+func _make_profile_editor(layer: CanvasLayer) -> void:
+ profile_panel = Control.new()
+ layer.add_child(profile_panel)
+ profile_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ profile_panel.visible = false
+ var backdrop := ColorRect.new()
+ backdrop.color = Color(0.01, 0.02, 0.03, 0.93)
+ profile_panel.add_child(backdrop)
+ backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ var card := Control.new()
+ card.position = Vector2(390, 45)
+ card.size = Vector2(500, 630)
+ profile_panel.add_child(card)
+ var title := _label(card, "RIDER PROFILE", 38, Vector2(0, 0))
+ title.add_theme_font_override("font", DISPLAY_FONT)
+ _label(card, "DISPLAY NAME", 16, Vector2(0, 70))
+ profile_name = LineEdit.new()
+ profile_name.position = Vector2(0, 96)
+ profile_name.size = Vector2(490, 44)
+ profile_name.max_length = 15
+ profile_name.placeholder_text = "First and last name"
+ card.add_child(profile_name)
+ _label(card, "UNIQUE USERNAME", 16, Vector2(0, 154))
+ profile_username = LineEdit.new()
+ profile_username.position = Vector2(0, 180)
+ profile_username.size = Vector2(490, 44)
+ profile_username.max_length = 20
+ profile_username.placeholder_text = "letters, numbers and underscores"
+ card.add_child(profile_username)
+ _label(card, "RACING NUMBER", 16, Vector2(0, 238))
+ profile_number = SpinBox.new()
+ profile_number.position = Vector2(0, 264)
+ profile_number.size = Vector2(180, 44)
+ profile_number.min_value = 10
+ profile_number.max_value = 99
+ profile_number.step = 1
+ card.add_child(profile_number)
+ _label(card, "NUMBER PLATE COLOR", 16, Vector2(0, 322))
+ profile_color = OptionButton.new()
+ profile_color.position = Vector2(0, 348)
+ profile_color.size = Vector2(250, 44)
+ for color in ["blue", "red", "yellow", "orange", "green", "cyan", "purple", "pink", "white", "black", "silver"]:
+  profile_color.add_item(color.capitalize())
+  profile_color.set_item_metadata(profile_color.item_count - 1, color)
+ card.add_child(profile_color)
+ profile_error = _label(card, "", 15, Vector2(0, 410))
+ profile_error.add_theme_color_override("font_color", Color("ff7a7a"))
+ profile_save = _button(card, "SAVE", Vector2(0, 470), Vector2(190, 52))
+ profile_save.pressed.connect(func():
+  profile_error.text = "Saving…"
+  profile_save.disabled = true
+  auth.save_profile(profile_name.text, profile_username.text, int(profile_number.value), str(profile_color.get_selected_metadata()))
+ )
+ var cancel := _button(card, "CANCEL", Vector2(205, 470), Vector2(190, 52))
+ cancel.pressed.connect(func(): profile_panel.visible = false)
+
+func _open_profile_editor() -> void:
+ profile_error.text = ""
+ profile_save.disabled = false
+ profile_name.text = str(profile.get("display_name", ""))
+ profile_username.text = str(profile.get("username", ""))
+ profile_number.value = int(profile.get("rider_number", 10))
+ var color := str(profile.get("plate_color", "blue"))
+ for i in range(profile_color.item_count):
+  if profile_color.get_item_metadata(i) == color:
+   profile_color.select(i)
+   break
+ profile_panel.visible = true
