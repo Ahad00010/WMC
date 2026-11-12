@@ -53,7 +53,7 @@ func _run() -> void:
     return
    for previous in visible_items:
     if child.get_rect().intersects(previous.get_rect()):
-     push_error("Menu items overlap: %s and %s" % [child.name, previous.name])
+     push_error("Menu items overlap: %s %s and %s %s" % [child.name, child.get_rect(), previous.name, previous.get_rect()])
      quit(1)
      return
    visible_items.append(child)
