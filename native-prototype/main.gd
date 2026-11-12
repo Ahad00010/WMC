@@ -207,7 +207,7 @@ func _make_ui() -> void:
  controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  layer.add_child(controls)
  hud = _label(controls, "", 24, Vector2(26, 24))
- status = _label(controls, "", 17, Vector2(26, 64))
+ status = _label(controls, "Press START / RESTART to drive | replay view is a rendering test only", 17, Vector2(26, 64))
  var start := _button(controls, "START / RESTART", Vector2(25, 110), Vector2(220, 52))
  start.pressed.connect(func():
   _reset()

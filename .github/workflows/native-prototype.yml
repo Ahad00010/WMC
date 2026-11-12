@@ -53,6 +53,7 @@ jobs:
           set -o pipefail
           godot --headless --editor --path native-prototype --import 2>&1 | tee /tmp/godot-import.log
           godot --headless --path native-prototype --quit-after 5 2>&1 | tee /tmp/godot-run.log
+          godot --headless --path native-prototype --script res://smoke.gd 2>&1 | tee -a /tmp/godot-run.log
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log; then
             while IFS= read -r line; do echo "::error::$line"; done < <(grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log)
             exit 1
