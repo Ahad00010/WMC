@@ -733,8 +733,7 @@ and keep out of the gravel.", 22, 265)
  play.add_theme_stylebox_override("hover", hover)
  play.add_theme_stylebox_override("pressed", hover)
  play.pressed.connect(_start_from_menu)
- var credit := _menu_label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0
-WMC · practice only", 14, 600)
+ var credit := _menu_label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0  |  WMC · practice only", 14, 631)
  credit.add_theme_color_override("font_color", Color("9da3aa"))
 
 func _start_from_menu() -> void:
