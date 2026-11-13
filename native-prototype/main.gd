@@ -14,6 +14,7 @@ const RACE_MENU = preload("res://race_menu.gd")
 const SETTINGS_MENU = preload("res://settings_menu.gd")
 const RESULTS_SCREEN = preload("res://results_screen.gd")
 const REPLAY_RECORDER = preload("res://replay_recorder.gd")
+const DIAGNOSTICS = preload("res://diagnostics.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
@@ -52,6 +53,7 @@ var replay_clock := 0.0
 var replay_time := 0.0
 var replay_pending := false
 var recorder: RefCounted
+var diagnostics: RefCounted
 var speed := 0.0
 var heading := 0.0
 var steer := 0.0
@@ -98,6 +100,8 @@ var profile_color: OptionButton
 var profile_save: Button
 
 func _ready() -> void:
+ diagnostics = DIAGNOSTICS.new()
+ diagnostics.start()
  mobile = OS.has_feature("mobile")
  _load_settings()
  _load_circuits()
@@ -531,6 +535,8 @@ func _driving_step(dt: float) -> void:
  camera.rotate_object_local(Vector3.BACK, -visual.rotation.z * 0.07)
 
 func _process(dt: float) -> void:
+ if diagnostics:
+  diagnostics.update(dt, self)
  if music:
   var volume := db_to_linear(music.volume_db)
   volume = move_toward(volume, 0.0 if music_muted else music_target * master_volume * music_volume, dt * 0.55 / 0.85)
@@ -1065,6 +1071,7 @@ func _start_from_menu() -> void:
 func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
  if not circuit_sources.has(id):
   return
+ diagnostics.note("RACE START circuit=%s laps=%d speed=%d ai=%s" % [id, laps, factor, fill])
  race_menu.visible = false
  _change_circuit(id)
  _reset()
@@ -1170,6 +1177,7 @@ func _make_finish_menu(layer: CanvasLayer) -> void:
  home.pressed.connect(_return_to_menu)
 
 func _finish_race() -> void:
+ diagnostics.note("RACE FINISH elapsed=%.2f ai=%d" % [elapsed, ai_riders.size()])
  var place := 1
  for rider in ai_riders:
   if rider.finished or float(rider.progress) > player_progress:
@@ -1289,3 +1297,5 @@ func _open_profile_editor() -> void:
 func _exit_tree() -> void:
  if recorder:
   recorder.clear()
+ if diagnostics:
+  diagnostics.stop()

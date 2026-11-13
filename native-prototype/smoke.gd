@@ -123,11 +123,15 @@ func _run() -> void:
   quit(1)
   return
  game.replay_enabled = true
+ game.racing = true
  game._process(1.0 / 20.0)
  if game.replay_view.render_target_update_mode != SubViewport.UPDATE_ONCE:
   push_error("Live second camera failed to render")
   quit(1)
   return
+ game.replay_enabled = false
+ game.replay_pending = false
+ game.racing = false
  game.menu.visible = false
  game.controls.visible = true
  var preserved_position: Vector3 = game.bike.position
