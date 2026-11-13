@@ -1,8 +1,8 @@
 extends RefCounted
-# Real rendered frames, bounded to the most recent 10 seconds. Encoding and
+# Real rendered frames, bounded to the most recent 7 seconds. Encoding and
 # disk writes happen on one worker; a full queue drops frames instead of
 # growing memory without limit or stalling the race with compression.
-const CAPACITY := 600
+const CAPACITY := 420
 const DIRECTORY := "user://replay_frames"
 var worker := Thread.new()
 var mutex := Mutex.new()
@@ -17,6 +17,14 @@ func start() -> void:
  DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIRECTORY))
  stopping = false
  started = worker.start(_work) == OK
+
+func can_accept() -> bool:
+ if not started:
+  return false
+ mutex.lock()
+ var available := not stopping and jobs.size() < 2
+ mutex.unlock()
+ return available
 
 func submit(image: Image, timestamp: float) -> void:
  if not started or image == null or image.is_empty():
@@ -51,7 +59,7 @@ func _work() -> void:
    file.close()
    mutex.lock()
    written.append({"path":path, "time":job.time, "id":job.id})
-   while written.size() > CAPACITY or (written.size() > 1 and float(written[0].time) < float(job.time) - 10.0):
+   while written.size() > CAPACITY or (written.size() > 1 and float(written[0].time) < float(job.time) - 7.0):
     written.pop_front()
    mutex.unlock()
 

@@ -6,6 +6,7 @@ const TEXT = preload("res://assets/MGPText-Bold.ttf")
 const INLINE = preload("res://assets/MGPInline-Regular.otf")
 const RESULTS_MUSIC = preload("res://assets/results-music.mp3")
 const TISSOT = preload("res://assets/tissot.png")
+const REPLAY_READER = preload("res://replay_reader.gd")
 const RIDER = preload("res://assets/marc-rider.glb")
 const FIM = preload("res://assets/fim.png")
 const POINTS = [25,20,16,13,11,10,9,8,7,6,5,4,3,2,1]
@@ -25,6 +26,9 @@ var cued := false
 var replay_frames: Array = []
 var replay_texture: ImageTexture
 var replay_index := -1
+var replay_reader: RefCounted
+var replay_duration := 0.0
+var reveal_at := -1.0
 var rider_view: SubViewport
 var rider_figure: Node3D
 var leaving := false
@@ -146,6 +150,12 @@ func _fit() -> void:
 func begin(classification: Array, circuit_name: String, tag: String, captured: Array = []) -> void:
  cancel()
  replay_frames = captured
+ replay_duration = 0.0
+ reveal_at = -1.0
+ if not replay_frames.is_empty():
+  replay_duration = maxf(0.0, float(replay_frames[-1].time) - float(replay_frames[0].time))
+  replay_reader = REPLAY_READER.new()
+  replay_reader.start(replay_frames)
  replay_index = -1
  replay_texture = null
  entries = classification.duplicate(true)
@@ -159,6 +169,9 @@ func begin(classification: Array, circuit_name: String, tag: String, captured: A
  queue_redraw()
 
 func cancel() -> void:
+ if replay_reader:
+  replay_reader.stop()
+  replay_reader = null
  running = false
  visible = false
  if player:
@@ -207,12 +220,17 @@ func advance(dt: float) -> void:
   rider_figure.rotation.y = 0.08 * sin(clock * 0.45)
   rider_figure.rotation.z = 0.015 * sin(clock * 0.8)
   rider_figure.position.y = 0.008 * sin(clock * 1.3)
- menu_button.visible = phase == "winner"
- var menu_intro := clampf((clock - 63.35) / 0.5, 0.0, 1.0)
- menu_button.position.x = 42.0 - 35.0 * (1.0 - menu_intro)
- menu_button.modulate.a = menu_intro
  if phase == "winner":
   _update_replay()
+  var playback_ended := clock >= 63.35 + replay_duration
+  var final_loaded := replay_frames.is_empty() or replay_index == replay_frames.size() - 1
+  # If a corrupt frame cannot be decoded, don't strand the player indefinitely.
+  if reveal_at < 0.0 and playback_ended and (final_loaded or clock >= 65.35 + replay_duration):
+   reveal_at = clock + (0.5 if not replay_frames.is_empty() else 0.0)
+ menu_button.visible = phase == "winner" and reveal_at >= 0.0 and clock >= reveal_at
+ var menu_intro := clampf((clock - reveal_at) / 0.5, 0.0, 1.0) if reveal_at >= 0.0 else 0.0
+ menu_button.position.x = 42.0 - 35.0 * (1.0 - menu_intro)
+ menu_button.modulate.a = menu_intro
  if cued:
   var fade_in := clampf((clock - 20.0) / 3.0, 0.0, 1.0)
   var fade_out := 1.0 - clampf((clock - 70.35) / 1.5, 0.0, 1.0)
@@ -225,16 +243,19 @@ func _update_replay() -> void:
  if replay_frames.is_empty():
   return
  var first := float(replay_frames[0].time)
- var duration := maxf(1.0 / 60.0, float(replay_frames[-1].time) - first + 1.0 / 60.0)
- var t := first + fmod(maxf(0.0, clock - 63.35), duration)
+ # Play once, then hold the final recorded frame instead of looping.
+ var t := first + minf(maxf(0.0, clock - 63.35), replay_duration)
  var index := 0
  while index + 1 < replay_frames.size() and float(replay_frames[index + 1].time) <= t:
   index += 1
- if index == replay_index:
+ if index == replay_index or not replay_reader:
   return
- var image := Image.new()
- if image.load(replay_frames[index].path) == OK:
-  replay_texture = ImageTexture.create_from_image(image)
+ var image: Image = replay_reader.request(index)
+ if image:
+  if replay_texture and replay_texture.get_width() == image.get_width() and replay_texture.get_height() == image.get_height() and replay_texture.get_format() == image.get_format():
+   replay_texture.update(image)
+  else:
+   replay_texture = ImageTexture.create_from_image(image)
   replay_index = index
 
 func _draw() -> void:
@@ -257,6 +278,12 @@ func _draw() -> void:
   draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, clampf((clock - 63.0) / 0.35, 0.0, 1.0)))
  else:
   _draw_results(phase == "championship")
+ # Fade out the GP summary before switching content, then reveal the new page.
+ # The 43-second phase boundary and the following 63-second exit stay intact.
+ if clock >= 42.4 and clock < 43.7:
+  var darkness := clampf((clock - 42.4) / 0.6, 0.0, 1.0) if clock < 43.0 else 1.0 - clampf((clock - 43.0) / 0.7, 0.0, 1.0)
+  draw_set_transform(origin, 0.0, Vector2.ONE * factor)
+  draw_rect(Rect2(0, 0, 1280, 720), Color(0.03, 0.02, 0.04, darkness))
  draw_set_transform(Vector2.ZERO)
 
 func _draw_results(championship: bool) -> void:
@@ -315,12 +342,12 @@ func _draw_winner() -> void:
  if replay_texture:
   draw_texture_rect(replay_texture, Rect2(0, 0, 1280, 720), false)
  draw_string(TEXT, Vector2(40, 60), "RACE COMPLETE", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
- if entries.is_empty():
+ if entries.is_empty() or reveal_at < 0.0 or clock < reveal_at:
   return
  var winner: Dictionary = entries[0]
  var factor := minf(size.x / 1280.0, size.y / 720.0)
  var origin := (size - Vector2(1280, 720) * factor) * 0.5
- var intro := clampf((clock - 63.35) / 0.7, 0.0, 1.0)
+ var intro := clampf((clock - reveal_at) / 0.7, 0.0, 1.0)
  intro = 1.0 - pow(1.0 - intro, 3.0)
  draw_set_transform(origin + Vector2(35.0 * (1.0 - intro), 0) * factor, 0.0, Vector2.ONE * factor)
  draw_rect(Rect2(900, 470, 320, 31), Color("050505"))
@@ -344,3 +371,8 @@ func _format_time(value: float) -> String:
   return "—"
  var ms := roundi(maxf(value, 0.0) * 1000.0)
  return "%d:%02d.%03d" % [int(ms / 60000), int(ms / 1000) % 60, ms % 1000]
+
+func _exit_tree() -> void:
+ if replay_reader:
+  replay_reader.stop()
+  replay_reader = null

@@ -53,6 +53,9 @@ var replay_enabled := false
 var replay_clock := 0.0
 var replay_time := 0.0
 var replay_pending := false
+var capture_readback_us := 0
+var capture_readbacks := 0
+var capture_skipped := 0
 var recorder: RefCounted
 var diagnostics: RefCounted
 var speed := 0.0
@@ -398,6 +401,9 @@ func _reset() -> void:
   recorder = null
  replay_pending = false
  replay_time = 0.0
+ capture_readback_us = 0
+ capture_readbacks = 0
+ capture_skipped = 0
  if results_screen:
   results_screen.cancel()
  race_generation += 1
@@ -557,22 +563,22 @@ func _process(dt: float) -> void:
  if active and replay_enabled and racing:
   replay_time += dt
   if replay_pending:
-   recorder.submit(replay_view.get_texture().get_image(), replay_time)
+   if recorder and recorder.can_accept():
+    var before_readback := Time.get_ticks_usec()
+    var image := replay_view.get_texture().get_image()
+    capture_readback_us += Time.get_ticks_usec() - before_readback
+    capture_readbacks += 1
+    recorder.submit(image, replay_time)
+   else:
+    capture_skipped += 1
    replay_pending = false
   replay_clock += dt
   if replay_clock >= 1.0 / REPLAY_FPS:
    replay_clock = fmod(replay_clock, 1.0 / REPLAY_FPS)
-   var target: Node3D = bike
-   var leading := player_progress
-   for entry in ai_riders:
-    if float(entry.progress) > leading:
-     leading = float(entry.progress)
-     target = entry.node
-   var forward := Vector3(sin(target.rotation.y), 0, cos(target.rotation.y))
-   replay_camera.position = target.position + forward.rotated(Vector3.UP, 1.5) * 9.0 + Vector3.UP * 3.5
-   replay_camera.look_at(target.position + Vector3.UP, Vector3.UP)
-   replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
-   replay_pending = true
+   if recorder and not recorder.can_accept():
+    capture_skipped += 1
+   elif not countdown:
+    _schedule_replay_frame()
  if active:
   if racing:
    var lap := mini(race_laps, maxi(1, floori(player_progress / track.size()) + 1))
@@ -598,6 +604,19 @@ func _process(dt: float) -> void:
    hud.text = "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
   _update_map_markers()
 
+func _schedule_replay_frame() -> void:
+ var target: Node3D = bike
+ var leading := player_progress
+ for entry in ai_riders:
+  if float(entry.progress) > leading:
+   leading = float(entry.progress)
+   target = entry.node
+ var forward := Vector3(sin(target.rotation.y), 0, cos(target.rotation.y))
+ replay_camera.position = target.position + forward.rotated(Vector3.UP, 1.5) * 9.0 + Vector3.UP * 3.5
+ replay_camera.look_at(target.position + Vector3.UP, Vector3.UP)
+ replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
+ replay_pending = true
+
 func _update_map_markers() -> void:
  if not mini_map:
   return
@@ -622,6 +641,11 @@ func _resize_race_tower() -> void:
  var factor := minf(requested, height_available / race_tower.size.y)
  factor = minf(factor, controls.size.x * 0.30 / race_tower.size.x)
  race_tower.scale = Vector2.ONE * maxf(0.75, factor)
+
+static func _profile_number(value: Variant) -> String:
+ if value == null or not str(value).is_valid_float():
+  return "—"
+ return str(int(float(value)))
 
 func _standings() -> Array:
  var entries: Array = [{"id":"player", "name": str(profile.get("display_name", "RIDER")), "number":str(int(profile.get("rider_number", 93))), "color":str(profile.get("plate_color", "red")), "is_player":true, "progress":player_progress, "finished":player_finished, "finish_time":player_finish_time if player_finished else INF}]
@@ -901,7 +925,7 @@ func _make_auth() -> void:
    auth_status.text = "Complete your rider profile"
    _open_profile_editor()
   else:
-   auth_status.text = "@%s  ·  #%s  ·  %s" % [profile.get("username", "rider"), profile.get("rider_number", "—"), profile.get("plate_color", "")]
+   auth_status.text = "@%s  ·  #%s  ·  %s" % [profile.get("username", "rider"), _profile_number(profile.get("rider_number", null)), profile.get("plate_color", "")]
    profile_panel.visible = false
  )
  auth.profile_error.connect(func(message: String):
@@ -1199,7 +1223,7 @@ func _finish_race() -> void:
  replay_enabled = false
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
  var captured: Array = recorder.finish() if recorder else []
- diagnostics.note("REPLAY captured_frames=%d elapsed=%.2f" % [captured.size(), replay_time])
+ diagnostics.note("REPLAY captured_frames=%d elapsed=%.2f readbacks=%d skipped=%d avg_readback_ms=%.2f" % [captured.size(), replay_time, capture_readbacks, capture_skipped, float(capture_readback_us) / max(1, capture_readbacks) / 1000.0])
  var hashtags := {"sepang":"#MalaysianGP", "silverstone":"#BritishGP", "assen":"#DutchGP", "brno":"#CzechGP", "monza":"#ItalianGP", "jerez":"#SpanishGP"}
  results_screen.begin(_standings(), RACE_MENU.NAMES.get(circuit_id, circuit_id), hashtags.get(circuit_id, "#WMC"), captured)
 

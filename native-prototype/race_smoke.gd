@@ -28,7 +28,29 @@ func _run() -> void:
  if decoded.load(recorded[0].path) != OK or decoded.get_pixel(8, 8).r < 0.8:
   _fail("Replay frame did not preserve image pixels")
   return
+ # Playback must run once, hold its last real image, and reveal controls afterwards.
+ var sample: Array = [{"path": recorded[0].path, "time": 1.0}, {"path": recorded[0].path, "time": 8.0}]
+ game.results_screen.begin([], "TEST", "#TEST", sample)
+ game.results_screen.advance(63.35)
+ if game.results_screen.menu_button.visible or game.results_screen.replay_duration != 7.0:
+  _fail("Winner card appeared before seven-second replay")
+  return
+ await create_timer(0.1).timeout
+ game.results_screen.advance(7.1)
+ await create_timer(0.1).timeout
+ game.results_screen.advance(0.01)
+ if game.results_screen.replay_index != 1 or game.results_screen.menu_button.visible:
+  _fail("Replay did not hold its final frame before revealing the card")
+  return
+ game.results_screen.advance(0.6)
+ if not game.results_screen.menu_button.visible or game.results_screen.replay_index != 1:
+  _fail("Winner controls did not appear over the held final frame")
+  return
+ game.results_screen.cancel()
  recorder.clear()
+ if game._profile_number(13.0) != "13" or game._profile_number(null) != "—":
+  _fail("Main menu rider number formatting failed")
+  return
  # Settings are present on both platforms; GUI scaling is PC-only and saved.
  if game.settings_panel == null or game.settings_panel.gui_choice == null or game.settings_panel.gui_choice.item_count != 4:
   _fail("PC settings or GUI scale choices missing")
