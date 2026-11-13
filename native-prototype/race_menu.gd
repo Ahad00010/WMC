@@ -11,6 +11,8 @@ var heading: Label
 var body: Control
 var back: Button
 var sound_button: Button
+var close_button: Button
+var top_bar: ColorRect
 var lap_slider: HSlider
 var laps_label: Label
 var speed_choice: OptionButton
@@ -39,18 +41,17 @@ func setup(circuit_sources: Dictionary) -> void:
  bg.color = Color("14181f")
  card.add_child(bg)
  bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- var top := ColorRect.new()
- top.color = Color("ed2534")
- top.position = Vector2(0, 0)
- top.size = Vector2(1020, 5)
- card.add_child(top)
+ top_bar = ColorRect.new()
+ top_bar.color = Color("ed2534")
+ top_bar.size = Vector2(1020, 5)
+ card.add_child(top_bar)
  var eyebrow := _label(card, "WORLD MOTORBIKE CHAMPIONSHIP", 16, Vector2(36, 15))
  eyebrow.add_theme_color_override("font_color", Color("f32c3b"))
  heading = _label(card, "", 42, Vector2(36, 52), true)
  sound_button = _button(card, "Sound: on", Vector2(750, 20), Vector2(175, 50), 17)
  sound_button.pressed.connect(func(): sound_toggled.emit())
- var close := _button(card, "✕", Vector2(950, 18), Vector2(48, 48), 24)
- close.pressed.connect(func(): visible = false)
+ close_button = _button(card, "✕", Vector2(950, 18), Vector2(48, 48), 24)
+ close_button.pressed.connect(func(): visible = false)
  body = Control.new()
  body.position = Vector2(36, 118)
  body.size = Vector2(948, 480)
@@ -81,6 +82,19 @@ func _button(parent: Control, text: String, pos: Vector2, size: Vector2, font_si
 
 func show_page(next: String) -> void:
  page = next
+ var compact := page != "circuit"
+ var width := 800.0 if compact else 1020.0
+ var height := 380.0 if compact else 680.0
+ card.offset_left = -width / 2
+ card.offset_right = width / 2
+ card.offset_top = -height / 2
+ card.offset_bottom = height / 2
+ top_bar.size.x = width
+ heading.add_theme_font_size_override("font_size", 38 if compact else 42)
+ sound_button.position.x = 570 if compact else 750
+ close_button.position.x = 730 if compact else 950
+ body.size = Vector2(728, 180) if compact else Vector2(948, 480)
+ back.position.y = 315 if compact else 616
  heading.text = {"mode":"CHOOSE YOUR MODE", "practice":"PRACTICE", "circuit":"CIRCUIT"}[page]
  back.visible = page != "mode"
  for child in body.get_children():
@@ -88,15 +102,15 @@ func show_page(next: String) -> void:
   child.queue_free()
  if page == "mode":
   _choice("PRACTICE", "Race on your own or with AI riders.", 0, false, func(): show_page("practice"))
-  _choice("MULTIPLAYER", "Under development", 480, true, func(): pass)
+  _choice("MULTIPLAYER", "Under development", 368, true, func(): pass)
  elif page == "practice":
   _choice("RACE", "Choose a circuit, laps and AI riders.", 0, false, func(): show_page("circuit"))
-  _choice("QUALIFYING", "Under development", 480, true, func(): pass)
+  _choice("QUALIFYING", "Under development", 368, true, func(): pass)
  else:
   _make_circuits()
 
 func _choice(title: String, description: String, x: float, disabled: bool, action: Callable) -> void:
- var choice := _button(body, "", Vector2(x, 45), Vector2(460, 220), 18)
+ var choice := _button(body, "", Vector2(x, 12), Vector2(350, 150), 18)
  choice.disabled = disabled
  var normal := StyleBoxFlat.new()
  normal.bg_color = Color("1c2027")
@@ -109,10 +123,10 @@ func _choice(title: String, description: String, x: float, disabled: bool, actio
  choice.add_theme_stylebox_override("pressed", highlighted)
  choice.add_theme_stylebox_override("disabled", normal)
  choice.pressed.connect(action)
- var kicker := _label(choice, "PRACTICE" if page == "practice" else ("02 / ONLINE" if disabled else "01 / SOLO"), 15, Vector2(24, 18))
+ var kicker := _label(choice, "PRACTICE" if page == "practice" else ("02 / ONLINE" if disabled else "01 / SOLO"), 14, Vector2(20, 10))
  kicker.add_theme_color_override("font_color", Color("ed2534"))
- var name_label := _label(choice, title, 36, Vector2(24, 48), true)
- var desc := _label(choice, description, 17, Vector2(24, 120))
+ var name_label := _label(choice, title, 29, Vector2(20, 38), true)
+ var desc := _label(choice, description, 14, Vector2(20, 96))
  for label in [kicker, name_label, desc]:
   label.mouse_filter = Control.MOUSE_FILTER_IGNORE
  if disabled:

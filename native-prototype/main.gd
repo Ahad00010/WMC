@@ -8,6 +8,8 @@ const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
 const AUTH_SCRIPT = preload("res://auth.gd")
 const TOUCH_PAD = preload("res://touch_pad.gd")
 const MAP_SCRIPT = preload("res://circuit_map.gd")
+const LIGHTS_SCRIPT = preload("res://start_lights.gd")
+const TOWER_SCRIPT = preload("res://race_tower.gd")
 const RACE_MENU = preload("res://race_menu.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
@@ -21,6 +23,11 @@ var track_nodes: Array[Node] = []
 var circuit_id := "sepang"
 var race_menu: Control
 var mini_map: Control
+var race_tower: Control
+var start_lights: Control
+var countdown := false
+var countdown_clock := 0.0
+var tower_clock := 0.0
 var finish_panel: Control
 var finish_text: Label
 var racing := false
@@ -368,6 +375,12 @@ func _make_trees() -> void:
 
 func _reset() -> void:
  racing = false
+ countdown = false
+ countdown_clock = 0.0
+ if start_lights:
+  start_lights.visible = false
+ if race_tower:
+  race_tower.reset()
  for rider in ai_riders:
   rider.node.queue_free()
  ai_riders.clear()
@@ -413,6 +426,13 @@ func _track_projection() -> Dictionary:
 
 func _physics_process(dt: float) -> void:
  if not active:
+  return
+ if racing and countdown:
+  countdown_clock = minf(countdown_clock + dt, LIGHTS_SCRIPT.RELEASE_TIME)
+  start_lights.clock = countdown_clock
+  start_lights.queue_redraw()
+  if countdown_clock >= LIGHTS_SCRIPT.RELEASE_TIME:
+   countdown = false
   return
  elapsed += dt
  var factor := speed_factor if racing else 1
@@ -501,18 +521,52 @@ func _process(dt: float) -> void:
    replay_camera.look_at(bike.position + Vector3.UP, Vector3.UP)
    replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
  if active:
-  var lap := mini(race_laps, maxi(1, floori(player_progress / track.size()) + 1))
-  var position := 1
-  for rider in ai_riders:
-   if rider.finished or float(rider.progress) > player_progress:
-    position += 1
-  hud.text = "%d KM/H    |    P%d/%d    |    LAP %d/%d    |    %02d:%02d    |    %d FPS" % [roundi(speed * speed_factor * 3.6), position, ai_riders.size() + 1, lap, race_laps, int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()] if racing else "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
-  if mini_map:
-   mini_map.player_position = Vector2(bike.position.x, bike.position.z)
-   mini_map.opponents.clear()
-   for rider in ai_riders:
-    mini_map.opponents.append(Vector2(rider.node.position.x, rider.node.position.z))
-   mini_map.queue_redraw()
+  if racing:
+   var lap := mini(race_laps, maxi(1, floori(player_progress / track.size()) + 1))
+   var order := _standings()
+   var position := 1
+   for i in range(order.size()):
+    if order[i].id == "player":
+     position = i + 1
+     break
+   hud.text = "%d KM/H   |   P%d/%d   |   %02d:%02d   |   %d FPS" % [roundi(speed * speed_factor * 3.6), position, order.size(), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
+   tower_clock += dt
+   if tower_clock >= 0.15:
+    tower_clock = 0.0
+    race_tower.update_standings(order, lap, race_laps)
+   if not countdown and start_lights.visible:
+    start_lights.clock += dt
+    start_lights.queue_redraw()
+    if start_lights.clock >= LIGHTS_SCRIPT.RELEASE_TIME + 0.65:
+     start_lights.visible = false
+  else:
+   hud.text = "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
+  _update_map_markers()
+
+func _update_map_markers() -> void:
+ if not mini_map:
+  return
+ mini_map.player_position = Vector2(bike.position.x, bike.position.z)
+ mini_map.opponents.clear()
+ for rider in ai_riders:
+  mini_map.opponents.append(Vector2(rider.node.position.x, rider.node.position.z))
+ mini_map.queue_redraw()
+
+func _standings() -> Array:
+ var entries: Array = [{"id":"player", "name": str(profile.get("display_name", "RIDER")), "number":str(profile.get("rider_number", 93)), "is_player":true, "progress":player_progress, "finished":false, "finish_time":INF}]
+ for i in range(ai_riders.size()):
+  var rider: Dictionary = ai_riders[i]
+  entries.append({"id":"ai%d" % i, "name":"AI %02d" % (i + 1), "number":str(21 + i), "is_player":false, "progress":float(rider.progress), "finished":bool(rider.finished), "finish_time":float(rider.get("finish_time", INF))})
+ entries.sort_custom(func(a, b):
+  if a.finished != b.finished:
+   return a.finished
+  if a.finished:
+   return a.finish_time < b.finish_time
+  if a.progress == b.progress:
+   return a.id < b.id
+  return a.progress > b.progress
+ )
+ return entries
 
 func _label(parent: Control, text: String, size: int, pos: Vector2) -> Label:
  var label := Label.new()
@@ -542,7 +596,29 @@ func _make_ui() -> void:
  layer.add_child(controls)
  controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  controls.visible = false
- hud = _label(controls, "", 24, Vector2(26, 24))
+ hud = _label(controls, "", 16, Vector2.ZERO)
+ hud.anchor_left = 0.5
+ hud.anchor_right = 0.5
+ hud.anchor_top = 1.0
+ hud.anchor_bottom = 1.0
+ hud.offset_left = -350
+ hud.offset_right = 350
+ hud.offset_top = -48
+ hud.offset_bottom = -8
+ hud.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+ race_tower = TOWER_SCRIPT.new()
+ race_tower.position = Vector2(22, 20)
+ race_tower.size = Vector2(200, 390)
+ controls.add_child(race_tower)
+ start_lights = LIGHTS_SCRIPT.new()
+ controls.add_child(start_lights)
+ start_lights.anchor_left = 0.5
+ start_lights.anchor_right = 0.5
+ start_lights.offset_left = -132
+ start_lights.offset_right = 132
+ start_lights.offset_top = 16
+ start_lights.offset_bottom = 126
+ start_lights.visible = false
  mini_map = MAP_SCRIPT.new()
  controls.add_child(mini_map)
  mini_map.anchor_left = 1.0
@@ -580,8 +656,6 @@ func _make_ui() -> void:
    pad.offset_top = -145
    pad.offset_bottom = -35
    touch_pads[item[1]] = pad
- else:
-  _label(controls, "W / ↑ GAS    S / ↓ BRAKE    A D / ← → STEER    ESC PAUSE", 18, Vector2(26, 680))
  _make_pause_menu(layer)
  _make_menu(layer)
  _make_profile_editor(layer)
@@ -844,8 +918,15 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
  race_laps = clampi(laps, 1, 10)
  speed_factor = clampi(factor, 1, 4)
  racing = true
+ countdown = true
+ countdown_clock = 0.0
+ start_lights.clock = 0.0
+ start_lights.visible = true
  if fill:
   _spawn_ai()
+ _update_map_markers()
+ race_tower.reset()
+ race_tower.update_standings(_standings(), 1, race_laps)
  menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
  music_target = 0.0
  var tween := create_tween()
@@ -894,6 +975,7 @@ func _update_ai(dt: float) -> void:
   if float(rider.progress) >= race_laps * track.size():
    rider.progress = float(race_laps * track.size())
    rider.finished = true
+   rider.finish_time = elapsed
   _place_ai(rider)
 
 func _update_player_laps() -> void:
@@ -936,6 +1018,8 @@ func _finish_race() -> void:
    place += 1
  active = false
  racing = false
+ countdown = false
+ start_lights.visible = false
  _clear_touch()
  finish_text.text = "POSITION %d / %d    ·    %02d:%02d" % [place, ai_riders.size() + 1, int(elapsed) / 60, int(elapsed) % 60]
  finish_panel.visible = true

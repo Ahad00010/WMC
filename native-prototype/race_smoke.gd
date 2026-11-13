@@ -23,6 +23,18 @@ func _run() -> void:
   _fail("Sound toggle did not synchronize across menus")
   return
  game.race_menu.sound_toggled.emit()
+ await process_frame
+ if game.race_menu.card.size.x > 810 or game.race_menu.card.size.y > 390:
+  _fail("Mode menu is too large")
+  return
+ for choice in game.race_menu.body.get_children():
+  if choice.get_rect().end.x > game.race_menu.body.size.x or choice.get_rect().end.y > game.race_menu.body.size.y or choice.size.x < 300:
+   _fail("Mode choice is clipped or too small for touch")
+   return
+  for item in choice.get_children():
+   if item is Control and (item.get_rect().position.x < 0 or item.get_rect().position.y < 0 or item.get_rect().end.x > choice.size.x or item.get_rect().end.y > choice.size.y):
+    _fail("Text clipped inside mode choice: %s %s" % [item.name, item.get_rect()])
+    return
  var choices = game.race_menu.body.get_children()
  if choices.size() != 2 or choices[0].disabled or not choices[1].disabled:
   _fail("Practice and disabled multiplayer choices incorrect")
@@ -74,6 +86,41 @@ func _run() -> void:
  await create_timer(0.6).timeout
  if not game.active or not game.racing or game.race_laps != 2 or game.speed_factor != 2 or game.ai_riders.size() != 9 or not game.mini_map.show_riders:
   _fail("Race selection did not start with selected settings")
+  return
+ # Countdown must freeze all riders and the race clock, including when paused.
+ if not game.countdown or not game.start_lights.visible or game.start_lights.lit_count() < 1 or game.mini_map.opponents.size() != 9 or game.race_tower.rows.size() != 10:
+  _fail("Start lights, map dots or race tower were not initialized")
+  return
+ var grid_position: Vector3 = game.bike.position
+ var ai_grid: float = game.ai_riders[0].progress
+ game.touch["accelerate"] = true
+ game._physics_process(0.7)
+ if game.bike.position != grid_position or game.speed != 0 or game.elapsed != 0 or float(game.ai_riders[0].progress) != ai_grid or game.start_lights.lit_count() < 2:
+  _fail("Riders moved during red lights")
+  return
+ var paused_clock: float = game.countdown_clock
+ game._pause_game()
+ game._physics_process(0.5)
+ if game.countdown_clock != paused_clock:
+  _fail("Countdown did not pause")
+  return
+ game._resume_game()
+ game._physics_process(3.5)
+ if game.countdown or game.start_lights.lit_count() != 0 or game.elapsed != 0:
+  _fail("Lights did not go out before the race began")
+  return
+ # A genuine position change animates the tower rows, rather than just relabeling them.
+ var old_target: float = game.race_tower.targets["ai0"]
+ game.ai_riders[0].progress = 8.0
+ game.race_tower.update_standings(game._standings(), 1, 2)
+ if game.race_tower.targets["ai0"] >= old_target or not game.race_tower.animations.has("ai0"):
+  _fail("Overtake did not reorder and animate the tower")
+  return
+ game.ai_riders[0].progress = ai_grid
+ game._place_ai(game.ai_riders[0])
+ game._update_map_markers()
+ if game.mini_map.opponents.size() != 9:
+  _fail("Map does not track all nine AI riders")
   return
  # The speed selector advances the real driving simulation, not just the HUD.
  game.touch["accelerate"] = true
