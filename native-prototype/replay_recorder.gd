@@ -1,8 +1,8 @@
 extends RefCounted
-# Real rendered frames, bounded to the most recent 20 seconds. Encoding and
+# Real rendered frames, bounded to the most recent 10 seconds. Encoding and
 # disk writes happen on one worker; a full queue drops frames instead of
 # growing memory without limit or stalling the race with compression.
-const CAPACITY := 480
+const CAPACITY := 600
 const DIRECTORY := "user://replay_frames"
 var worker := Thread.new()
 var mutex := Mutex.new()
@@ -51,7 +51,7 @@ func _work() -> void:
    file.close()
    mutex.lock()
    written.append({"path":path, "time":job.time, "id":job.id})
-   while written.size() > CAPACITY or (written.size() > 1 and float(written[0].time) < float(job.time) - 20.0):
+   while written.size() > CAPACITY or (written.size() > 1 and float(written[0].time) < float(job.time) - 10.0):
     written.pop_front()
    mutex.unlock()
 

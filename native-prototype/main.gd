@@ -18,7 +18,7 @@ const DIAGNOSTICS = preload("res://diagnostics.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
-const REPLAY_FPS := 24.0
+const REPLAY_FPS := 60.0
 const MAX_SPEED := 88.0
 const ENGINE_RATE := 22050.0
 var track: Array[Vector3] = []
@@ -40,6 +40,7 @@ var race_laps := 3
 var speed_factor := 1
 var player_progress := 0.0
 var player_finished := false
+var player_finish_time := 0.0
 var race_generation := 0
 var player_prev_index := 0
 var ai_riders: Array[Dictionary] = []
@@ -401,6 +402,7 @@ func _reset() -> void:
   results_screen.cancel()
  race_generation += 1
  player_finished = false
+ player_finish_time = 0.0
  racing = false
  countdown = false
  countdown_clock = 0.0
@@ -475,6 +477,8 @@ func _physics_process(dt: float) -> void:
    _update_ai(step)
    if not active:
     break
+  elif player_finished and results_screen.phase == "waiting":
+   _update_ai(step)
 
 func _driving_step(dt: float) -> void:
  var throttle: bool = Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch.accelerate
@@ -545,6 +549,9 @@ func _process(dt: float) -> void:
    music.stop()
  _update_engine(dt)
  if results_screen:
+  if player_finished and results_screen.running and results_screen.phase != "waiting" and active:
+   active = false
+   _clear_touch()
   results_screen.volume = master_volume * music_volume
   results_screen.muted = music_muted
  if active and replay_enabled and racing:
@@ -617,7 +624,7 @@ func _resize_race_tower() -> void:
  race_tower.scale = Vector2.ONE * maxf(0.75, factor)
 
 func _standings() -> Array:
- var entries: Array = [{"id":"player", "name": str(profile.get("display_name", "RIDER")), "number":str(profile.get("rider_number", 93)), "color":str(profile.get("plate_color", "red")), "is_player":true, "progress":player_progress, "finished":player_finished, "finish_time":elapsed if player_finished else INF}]
+ var entries: Array = [{"id":"player", "name": str(profile.get("display_name", "RIDER")), "number":str(int(profile.get("rider_number", 93))), "color":str(profile.get("plate_color", "red")), "is_player":true, "progress":player_progress, "finished":player_finished, "finish_time":player_finish_time if player_finished else INF}]
  var colors := ["blue", "red", "yellow", "orange", "green", "cyan", "purple", "pink", "white"]
  for i in range(ai_riders.size()):
   var rider: Dictionary = ai_riders[i]
@@ -1182,12 +1189,11 @@ func _finish_race() -> void:
  for rider in ai_riders:
   if rider.finished or float(rider.progress) > player_progress:
    place += 1
- active = false
  player_finished = true
+ player_finish_time = elapsed
  racing = false
  countdown = false
  start_lights.visible = false
- _clear_touch()
  _update_race_tower(_standings(), race_laps)
  finish_text.text = "POSITION %d / %d    ·    %02d:%02d" % [place, ai_riders.size() + 1, int(elapsed) / 60, int(elapsed) % 60]
  replay_enabled = false

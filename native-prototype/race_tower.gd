@@ -51,7 +51,7 @@ func update_standings(entries: Array, current_lap: int, laps: int, current_progr
    rows[id] = row
   var row: Control = rows[id]
   row.rank = i + 1
-  row.label = str(entry.name).substr(0, 11)
+  row.label = abbreviated_name(str(entry.name)).substr(0, 11) if entry.is_player else str(entry.name).substr(0, 11)
   row.number = str(entry.number)
   row.is_player = entry.is_player
   row.finished = bool(entry.get("finished", false))
@@ -98,3 +98,9 @@ func _draw() -> void:
  var footer_y := HEAD_HEIGHT + rows.size() * ROW_HEIGHT
  draw_rect(Rect2(0, footer_y, size.x, 25), Color("080808"))
  draw_string(FONT, Vector2(9, footer_y + 18), hashtag, HORIZONTAL_ALIGNMENT_LEFT, size.x - 18, 13, Color.WHITE)
+
+static func abbreviated_name(full_name: String) -> String:
+ var parts := full_name.strip_edges().split(" ", false)
+ if parts.size() < 2:
+  return full_name.strip_edges().to_upper()
+ return (parts[0].left(1) + " " + parts[parts.size() - 1]).to_upper()

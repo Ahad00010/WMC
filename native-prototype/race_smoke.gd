@@ -251,6 +251,14 @@ func _run() -> void:
  if float(game.ai_riders[0].progress) <= before or game.ai_riders[0].node.position.distance_to(game.track[0]) < 0.01:
   _fail("AI riders did not move")
   return
+ if game.race_tower.abbreviated_name("Zachary Devs") != "Z DEVS":
+  _fail("Tower rider name is not abbreviated")
+  return
+ game.profile["rider_number"] = 13.0
+ for item in game._standings():
+  if item.id == "player" and item.number != "13":
+   _fail("Rider number contains a decimal")
+   return
  # Reverse crossing alone must not complete a lap.
  game.nearest = game.track.size() - 1
  game.player_prev_index = 0
@@ -265,8 +273,16 @@ func _run() -> void:
  for i in range(1, game.track.size() + 1):
   game.nearest = i % game.track.size()
   game._update_player_laps()
- if game.active or not game.results_screen.running or game.results_screen.phase != "waiting" or game.race_tower.display_state() != "FINISH" or not game.race_tower.rows["player"].finished:
+ if not game.active or not game.results_screen.running or game.results_screen.phase != "waiting" or game.race_tower.display_state() != "FINISH" or not game.race_tower.rows["player"].finished:
   _fail("Finish tower or results sequence missing")
+  return
+ # The player can still coast or steer during the live post-finish interval.
+ var finish_time: float = game.player_finish_time
+ var finish_position: Vector3 = game.bike.position
+ game.speed = 20.0
+ game._physics_process(0.1)
+ if game.bike.position.distance_to(finish_position) < 0.1 or game.player_finish_time != finish_time:
+  _fail("Post-finish cruising or frozen result time failed")
   return
  game.results_screen.advance(20.0)
  if not game.results_screen.cued or game.results_screen.phase != "waiting":
@@ -288,7 +304,11 @@ func _run() -> void:
  if game.results_screen.phase != "winner" or not game.results_screen.menu_button.visible:
   _fail("Winner screen or main menu action is missing")
   return
- game._return_to_menu()
+ game.results_screen._request_menu()
+ if not game.results_screen.leaving or game.results_screen.menu_button.disabled == false:
+  _fail("Winner menu did not start audio fade")
+  return
+ game.results_screen.advance(0.81)
  if not game.menu.visible or game.ai_riders.size() != 0 or game.finish_panel.visible or game.results_screen.running:
   _fail("Returning to menu did not clear race state")
   return
