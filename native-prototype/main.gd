@@ -1193,6 +1193,7 @@ func _finish_race() -> void:
  replay_enabled = false
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
  var captured: Array = recorder.finish() if recorder else []
+ diagnostics.note("REPLAY captured_frames=%d elapsed=%.2f" % [captured.size(), replay_time])
  var hashtags := {"sepang":"#MalaysianGP", "silverstone":"#BritishGP", "assen":"#DutchGP", "brno":"#CzechGP", "monza":"#ItalianGP", "jerez":"#SpanishGP"}
  results_screen.begin(_standings(), RACE_MENU.NAMES.get(circuit_id, circuit_id), hashtags.get(circuit_id, "#WMC"), captured)
 
