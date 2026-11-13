@@ -18,6 +18,11 @@ func _run() -> void:
  if not game.race_menu.visible or game.race_menu.page != "mode":
   _fail("Play did not open mode selection")
   return
+ game.race_menu.sound_toggled.emit()
+ if not game.music_muted or game.sound_button.text != "Sound: off" or game.race_menu.sound_button.text != "Sound: off":
+  _fail("Sound toggle did not synchronize across menus")
+  return
+ game.race_menu.sound_toggled.emit()
  var choices = game.race_menu.body.get_children()
  if choices.size() != 2 or choices[0].disabled or not choices[1].disabled:
   _fail("Practice and disabled multiplayer choices incorrect")

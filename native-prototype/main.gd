@@ -61,6 +61,7 @@ var engine_gain := 0.0
 var menu: Control
 var music: AudioStreamPlayer
 var music_muted := false
+var sound_button: Button
 var music_target := 0.0
 var auth_status: Label
 var auth_button: Button
@@ -588,6 +589,7 @@ func _make_ui() -> void:
  layer.add_child(race_menu)
  race_menu.setup(circuit_sources)
  race_menu.start_requested.connect(_start_race)
+ race_menu.sound_toggled.connect(_toggle_sound)
  _make_finish_menu(layer)
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -779,13 +781,10 @@ and keep out of the gravel.", 22, 265)
  account_actions.alignment = BoxContainer.ALIGNMENT_CENTER
  account_actions.add_theme_constant_override("separation", 8)
  card.add_child(account_actions)
- var sound := _button(account_actions, "Sound: on", Vector2.ZERO, Vector2(155, 54))
- sound.custom_minimum_size = Vector2(155, 54)
- sound.add_theme_font_size_override("font_size", 18)
- sound.pressed.connect(func():
-  music_muted = not music_muted
-  sound.text = "Sound: off" if music_muted else "Sound: on"
- )
+ sound_button = _button(account_actions, "Sound: on", Vector2.ZERO, Vector2(155, 54))
+ sound_button.custom_minimum_size = Vector2(155, 54)
+ sound_button.add_theme_font_size_override("font_size", 18)
+ sound_button.pressed.connect(_toggle_sound)
  auth_button = _button(account_actions, "Sign in with Google", Vector2.ZERO, Vector2(245, 54))
  auth_button.custom_minimum_size = Vector2(245, 54)
  auth_button.add_theme_font_size_override("font_size", 18)
@@ -821,6 +820,14 @@ and keep out of the gravel.", 22, 265)
  play.pressed.connect(_start_from_menu)
  var credit := _menu_label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0  |  WMC · practice only", 14, 631)
  credit.add_theme_color_override("font_color", Color("9da3aa"))
+
+func _toggle_sound() -> void:
+ music_muted = not music_muted
+ var text := "Sound: off" if music_muted else "Sound: on"
+ if sound_button:
+  sound_button.text = text
+ if race_menu and race_menu.sound_button:
+  race_menu.sound_button.text = text
 
 func _start_from_menu() -> void:
  if not menu.visible:

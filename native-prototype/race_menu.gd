@@ -1,5 +1,6 @@
 extends Control
 signal start_requested(circuit: String, laps: int, speed: int, fill: bool)
+signal sound_toggled
 const MAP = preload("res://circuit_map.gd")
 const DISPLAY_FONT = preload("res://assets/MGPDisplay-Medium.otf")
 const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
@@ -9,6 +10,7 @@ var card: Control
 var heading: Label
 var body: Control
 var back: Button
+var sound_button: Button
 var lap_slider: HSlider
 var laps_label: Label
 var speed_choice: OptionButton
@@ -45,6 +47,8 @@ func setup(circuit_sources: Dictionary) -> void:
  var eyebrow := _label(card, "WORLD MOTORBIKE CHAMPIONSHIP", 16, Vector2(36, 15))
  eyebrow.add_theme_color_override("font_color", Color("f32c3b"))
  heading = _label(card, "", 42, Vector2(36, 52), true)
+ sound_button = _button(card, "Sound: on", Vector2(750, 20), Vector2(175, 50), 17)
+ sound_button.pressed.connect(func(): sound_toggled.emit())
  var close := _button(card, "✕", Vector2(950, 18), Vector2(48, 48), 24)
  close.pressed.connect(func(): visible = false)
  body = Control.new()
