@@ -51,10 +51,23 @@ func _run() -> void:
  if game._profile_number(13.0) != "13" or game._profile_number(null) != "—":
   _fail("Main menu rider number formatting failed")
   return
+ # A slow readback must reduce work, while fast machines can ramp back up.
+ if game._capture_rate(60.0, 18.39, 33.0) > 14.0 or game._capture_rate(24.0, 1.0, 70.0) <= 24.0 or game._capture_rate(60.0, 1.0, 100.0) > 60.0:
+  _fail("Capture readback budget did not adapt")
+  return
  # Settings are present on both platforms; GUI scaling is PC-only and saved.
  if game.settings_panel == null or game.settings_panel.gui_choice == null or game.settings_panel.gui_choice.item_count != 4:
   _fail("PC settings or GUI scale choices missing")
   return
+ if game.settings_panel.capture_toggle == null:
+  _fail("Replay capture diagnostic toggle missing")
+  return
+ game._capture_setting_changed(false)
+ var capture_config := ConfigFile.new()
+ if capture_config.load("user://settings.cfg") != OK or bool(capture_config.get_value("replay", "capture", true)):
+  _fail("Replay capture setting not persisted")
+  return
+ game._capture_setting_changed(true)
  game._settings_changed(0.5, 0.6, 0.7, 3)
  var settings_file := ConfigFile.new()
  if settings_file.load("user://settings.cfg") != OK or int(settings_file.get_value("display", "gui_scale")) != 3 or absf(game.master_volume - 0.5) > 0.01 or absf(game._gui_factor() - 1.2) > 0.01:
@@ -64,7 +77,7 @@ func _run() -> void:
  var mobile_settings = load("res://settings_menu.gd").new()
  root.add_child(mobile_settings)
  mobile_settings.setup(true)
- if mobile_settings.gui_choice != null or mobile_settings.master_slider == null:
+ if mobile_settings.gui_choice != null or mobile_settings.master_slider == null or mobile_settings.capture_toggle == null:
   _fail("Mobile settings should show audio but not PC GUI scale")
   return
  mobile_settings.queue_free()

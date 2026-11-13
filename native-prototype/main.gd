@@ -56,6 +56,10 @@ var replay_pending := false
 var capture_readback_us := 0
 var capture_readbacks := 0
 var capture_skipped := 0
+var capture_target_fps := 24.0
+var capture_readback_ema_ms := 0.0
+var capture_adjust_clock := 0.0
+var capture_setting := true
 var recorder: RefCounted
 var diagnostics: RefCounted
 var speed := 0.0
@@ -401,6 +405,10 @@ func _reset() -> void:
   recorder = null
  replay_pending = false
  replay_time = 0.0
+ replay_clock = 0.0
+ capture_target_fps = 24.0
+ capture_readback_ema_ms = 0.0
+ capture_adjust_clock = 0.0
  capture_readback_us = 0
  capture_readbacks = 0
  capture_skipped = 0
@@ -566,15 +574,22 @@ func _process(dt: float) -> void:
    if recorder and recorder.can_accept():
     var before_readback := Time.get_ticks_usec()
     var image := replay_view.get_texture().get_image()
-    capture_readback_us += Time.get_ticks_usec() - before_readback
+    var readback_us := Time.get_ticks_usec() - before_readback
+    capture_readback_us += readback_us
     capture_readbacks += 1
+    var readback_ms := float(readback_us) / 1000.0
+    capture_readback_ema_ms = readback_ms if capture_readbacks == 1 else lerpf(capture_readback_ema_ms, readback_ms, 0.12)
     recorder.submit(image, replay_time)
    else:
     capture_skipped += 1
    replay_pending = false
+  capture_adjust_clock += dt
+  if capture_adjust_clock >= 1.0:
+   capture_adjust_clock = 0.0
+   capture_target_fps = _capture_rate(capture_target_fps, capture_readback_ema_ms, Engine.get_frames_per_second())
   replay_clock += dt
-  if replay_clock >= 1.0 / REPLAY_FPS:
-   replay_clock = fmod(replay_clock, 1.0 / REPLAY_FPS)
+  if replay_clock >= 1.0 / capture_target_fps:
+   replay_clock = fmod(replay_clock, 1.0 / capture_target_fps)
    if recorder and not recorder.can_accept():
     capture_skipped += 1
    elif not countdown:
@@ -603,6 +618,17 @@ func _process(dt: float) -> void:
   else:
    hud.text = "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
   _update_map_markers()
+
+# Synchronous GPU readback cannot run at 60 Hz when each read takes most of
+# a frame. Budget it to protect racing FPS while keeping full image resolution.
+static func _capture_rate(current: float, readback_ms: float, game_fps: float) -> float:
+ var budget_limit := clampf(240.0 / maxf(readback_ms, 0.1), 8.0, REPLAY_FPS)
+ var next := current
+ if game_fps > 0.0 and game_fps < 54.0:
+  next *= 0.8
+ elif game_fps >= 65.0:
+  next += 3.0
+ return clampf(minf(next, budget_limit), 8.0, REPLAY_FPS)
 
 func _schedule_replay_frame() -> void:
  var target: Node3D = bike
@@ -769,8 +795,9 @@ func _make_ui() -> void:
  settings_panel = SETTINGS_MENU.new()
  layer.add_child(settings_panel)
  settings_panel.setup(mobile)
- settings_panel.set_values(master_volume, music_volume, engine_volume, gui_scale_index)
+ settings_panel.set_values(master_volume, music_volume, engine_volume, gui_scale_index, capture_setting)
  settings_panel.settings_changed.connect(_settings_changed)
+ settings_panel.capture_changed.connect(_capture_setting_changed)
  _apply_gui_scale()
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -1037,6 +1064,7 @@ func _load_settings() -> void:
  music_volume = clampf(float(config.get_value("audio", "music", 1.0)), 0.0, 1.0)
  engine_volume = clampf(float(config.get_value("audio", "engine", 1.0)), 0.0, 1.0)
  gui_scale_index = clampi(int(config.get_value("display", "gui_scale", 0)), 0, 3)
+ capture_setting = bool(config.get_value("replay", "capture", true))
 
 func _settings_changed(master: float, music_level: float, engine: float, gui: int) -> void:
  master_volume = master
@@ -1044,13 +1072,21 @@ func _settings_changed(master: float, music_level: float, engine: float, gui: in
  engine_volume = engine
  if not mobile:
   gui_scale_index = gui
+ _save_settings()
+ _apply_gui_scale()
+
+func _capture_setting_changed(enabled: bool) -> void:
+ capture_setting = enabled
+ _save_settings()
+
+func _save_settings() -> void:
  var config := ConfigFile.new()
  config.set_value("audio", "master", master_volume)
  config.set_value("audio", "music", music_volume)
  config.set_value("audio", "engine", engine_volume)
  config.set_value("display", "gui_scale", gui_scale_index)
+ config.set_value("replay", "capture", capture_setting)
  config.save("user://settings.cfg")
- _apply_gui_scale()
 
 func _gui_factor() -> float:
  return [1.0, 0.8, 1.0, 1.2][clampi(gui_scale_index, 0, 3)]
@@ -1102,7 +1138,7 @@ func _start_from_menu() -> void:
 func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
  if not circuit_sources.has(id):
   return
- diagnostics.note("RACE START circuit=%s laps=%d speed=%d ai=%s" % [id, laps, factor, fill])
+ diagnostics.note("RACE START circuit=%s laps=%d speed=%d ai=%s capture_setting=%s" % [id, laps, factor, fill, capture_setting])
  race_menu.visible = false
  _change_circuit(id)
  _reset()
@@ -1114,7 +1150,7 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
  start_lights.clock = 0.0
  start_lights.modulate.a = 1.0
  start_lights.visible = true
- if DisplayServer.get_name() != "headless":
+ if capture_setting and DisplayServer.get_name() != "headless":
   recorder = REPLAY_RECORDER.new()
   recorder.start()
   replay_enabled = true

@@ -1,5 +1,6 @@
 extends Control
 signal settings_changed(master: float, music: float, engine: float, gui: int)
+signal capture_changed(enabled: bool)
 const FONT = preload("res://assets/MGPText-Bold.ttf")
 const DISPLAY = preload("res://assets/MGPDisplay-Medium.otf")
 const THUMB = preload("res://assets/slider-thumb.svg")
@@ -7,6 +8,7 @@ var master_slider: HSlider
 var music_slider: HSlider
 var engine_slider: HSlider
 var gui_choice: OptionButton
+var capture_toggle: CheckBox
 var is_mobile := false
 
 func setup(mobile: bool) -> void:
@@ -48,9 +50,18 @@ func setup(mobile: bool) -> void:
    gui_choice.add_item(option)
   gui_choice.item_selected.connect(func(_index): _notify())
   card.add_child(gui_choice)
+ capture_toggle = CheckBox.new()
+ capture_toggle.text = "REPLAY CAPTURE (NEXT RACE)"
+ capture_toggle.position = Vector2(30, 466)
+ capture_toggle.size = Vector2(540, 42)
+ capture_toggle.add_theme_font_override("font", FONT)
+ capture_toggle.add_theme_font_size_override("font_size", 16)
+ capture_toggle.button_pressed = true
+ capture_toggle.toggled.connect(func(enabled): capture_changed.emit(enabled))
+ card.add_child(capture_toggle)
  var close := Button.new()
  close.text = "DONE"
- close.position = Vector2(30, 505)
+ close.position = Vector2(30, 530)
  close.size = Vector2(175, 52)
  close.add_theme_font_override("font", FONT)
  close.add_theme_font_size_override("font_size", 18)
@@ -92,7 +103,8 @@ func _slider(parent: Control, text: String, y: float) -> HSlider:
  parent.add_child(slider)
  return slider
 
-func set_values(master: float, music: float, engine: float, gui: int) -> void:
+func set_values(master: float, music: float, engine: float, gui: int, capture: bool = true) -> void:
+ capture_toggle.set_pressed_no_signal(capture)
  master_slider.set_value_no_signal(master)
  music_slider.set_value_no_signal(music)
  engine_slider.set_value_no_signal(engine)
