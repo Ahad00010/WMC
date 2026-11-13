@@ -105,6 +105,17 @@ func _run() -> void:
  if game.race_tower.scale.x <= 1.0 or tower_bottom > game.controls.size.y - 145:
   _fail("Race tower did not scale up while leaving room for controls")
   return
+ var original_controls_size: Vector2 = game.controls.size
+ for width in [1280.0, 1568.0, 2400.0]:
+  game.controls.size = Vector2(width, 720)
+  game._resize_race_tower()
+  var scaled_right: float = game.race_tower.position.x + game.race_tower.size.x * game.race_tower.scale.x
+  var scaled_bottom: float = game.race_tower.position.y + game.race_tower.size.y * game.race_tower.scale.y
+  if scaled_right >= game.mini_map.position.x or scaled_bottom > 575.0:
+   _fail("Scaled tower overlaps map or driving controls at width %d" % width)
+   return
+ game.controls.size = original_controls_size
+ game._resize_race_tower()
  # Countdown must freeze all riders and the race clock, including when paused.
  if not game.countdown or not game.start_lights.visible or game.start_lights.lit_count() < 1 or game.mini_map.opponents.size() != 9 or game.race_tower.rows.size() != 10:
   _fail("Start lights, map dots or race tower were not initialized")
