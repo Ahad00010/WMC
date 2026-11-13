@@ -57,6 +57,11 @@ jobs:
             echo "::error::SMOKE LOG BASE64 $(base64 -w0 /tmp/godot-smoke.log)"
             exit 1
           fi
+          if ! godot --headless --path native-prototype --script res://race_smoke.gd > /tmp/godot-race-smoke.log 2>&1; then
+            echo "::error::RACE LOG BASE64 $(base64 -w0 /tmp/godot-race-smoke.log)"
+            exit 1
+          fi
+          cat /tmp/godot-race-smoke.log >> /tmp/godot-run.log
           cat /tmp/godot-smoke.log >> /tmp/godot-run.log
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log; then
             while IFS= read -r line; do echo "::error::$line"; done < <(grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log)

@@ -501,7 +501,11 @@ func _process(dt: float) -> void:
    replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
  if active:
   var lap := mini(race_laps, maxi(1, floori(player_progress / track.size()) + 1))
-  hud.text = "%d KM/H    |    LAP %d/%d    |    %02d:%02d    |    %d FPS" % [roundi(speed * speed_factor * 3.6), lap, race_laps, int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()] if racing else "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
+  var position := 1
+  for rider in ai_riders:
+   if rider.finished or float(rider.progress) > player_progress:
+    position += 1
+  hud.text = "%d KM/H    |    P%d/%d    |    LAP %d/%d    |    %02d:%02d    |    %d FPS" % [roundi(speed * speed_factor * 3.6), position, ai_riders.size() + 1, lap, race_laps, int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()] if racing else "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
   if mini_map:
    mini_map.player_position = Vector2(bike.position.x, bike.position.z)
    mini_map.opponents.clear()

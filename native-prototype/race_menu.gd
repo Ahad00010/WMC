@@ -14,6 +14,9 @@ var laps_label: Label
 var speed_choice: OptionButton
 var ai_check: CheckBox
 var sources: Dictionary
+var selected_laps := 3
+var selected_speed := 1
+var selected_fill := false
 
 func setup(circuit_sources: Dictionary) -> void:
  sources = circuit_sources
@@ -91,6 +94,16 @@ func show_page(next: String) -> void:
 func _choice(title: String, description: String, x: float, disabled: bool, action: Callable) -> void:
  var choice := _button(body, "", Vector2(x, 45), Vector2(460, 220), 18)
  choice.disabled = disabled
+ var normal := StyleBoxFlat.new()
+ normal.bg_color = Color("1c2027")
+ normal.border_color = Color("ed2534")
+ normal.border_width_left = 4
+ choice.add_theme_stylebox_override("normal", normal)
+ var highlighted := normal.duplicate()
+ highlighted.bg_color = Color("2b3039")
+ choice.add_theme_stylebox_override("hover", highlighted)
+ choice.add_theme_stylebox_override("pressed", highlighted)
+ choice.add_theme_stylebox_override("disabled", normal)
  choice.pressed.connect(action)
  var kicker := _label(choice, "PRACTICE" if page == "practice" else ("02 / ONLINE" if disabled else "01 / SOLO"), 15, Vector2(24, 18))
  kicker.add_theme_color_override("font_color", Color("ed2534"))
@@ -110,8 +123,12 @@ func _make_circuits() -> void:
  lap_slider.min_value = 1
  lap_slider.max_value = 10
  lap_slider.step = 1
- lap_slider.value = 3
- lap_slider.value_changed.connect(func(value): laps_label.text = str(int(value)))
+ lap_slider.value = selected_laps
+ laps_label.text = str(selected_laps)
+ lap_slider.value_changed.connect(func(value):
+  selected_laps = int(value)
+  laps_label.text = str(selected_laps)
+ )
  body.add_child(lap_slider)
  _label(body, "Bike speed (practice only)", 19, Vector2(490, 0))
  speed_choice = OptionButton.new()
@@ -121,6 +138,8 @@ func _make_circuits() -> void:
  speed_choice.add_theme_font_size_override("font_size", 17)
  for factor in range(1, 5):
   speed_choice.add_item("%dx  %s" % [factor, "NORMAL" if factor == 1 else ""])
+ speed_choice.select(selected_speed - 1)
+ speed_choice.item_selected.connect(func(index): selected_speed = int(index) + 1)
  body.add_child(speed_choice)
  var index := 0
  for id in NAMES:
@@ -141,6 +160,8 @@ func _make_circuits() -> void:
   choice.pressed.connect(func(): start_requested.emit(circuit, int(lap_slider.value), speed_choice.selected + 1, ai_check.button_pressed))
   index += 1
  ai_check = CheckBox.new()
+ ai_check.button_pressed = selected_fill
+ ai_check.toggled.connect(func(value): selected_fill = value)
  ai_check.text = "Fill grid with AI riders (9 AI, 10 riders total)"
  ai_check.position = Vector2(0, 400)
  ai_check.size = Vector2(700, 54)
