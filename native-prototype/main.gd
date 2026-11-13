@@ -60,6 +60,7 @@ var capture_target_fps := 24.0
 var capture_readback_ema_ms := 0.0
 var capture_adjust_clock := 0.0
 var capture_setting := true
+var capture_stage: FileAccess
 var recorder: RefCounted
 var diagnostics: RefCounted
 var speed := 0.0
@@ -400,6 +401,7 @@ func _make_trees() -> void:
   add_child(node)
 
 func _reset() -> void:
+ _close_capture_stage()
  if recorder:
   recorder.clear()
   recorder = null
@@ -572,14 +574,18 @@ func _process(dt: float) -> void:
   replay_time += dt
   if replay_pending:
    if recorder and recorder.can_accept():
+    _capture_mark("gpu-readback-begin")
     var before_readback := Time.get_ticks_usec()
     var image := replay_view.get_texture().get_image()
+    _capture_mark("gpu-readback-complete")
     var readback_us := Time.get_ticks_usec() - before_readback
     capture_readback_us += readback_us
     capture_readbacks += 1
     var readback_ms := float(readback_us) / 1000.0
     capture_readback_ema_ms = readback_ms if capture_readbacks == 1 else lerpf(capture_readback_ema_ms, readback_ms, 0.12)
+    _capture_mark("snapshot-begin")
     recorder.submit(image, replay_time)
+    _capture_mark("snapshot-complete")
    else:
     capture_skipped += 1
    replay_pending = false
@@ -629,6 +635,18 @@ static func _capture_rate(current: float, readback_ms: float, game_fps: float) -
  elif game_fps >= 65.0:
   next += 3.0
  return clampf(minf(next, budget_limit), 8.0, REPLAY_FPS)
+
+func _capture_mark(stage: String) -> void:
+ if capture_stage:
+  capture_stage.seek(0)
+  capture_stage.store_line("%d frame=%d %s                                                  " % [Time.get_ticks_msec(), capture_readbacks, stage])
+  capture_stage.flush()
+
+func _close_capture_stage() -> void:
+ if capture_stage:
+  _capture_mark("capture-stopped")
+  capture_stage.close()
+  capture_stage = null
 
 func _schedule_replay_frame() -> void:
  var target: Node3D = bike
@@ -1152,7 +1170,14 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
  start_lights.visible = true
  if capture_setting and DisplayServer.get_name() != "headless":
   recorder = REPLAY_RECORDER.new()
-  recorder.start()
+  var encoder_stage := ""
+  if OS.has_feature("windows"):
+   var stage_dir: String = diagnostics.path.get_base_dir()
+   capture_stage = FileAccess.open(stage_dir.path_join("WMC-capture-gpu.txt"), FileAccess.WRITE_READ)
+   if capture_stage:
+    _capture_mark("capture-started")
+    encoder_stage = stage_dir.path_join("WMC-capture-encoder.txt")
+  recorder.start(encoder_stage)
   replay_enabled = true
  if fill:
   _spawn_ai()
@@ -1258,6 +1283,7 @@ func _finish_race() -> void:
  finish_text.text = "POSITION %d / %d    ·    %02d:%02d" % [place, ai_riders.size() + 1, int(elapsed) / 60, int(elapsed) % 60]
  replay_enabled = false
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+ _close_capture_stage()
  var captured: Array = recorder.finish() if recorder else []
  diagnostics.note("REPLAY captured_frames=%d elapsed=%.2f readbacks=%d skipped=%d avg_readback_ms=%.2f" % [captured.size(), replay_time, capture_readbacks, capture_skipped, float(capture_readback_us) / max(1, capture_readbacks) / 1000.0])
  var hashtags := {"sepang":"#MalaysianGP", "silverstone":"#BritishGP", "assen":"#DutchGP", "brno":"#CzechGP", "monza":"#ItalianGP", "jerez":"#SpanishGP"}
@@ -1362,6 +1388,7 @@ func _open_profile_editor() -> void:
  profile_panel.visible = true
 
 func _exit_tree() -> void:
+ _close_capture_stage()
  if recorder:
   recorder.clear()
  if diagnostics:

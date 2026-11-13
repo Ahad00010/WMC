@@ -61,6 +61,11 @@ jobs:
             echo "::error::RACE LOG BASE64 $(base64 -w0 /tmp/godot-race-smoke.log)"
             exit 1
           fi
+          if ! godot --headless --path native-prototype --script res://replay_stress.gd > /tmp/godot-replay-stress.log 2>&1; then
+            echo "::error::REPLAY STRESS LOG BASE64 $(base64 -w0 /tmp/godot-replay-stress.log)"
+            exit 1
+          fi
+          cat /tmp/godot-replay-stress.log >> /tmp/godot-run.log
           cat /tmp/godot-race-smoke.log >> /tmp/godot-run.log
           cat /tmp/godot-smoke.log >> /tmp/godot-run.log
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log; then

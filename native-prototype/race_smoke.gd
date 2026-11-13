@@ -20,8 +20,11 @@ func _run() -> void:
  var frame := Image.create(16, 16, false, Image.FORMAT_RGB8)
  frame.fill(Color.RED)
  recorder.submit(frame, 1.0)
+ frame.fill(Color.BLUE)
+ var unsupported := Image.create(16, 16, false, Image.FORMAT_L8)
+ recorder.submit(unsupported, 1.1)
  var recorded: Array = recorder.finish()
- if recorded.size() != 1:
+ if recorded.size() != 1 or recorder.rejected != 1:
   _fail("Replay frame was not recorded")
   return
  var decoded := Image.new()

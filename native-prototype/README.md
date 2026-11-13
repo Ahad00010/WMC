@@ -19,3 +19,5 @@ The opening screen and soundtrack are native approximations of the web menu. Pla
 
 ### Crash diagnostics
 On Windows, `WMC-diagnostics.txt` is written next to `WMC.exe` if the folder is writable, otherwise in `%APPDATA%/Godot/app_userdata/WMC/`. Android stores it in the app's private user data. It records startup, race state every five seconds, and clean shutdowns; no clean exit after a session can indicate an abrupt termination, though a log cannot identify every native/GPU crash. Godot's separate engine/script log is `logs/godot.log` under that same application data directory. Attach both logs after a crash if possible. Logs do not include profile names or credentials.
+
+On Windows with replay capture enabled, `WMC-capture-gpu.txt` and `WMC-capture-encoder.txt` beside the diagnostics file record the most recent capture/encoder operation. If the game crashes, copy them before starting another race, along with the engine log and diagnostics. They are intended to help locate a native crash, not to prove its cause.
