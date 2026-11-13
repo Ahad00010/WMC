@@ -14,6 +14,21 @@ func _run() -> void:
  if game.circuit_sources.size() != 6:
   _fail("Six circuits are required")
   return
+ # Verify capture stores and reads actual rendered image pixels, not positions.
+ var recorder = load("res://replay_recorder.gd").new()
+ recorder.start()
+ var frame := Image.create(16, 16, false, Image.FORMAT_RGB8)
+ frame.fill(Color.RED)
+ recorder.submit(frame, 1.0)
+ var recorded: Array = recorder.finish()
+ if recorded.size() != 1:
+  _fail("Replay frame was not recorded")
+  return
+ var decoded := Image.new()
+ if decoded.load(recorded[0].path) != OK or decoded.get_pixel(8, 8).r < 0.8:
+  _fail("Replay frame did not preserve image pixels")
+  return
+ recorder.clear()
  # Settings are present on both platforms; GUI scaling is PC-only and saved.
  if game.settings_panel == null or game.settings_panel.gui_choice == null or game.settings_panel.gui_choice.item_count != 4:
   _fail("PC settings or GUI scale choices missing")

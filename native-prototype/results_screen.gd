@@ -21,6 +21,9 @@ var canvas: Control
 var volume := 1.0
 var muted := false
 var cued := false
+var replay_frames: Array = []
+var replay_texture: ImageTexture
+var replay_index := -1
 
 func setup() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -58,8 +61,11 @@ func _fit() -> void:
  canvas.scale = Vector2.ONE * factor
  queue_redraw()
 
-func begin(classification: Array, circuit_name: String, tag: String) -> void:
+func begin(classification: Array, circuit_name: String, tag: String, captured: Array = []) -> void:
  cancel()
+ replay_frames = captured
+ replay_index = -1
+ replay_texture = null
  entries = classification.duplicate(true)
  circuit = circuit_name.replace("\n", " ")
  hashtag = tag
@@ -102,6 +108,8 @@ func advance(dt: float) -> void:
  else:
   phase = "winner"
  menu_button.visible = phase == "winner"
+ if phase == "winner":
+  _update_replay()
  if cued:
   var fade_in := clampf((clock - 20.0) / 3.0, 0.0, 1.0)
   var fade_out := 1.0 - clampf((clock - 70.35) / 1.5, 0.0, 1.0)
@@ -109,6 +117,22 @@ func advance(dt: float) -> void:
   if fade_out <= 0.0 and player.playing:
    player.stop()
  queue_redraw()
+
+func _update_replay() -> void:
+ if replay_frames.is_empty():
+  return
+ var first := float(replay_frames[0].time)
+ var duration := maxf(1.0 / 24.0, float(replay_frames[-1].time) - first + 1.0 / 24.0)
+ var t := first + fmod(maxf(0.0, clock - 63.35), duration)
+ var index := 0
+ while index + 1 < replay_frames.size() and float(replay_frames[index + 1].time) <= t:
+  index += 1
+ if index == replay_index:
+  return
+ var image := Image.new()
+ if image.load(replay_frames[index].path) == OK:
+  replay_texture = ImageTexture.create_from_image(image)
+  replay_index = index
 
 func _draw() -> void:
  if not running or phase == "waiting":
@@ -170,8 +194,9 @@ func _draw_results(championship: bool) -> void:
  draw_string(DISPLAY, Vector2(1160, 694), "WMC", HORIZONTAL_ALIGNMENT_LEFT, 70, 22, Color("bbbbbb"))
 
 func _draw_winner() -> void:
+ if replay_texture:
+  draw_texture_rect(replay_texture, Rect2(0, 0, 1280, 720), false)
  draw_string(TEXT, Vector2(40, 60), "RACE COMPLETE", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
- draw_string(TEXT, Vector2(40, 95), "Replay unavailable in this native build", HORIZONTAL_ALIGNMENT_LEFT, 720, 18, Color("c1c3cc"))
  if entries.is_empty():
   return
  var winner: Dictionary = entries[0]

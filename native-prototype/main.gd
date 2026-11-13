@@ -13,6 +13,7 @@ const TOWER_SCRIPT = preload("res://race_tower.gd")
 const RACE_MENU = preload("res://race_menu.gd")
 const SETTINGS_MENU = preload("res://settings_menu.gd")
 const RESULTS_SCREEN = preload("res://results_screen.gd")
+const REPLAY_RECORDER = preload("res://replay_recorder.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
@@ -48,6 +49,9 @@ var replay_view: SubViewport
 var replay_camera: Camera3D
 var replay_enabled := false
 var replay_clock := 0.0
+var replay_time := 0.0
+var replay_pending := false
+var recorder: RefCounted
 var speed := 0.0
 var heading := 0.0
 var steer := 0.0
@@ -185,8 +189,7 @@ func _make_world() -> void:
  camera.current = true
  camera.fov = 58
  camera.far = 2200
- # The extra viewport renders the live scene at replay resolution. It is a GPU
- # load experiment, NOT a recorder or reconstructed replay.
+ # Render the real race world into a separate broadcast camera for capture.
  replay_view = SubViewport.new()
  replay_view.size = Vector2i(854, 480) if mobile else Vector2i(1920, 1080)
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -385,6 +388,11 @@ func _make_trees() -> void:
   add_child(node)
 
 func _reset() -> void:
+ if recorder:
+  recorder.clear()
+  recorder = null
+ replay_pending = false
+ replay_time = 0.0
  if results_screen:
   results_screen.cancel()
  race_generation += 1
@@ -533,14 +541,25 @@ func _process(dt: float) -> void:
  if results_screen:
   results_screen.volume = master_volume * music_volume
   results_screen.muted = music_muted
- if active and replay_enabled:
+ if active and replay_enabled and racing:
+  replay_time += dt
+  if replay_pending:
+   recorder.submit(replay_view.get_texture().get_image(), replay_time)
+   replay_pending = false
   replay_clock += dt
   if replay_clock >= 1.0 / REPLAY_FPS:
    replay_clock = fmod(replay_clock, 1.0 / REPLAY_FPS)
-   var forward := Vector3(sin(heading), 0, cos(heading))
-   replay_camera.position = bike.position + forward.rotated(Vector3.UP, 1.5) * 6.0 + Vector3.UP * 2.0
-   replay_camera.look_at(bike.position + Vector3.UP, Vector3.UP)
+   var target: Node3D = bike
+   var leading := player_progress
+   for entry in ai_riders:
+    if float(entry.progress) > leading:
+     leading = float(entry.progress)
+     target = entry.node
+   var forward := Vector3(sin(target.rotation.y), 0, cos(target.rotation.y))
+   replay_camera.position = target.position + forward.rotated(Vector3.UP, 1.5) * 9.0 + Vector3.UP * 3.5
+   replay_camera.look_at(target.position + Vector3.UP, Vector3.UP)
    replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
+   replay_pending = true
  if active:
   if racing:
    var lap := mini(race_laps, maxi(1, floori(player_progress / track.size()) + 1))
@@ -1057,6 +1076,10 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
  start_lights.clock = 0.0
  start_lights.modulate.a = 1.0
  start_lights.visible = true
+ if DisplayServer.get_name() != "headless":
+  recorder = REPLAY_RECORDER.new()
+  recorder.start()
+  replay_enabled = true
  if fill:
   _spawn_ai()
  _update_map_markers()
@@ -1159,10 +1182,11 @@ func _finish_race() -> void:
  _clear_touch()
  _update_race_tower(_standings(), race_laps)
  finish_text.text = "POSITION %d / %d    ·    %02d:%02d" % [place, ai_riders.size() + 1, int(elapsed) / 60, int(elapsed) % 60]
- # The native build does not yet record real footage. Keep the finish scene
- # visible until the same results cue time rather than fabricating a replay.
+ replay_enabled = false
+ replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+ var captured: Array = recorder.finish() if recorder else []
  var hashtags := {"sepang":"#MalaysianGP", "silverstone":"#BritishGP", "assen":"#DutchGP", "brno":"#CzechGP", "monza":"#ItalianGP", "jerez":"#SpanishGP"}
- results_screen.begin(_standings(), RACE_MENU.NAMES.get(circuit_id, circuit_id), hashtags.get(circuit_id, "#WMC"))
+ results_screen.begin(_standings(), RACE_MENU.NAMES.get(circuit_id, circuit_id), hashtags.get(circuit_id, "#WMC"), captured)
 
 # Synthesize the same sawtooth + half-frequency square blend used on the website.
 # It follows the simulated RPM and is silent in menus and while paused.
@@ -1261,3 +1285,7 @@ func _open_profile_editor() -> void:
    profile_color.select(i)
    break
  profile_panel.visible = true
+
+func _exit_tree() -> void:
+ if recorder:
+  recorder.clear()
