@@ -118,7 +118,7 @@ func _make_circuits() -> void:
  _label(body, "Race laps (1–10)", 19, Vector2(0, 0))
  laps_label = _label(body, "3", 22, Vector2(420, 0))
  lap_slider = HSlider.new()
- lap_slider.position = Vector2(0, 40)
+ lap_slider.position = Vector2(0, 45)
  lap_slider.size = Vector2(460, 35)
  lap_slider.min_value = 1
  lap_slider.max_value = 10
