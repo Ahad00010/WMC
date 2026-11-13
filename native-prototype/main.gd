@@ -7,6 +7,8 @@ const DISPLAY_FONT = preload("res://assets/MGPDisplay-Medium.otf")
 const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
 const AUTH_SCRIPT = preload("res://auth.gd")
 const TOUCH_PAD = preload("res://touch_pad.gd")
+const MAP_SCRIPT = preload("res://circuit_map.gd")
+const RACE_MENU = preload("res://race_menu.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
@@ -14,6 +16,19 @@ const REPLAY_FPS := 24.0
 const MAX_SPEED := 88.0
 const ENGINE_RATE := 22050.0
 var track: Array[Vector3] = []
+var circuit_sources: Dictionary = {}
+var track_nodes: Array[Node] = []
+var circuit_id := "sepang"
+var race_menu: Control
+var mini_map: Control
+var finish_panel: Control
+var finish_text: Label
+var racing := false
+var race_laps := 3
+var speed_factor := 1
+var player_progress := 0.0
+var player_prev_index := 0
+var ai_riders: Array[Dictionary] = []
 var bike: Node3D
 var visual: Node3D
 var camera: Camera3D
@@ -62,17 +77,22 @@ var profile_save: Button
 
 func _ready() -> void:
  mobile = OS.has_feature("mobile")
- _read_track()
+ _load_circuits()
+ _read_track("sepang")
  _make_world()
  _make_ui()
  _reset()
  _make_audio()
  _make_auth()
 
-func _read_track() -> void:
- var points = JSON.parse_string(FileAccess.get_file_as_string("res://assets/sepang.json"))
- # Subdivide the original centreline so kerb markings and barriers remain
- # evenly spaced on long straights as well as around bends.
+func _load_circuits() -> void:
+ circuit_sources = JSON.parse_string(FileAccess.get_file_as_string("res://assets/circuits.json"))
+ circuit_sources["sepang"] = JSON.parse_string(FileAccess.get_file_as_string("res://assets/sepang.json"))
+
+func _read_track(id: String) -> void:
+ track.clear()
+ circuit_id = id
+ var points: Array = circuit_sources[id]
  for i in range(points.size()):
   var point: Array = points[i]
   var next: Array = points[(i + 1) % points.size()]
@@ -81,6 +101,28 @@ func _read_track() -> void:
   var count := maxi(1, ceili(a.distance_to(b) / 5.0))
   for j in range(count):
    track.append(a.lerp(b, float(j) / float(count)))
+
+func _build_track() -> void:
+ var before := get_children()
+ _make_track_surfaces()
+ _make_barriers()
+ _make_start_finish()
+ _make_trees()
+ track_nodes.clear()
+ for child in get_children():
+  if not before.has(child):
+   track_nodes.append(child)
+
+func _change_circuit(id: String) -> void:
+ if id == circuit_id:
+  return
+ for node in track_nodes:
+  remove_child(node)
+  node.queue_free()
+ _read_track(id)
+ _build_track()
+ if mini_map:
+  mini_map.set_points(track)
 
 func _material(color: Color) -> StandardMaterial3D:
  var mat := StandardMaterial3D.new()
@@ -110,10 +152,7 @@ func _make_world() -> void:
  ground.position.y = -0.1
  ground.material_override = _material(Color("4b7542"))
  add_child(ground)
- _make_track_surfaces()
- _make_barriers()
- _make_start_finish()
- _make_trees()
+ _build_track()
  bike = Node3D.new()
  add_child(bike)
  visual = Node3D.new()
@@ -327,6 +366,12 @@ func _make_trees() -> void:
   add_child(node)
 
 func _reset() -> void:
+ racing = false
+ for rider in ai_riders:
+  rider.node.queue_free()
+ ai_riders.clear()
+ player_progress = 0.0
+ player_prev_index = 0
  nearest = 0
  bike.position = track[0] + Vector3.UP * 0.05
  var direction := (track[1] - track[0]).normalized()
@@ -369,6 +414,18 @@ func _physics_process(dt: float) -> void:
  if not active:
   return
  elapsed += dt
+ var factor := speed_factor if racing else 1
+ var steps := maxi(1, ceili(dt * factor * 60.0))
+ var step := dt * factor / steps
+ for i in range(steps):
+  _driving_step(step)
+  if racing:
+   _update_player_laps()
+   _update_ai(step)
+   if not active:
+    break
+
+func _driving_step(dt: float) -> void:
  var throttle: bool = Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or touch.accelerate
  var hard_brake: bool = Input.is_key_pressed(KEY_SPACE)
  var braking: bool = Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or touch.brake
@@ -443,7 +500,14 @@ func _process(dt: float) -> void:
    replay_camera.look_at(bike.position + Vector3.UP, Vector3.UP)
    replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
  if active:
-  hud.text = "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
+  var lap := mini(race_laps, maxi(1, floori(player_progress / track.size()) + 1))
+  hud.text = "%d KM/H    |    LAP %d/%d    |    %02d:%02d    |    %d FPS" % [roundi(speed * speed_factor * 3.6), lap, race_laps, int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()] if racing else "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
+  if mini_map:
+   mini_map.player_position = Vector2(bike.position.x, bike.position.z)
+   mini_map.opponents.clear()
+   for rider in ai_riders:
+    mini_map.opponents.append(Vector2(rider.node.position.x, rider.node.position.z))
+   mini_map.queue_redraw()
 
 func _label(parent: Control, text: String, size: int, pos: Vector2) -> Label:
  var label := Label.new()
@@ -474,6 +538,17 @@ func _make_ui() -> void:
  controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  controls.visible = false
  hud = _label(controls, "", 24, Vector2(26, 24))
+ mini_map = MAP_SCRIPT.new()
+ controls.add_child(mini_map)
+ mini_map.anchor_left = 1.0
+ mini_map.anchor_right = 1.0
+ mini_map.offset_left = -300
+ mini_map.offset_right = -30
+ mini_map.offset_top = 82
+ mini_map.offset_bottom = 245
+ mini_map.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ mini_map.show_riders = true
+ mini_map.set_points(track)
  if mobile:
   var pause_button := _button(controls, "Ⅱ", Vector2.ZERO, Vector2(65, 55))
   pause_button.anchor_left = 1.0
@@ -505,6 +580,11 @@ func _make_ui() -> void:
  _make_pause_menu(layer)
  _make_menu(layer)
  _make_profile_editor(layer)
+ race_menu = RACE_MENU.new()
+ layer.add_child(race_menu)
+ race_menu.setup(circuit_sources)
+ race_menu.start_requested.connect(_start_race)
+ _make_finish_menu(layer)
 
 func _unhandled_key_input(event: InputEvent) -> void:
  if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
@@ -599,6 +679,8 @@ func _resume_game() -> void:
 
 func _return_to_menu() -> void:
  _reset()
+ finish_panel.visible = false
+ race_menu.visible = false
  pause_panel.visible = false
  controls.visible = false
  menu.modulate.a = 1.0
@@ -739,16 +821,113 @@ and keep out of the gravel.", 22, 265)
 func _start_from_menu() -> void:
  if not menu.visible:
   return
+ race_menu.show_page("mode")
+ race_menu.visible = true
+
+func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
+ if not circuit_sources.has(id):
+  return
+ race_menu.visible = false
+ _change_circuit(id)
+ _reset()
+ race_laps = clampi(laps, 1, 10)
+ speed_factor = clampi(factor, 1, 4)
+ racing = true
+ if fill:
+  _spawn_ai()
  menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
  music_target = 0.0
  var tween := create_tween()
  tween.tween_property(menu, "modulate:a", 0.0, 0.45)
  tween.tween_callback(func():
   menu.visible = false
-  _reset()
   controls.visible = true
   active = true
  )
+
+func _spawn_ai() -> void:
+ for i in range(9):
+  var node := Node3D.new()
+  add_child(node)
+  node.add_child(BIKE.instantiate())
+  var rider := RIDER.instantiate()
+  rider.position.y = 0.72374
+  node.add_child(rider)
+  var progress := -float(3 + int(i / 2) * 4)
+  var data := {"node": node, "progress": progress, "speed": 0.0, "lane": -2.7 if i % 2 == 0 else 2.7, "skill": float(i % 5 - 2), "finished": false}
+  ai_riders.append(data)
+  _place_ai(data)
+
+func _place_ai(rider: Dictionary) -> void:
+ var segment := floori(rider.progress)
+ var index := posmod(segment, track.size())
+ var fraction: float = rider.progress - segment
+ var point := track[index].lerp(track[(index + 1) % track.size()], fraction)
+ var direction := (track[(index + 1) % track.size()] - track[index]).normalized()
+ var side := Vector3(-direction.z, 0, direction.x)
+ rider.node.position = point + side * float(rider.lane) + Vector3.UP * 0.05
+ rider.node.rotation.y = atan2(direction.x, direction.z)
+
+func _update_ai(dt: float) -> void:
+ for rider in ai_riders:
+  if rider.finished:
+   continue
+  var index := posmod(floori(rider.progress), track.size())
+  var d1 := (track[(index + 2) % track.size()] - track[index]).normalized()
+  var d2 := (track[(index + 18) % track.size()] - track[(index + 16) % track.size()]).normalized()
+  var bend := absf(atan2(d1.x * d2.z - d1.z * d2.x, d1.dot(d2)))
+  var cap := clampf(52.0 / (1.0 + bend * 3.0) + float(rider.skill), 16.0, 51.0)
+  rider.speed = move_toward(float(rider.speed), cap, dt * (8.0 if float(rider.speed) < cap else 24.0))
+  var segment_length := maxf(0.1, track[index].distance_to(track[(index + 1) % track.size()]))
+  rider.progress = float(rider.progress) + float(rider.speed) * dt / segment_length
+  if float(rider.progress) >= race_laps * track.size():
+   rider.progress = float(race_laps * track.size())
+   rider.finished = true
+  _place_ai(rider)
+
+func _update_player_laps() -> void:
+ var delta := nearest - player_prev_index
+ if delta > track.size() / 2:
+  delta -= track.size()
+ elif delta < -track.size() / 2:
+  delta += track.size()
+ player_progress += delta
+ player_prev_index = nearest
+ if player_progress >= race_laps * track.size():
+  _finish_race()
+
+func _make_finish_menu(layer: CanvasLayer) -> void:
+ finish_panel = Control.new()
+ layer.add_child(finish_panel)
+ finish_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ finish_panel.visible = false
+ var shade := ColorRect.new()
+ shade.color = Color(0.02, 0.025, 0.04, 0.92)
+ finish_panel.add_child(shade)
+ shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ var card := Control.new()
+ finish_panel.add_child(card)
+ card.set_anchors_preset(Control.PRESET_CENTER)
+ card.offset_left = -250
+ card.offset_right = 250
+ card.offset_top = -150
+ card.offset_bottom = 150
+ var title := _label(card, "RACE FINISHED", 42, Vector2(0, 0))
+ title.add_theme_font_override("font", DISPLAY_FONT)
+ finish_text = _label(card, "", 22, Vector2(0, 100))
+ var home := _button(card, "MAIN MENU", Vector2(0, 190), Vector2(250, 60))
+ home.pressed.connect(_return_to_menu)
+
+func _finish_race() -> void:
+ var place := 1
+ for rider in ai_riders:
+  if rider.finished or float(rider.progress) > player_progress:
+   place += 1
+ active = false
+ racing = false
+ _clear_touch()
+ finish_text.text = "POSITION %d / %d    ·    %02d:%02d" % [place, ai_riders.size() + 1, int(elapsed) / 60, int(elapsed) % 60]
+ finish_panel.visible = true
 
 # Synthesize the same sawtooth + half-frequency square blend used on the website.
 # It follows the simulated RPM and is silent in menus and while paused.
