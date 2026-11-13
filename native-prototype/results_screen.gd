@@ -233,7 +233,8 @@ func advance(dt: float) -> void:
  menu_button.modulate.a = menu_intro
  if cued:
   var fade_in := clampf((clock - 20.0) / 3.0, 0.0, 1.0)
-  var fade_out := 1.0 - clampf((clock - 70.35) / 1.5, 0.0, 1.0)
+  var music_fade_at := maxf(63.35 + replay_duration + 0.5, reveal_at) + 7.0
+  var fade_out := 1.0 - clampf((clock - music_fade_at) / 1.5, 0.0, 1.0)
   player.volume_db = linear_to_db(maxf(0.0001, 0.8 * volume * fade_in * fade_out if not muted else 0.0001))
   if fade_out <= 0.0 and player.playing:
    player.stop()
