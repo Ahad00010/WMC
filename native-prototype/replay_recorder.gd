@@ -15,6 +15,7 @@ var started := false
 var marker_path := ""
 var marker: FileAccess
 var rejected := 0
+var last_rejection := "none"
 
 func start(stage_path: String = "") -> void:
  marker_path = stage_path
@@ -43,14 +44,17 @@ func submit(image: Image, timestamp: float) -> void:
  var channels := 3 if format == Image.FORMAT_RGB8 else 4 if format == Image.FORMAT_RGBA8 else 0
  if channels == 0 or width <= 0 or height <= 0 or width > 4096 or height > 4096 or image.has_mipmaps():
   rejected += 1
+  last_rejection = "format=%s size=%dx%d mipmaps=%s" % [format, width, height, image.has_mipmaps()]
   return
  var pixels := image.get_data()
  if pixels.size() != width * height * channels:
   rejected += 1
+  last_rejection = "pixel_bytes=%d expected=%d" % [pixels.size(), width * height * channels]
   return
  var snapshot := Image.create_from_data(width, height, false, format, pixels.duplicate())
  if snapshot == null or snapshot.is_empty():
   rejected += 1
+  last_rejection = "snapshot creation failed"
   return
  mutex.lock()
  if stopping or jobs.size() >= 2:
