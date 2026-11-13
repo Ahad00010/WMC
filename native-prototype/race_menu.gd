@@ -42,9 +42,9 @@ func setup(circuit_sources: Dictionary) -> void:
  top.position = Vector2(0, 0)
  top.size = Vector2(1020, 5)
  card.add_child(top)
- var eyebrow := _label(card, "WORLD MOTORBIKE CHAMPIONSHIP", 16, Vector2(36, 22))
+ var eyebrow := _label(card, "WORLD MOTORBIKE CHAMPIONSHIP", 16, Vector2(36, 15))
  eyebrow.add_theme_color_override("font_color", Color("f32c3b"))
- heading = _label(card, "", 42, Vector2(36, 49), true)
+ heading = _label(card, "", 42, Vector2(36, 52), true)
  var close := _button(card, "✕", Vector2(950, 18), Vector2(48, 48), 24)
  close.pressed.connect(func(): visible = false)
  body = Control.new()
@@ -118,7 +118,7 @@ func _make_circuits() -> void:
  _label(body, "Race laps (1–10)", 19, Vector2(0, 0))
  laps_label = _label(body, "3", 22, Vector2(420, 0))
  lap_slider = HSlider.new()
- lap_slider.position = Vector2(0, 35)
+ lap_slider.position = Vector2(0, 40)
  lap_slider.size = Vector2(460, 35)
  lap_slider.min_value = 1
  lap_slider.max_value = 10

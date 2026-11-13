@@ -46,6 +46,17 @@ func _run() -> void:
    _fail("Circuit did not build: " + id)
    return
  # Start from the actual circuit button signal, exercising the menu values.
+ await process_frame
+ var circuit_items = game.race_menu.body.get_children()
+ for i in range(circuit_items.size()):
+  var item: Control = circuit_items[i]
+  if item.position.x < 0 or item.position.y < 0 or item.position.x + item.size.x > 949 or item.position.y + item.size.y > 481:
+   _fail("Circuit selection item is outside its panel: %s %s" % [item.name, item.get_rect()])
+   return
+  for j in range(i):
+   if item.get_rect().intersects(circuit_items[j].get_rect()):
+    _fail("Circuit controls overlap: %s %s and %s %s" % [item.name, item.get_rect(), circuit_items[j].name, circuit_items[j].get_rect()])
+    return
  var circuit_button: Button = null
  for child in game.race_menu.body.get_children():
   if child is Button and child.get_child_count() > 0 and child.get_child(0).has_method("set_points"):
@@ -59,6 +70,21 @@ func _run() -> void:
  if not game.active or not game.racing or game.race_laps != 2 or game.speed_factor != 2 or game.ai_riders.size() != 9 or not game.mini_map.show_riders:
   _fail("Race selection did not start with selected settings")
   return
+ # The speed selector advances the real driving simulation, not just the HUD.
+ game.touch["accelerate"] = true
+ game.speed = 0.0
+ var saved_position: Vector3 = game.bike.position
+ var saved_heading: float = game.heading
+ game._driving_step(1.0 / 60.0)
+ var normal_gain: float = game.speed
+ game.bike.position = saved_position
+ game.heading = saved_heading
+ game.speed = 0.0
+ game._physics_process(1.0 / 60.0)
+ if game.speed < normal_gain * 1.8:
+  _fail("Speed multiplier did not change bike acceleration")
+  return
+ game.touch["accelerate"] = false
  var before: float = game.ai_riders[0].progress
  for i in range(120):
   game._update_ai(1.0 / 60.0)
