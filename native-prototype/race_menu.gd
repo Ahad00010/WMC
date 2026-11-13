@@ -4,6 +4,9 @@ signal sound_toggled
 const MAP = preload("res://circuit_map.gd")
 const DISPLAY_FONT = preload("res://assets/MGPDisplay-Medium.otf")
 const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
+const CHECK_OFF = preload("res://assets/check-off.svg")
+const CHECK_ON = preload("res://assets/check-on.svg")
+const SLIDER_THUMB = preload("res://assets/slider-thumb.svg")
 const NAMES = {"sepang":"PETRONAS SEPANG\nINTERNATIONAL CIRCUIT", "silverstone":"SILVERSTONE CIRCUIT", "assen":"TT CIRCUIT ASSEN", "brno":"AUTOMOTODROM BRNO\nCIRCUIT", "monza":"AUTODROMO NAZIONALE\nMONZA", "jerez":"CIRCUITO DE JEREZ"}
 var page := "mode"
 var card: Control
@@ -132,6 +135,14 @@ func _choice(title: String, description: String, x: float, disabled: bool, actio
  if disabled:
   choice.modulate = Color(0.48, 0.48, 0.5, 1.0)
 
+func _outlined_style(background: Color, border: Color, border_width := 2) -> StyleBoxFlat:
+ var style := StyleBoxFlat.new()
+ style.bg_color = background
+ style.border_color = border
+ style.set_border_width_all(border_width)
+ style.set_corner_radius_all(3)
+ return style
+
 func _make_circuits() -> void:
  _label(body, "Race laps (1–10)", 19, Vector2(0, 0))
  laps_label = _label(body, "3", 22, Vector2(420, 0))
@@ -141,6 +152,17 @@ func _make_circuits() -> void:
  lap_slider.min_value = 1
  lap_slider.max_value = 10
  lap_slider.step = 1
+ var rail := _outlined_style(Color("69717e"), Color("939ba7"), 1)
+ rail.content_margin_top = 4
+ rail.content_margin_bottom = 4
+ var filled := _outlined_style(Color("ed2534"), Color("ed2534"), 1)
+ filled.content_margin_top = 4
+ filled.content_margin_bottom = 4
+ lap_slider.add_theme_stylebox_override("slider", rail)
+ lap_slider.add_theme_stylebox_override("grabber_area", filled)
+ lap_slider.add_theme_stylebox_override("grabber_area_highlight", filled)
+ lap_slider.add_theme_icon_override("grabber", SLIDER_THUMB)
+ lap_slider.add_theme_icon_override("grabber_highlight", SLIDER_THUMB)
  lap_slider.value = selected_laps
  laps_label.text = str(selected_laps)
  lap_slider.value_changed.connect(func(value):
@@ -154,6 +176,11 @@ func _make_circuits() -> void:
  speed_choice.size = Vector2(175, 48)
  speed_choice.add_theme_font_override("font", TEXT_FONT)
  speed_choice.add_theme_font_size_override("font_size", 17)
+ var select_style := _outlined_style(Color("242a33"), Color("aab2bd"))
+ var select_hover := _outlined_style(Color("343c48"), Color("f34752"))
+ speed_choice.add_theme_stylebox_override("normal", select_style)
+ speed_choice.add_theme_stylebox_override("hover", select_hover)
+ speed_choice.add_theme_stylebox_override("pressed", select_hover)
  for factor in range(1, 5):
   speed_choice.add_item("%dx  %s" % [factor, "NORMAL" if factor == 1 else ""])
  speed_choice.select(selected_speed - 1)
@@ -164,6 +191,11 @@ func _make_circuits() -> void:
   var x := (index % 3) * 316
   var y := 80 + int(index / 3) * 158
   var choice := _button(body, "", Vector2(x, y), Vector2(305, 148), 14)
+  var tile := _outlined_style(Color("20252d"), Color("818b98"))
+  var tile_highlight := _outlined_style(Color("313946"), Color("fa3945"), 3)
+  choice.add_theme_stylebox_override("normal", tile)
+  choice.add_theme_stylebox_override("hover", tile_highlight)
+  choice.add_theme_stylebox_override("pressed", tile_highlight)
   var map = MAP.new()
   map.position = Vector2(45, 3)
   map.size = Vector2(215, 86)
@@ -183,6 +215,9 @@ func _make_circuits() -> void:
  ai_check.text = "Fill grid with AI riders (9 AI, 10 riders total)"
  ai_check.position = Vector2(0, 400)
  ai_check.size = Vector2(700, 54)
+ ai_check.add_theme_icon_override("unchecked", CHECK_OFF)
+ ai_check.add_theme_icon_override("checked", CHECK_ON)
+ ai_check.add_theme_constant_override("h_separation", 10)
  ai_check.add_theme_font_override("font", TEXT_FONT)
  ai_check.add_theme_font_size_override("font_size", 17)
  body.add_child(ai_check)

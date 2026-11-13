@@ -93,6 +93,18 @@ func _run() -> void:
   push_error("Native bike failed to accelerate")
   quit(1)
   return
+ # Reset must immediately align bike and camera, before the next physics frame.
+ game.bike.rotation.y = 1.9
+ game.visual.rotation.z = 0.7
+ game._reset()
+ if absf(angle_difference(game.bike.rotation.y, game.heading)) > 0.001 or absf(game.visual.rotation.z) > 0.001:
+  push_error("Reset did not align the bike to the grid")
+  quit(1)
+  return
+ game.active = true
+ game.touch["accelerate"] = true
+ for i in range(120):
+  game._physics_process(1.0 / 60.0)
  var before_brake: float = game.speed
  var before_position: Vector3 = game.bike.position
  var key := InputEventKey.new()

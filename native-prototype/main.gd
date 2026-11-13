@@ -383,6 +383,7 @@ func _reset() -> void:
  countdown_clock = 0.0
  if start_lights:
   start_lights.visible = false
+  start_lights.modulate.a = 1.0
  if race_tower:
   race_tower.reset()
  for rider in ai_riders:
@@ -394,6 +395,8 @@ func _reset() -> void:
  bike.position = track[0] + Vector3.UP * 0.05
  var direction := (track[1] - track[0]).normalized()
  heading = atan2(direction.x, direction.z)
+ bike.rotation.y = heading
+ visual.rotation.z = 0.0
  camera.position = bike.position - direction * 7.0 + Vector3.UP * 3.0
  camera.look_at(bike.position + direction * 7.0 + Vector3.UP, Vector3.UP)
  speed = 0.0
@@ -541,7 +544,9 @@ func _process(dt: float) -> void:
    if not countdown and start_lights.visible:
     start_lights.clock += dt
     start_lights.queue_redraw()
-    if start_lights.clock >= LIGHTS_SCRIPT.RELEASE_TIME + 0.65:
+    var fade := clampf((start_lights.clock - LIGHTS_SCRIPT.RELEASE_TIME - 0.2) / 0.65, 0.0, 1.0)
+    start_lights.modulate.a = 1.0 - fade
+    if fade >= 1.0:
      start_lights.visible = false
   else:
    hud.text = "%d KM/H    |    %02d:%02d    |    %d FPS" % [roundi(speed * 3.6), int(elapsed) / 60, int(elapsed) % 60, Engine.get_frames_per_second()]
@@ -560,6 +565,16 @@ func _update_race_tower(order: Array, lap: int) -> void:
  var hashtags := {"sepang":"#MalaysianGP", "silverstone":"#BritishGP", "assen":"#DutchGP", "brno":"#CzechGP", "monza":"#ItalianGP", "jerez":"#SpanishGP"}
  var progress := clampf((player_progress - (lap - 1) * track.size()) / track.size(), 0.0, 1.0)
  race_tower.update_standings(order, lap, race_laps, progress, player_finished, hashtags.get(circuit_id, "#WMC"))
+ _resize_race_tower()
+
+func _resize_race_tower() -> void:
+ if not controls or not race_tower or race_tower.size.y <= 0.0:
+  return
+ # Keep the tower readable, but leave room for the steering pads below it.
+ var height_available := maxf(180.0, controls.size.y - 190.0)
+ var factor := minf(1.5, height_available / race_tower.size.y)
+ factor = minf(factor, controls.size.x * 0.30 / race_tower.size.x)
+ race_tower.scale = Vector2.ONE * maxf(0.75, factor)
 
 func _standings() -> Array:
  var entries: Array = [{"id":"player", "name": str(profile.get("display_name", "RIDER")), "number":str(profile.get("rider_number", 93)), "color":str(profile.get("plate_color", "red")), "is_player":true, "progress":player_progress, "finished":player_finished, "finish_time":elapsed if player_finished else INF}]
@@ -605,15 +620,16 @@ func _make_ui() -> void:
  controls = Control.new()
  layer.add_child(controls)
  controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ controls.resized.connect(_resize_race_tower)
  controls.visible = false
- hud = _label(controls, "", 16, Vector2.ZERO)
+ hud = _label(controls, "", 19, Vector2.ZERO)
  hud.anchor_left = 0.5
  hud.anchor_right = 0.5
  hud.anchor_top = 1.0
  hud.anchor_bottom = 1.0
  hud.offset_left = -350
  hud.offset_right = 350
- hud.offset_top = -48
+ hud.offset_top = -52
  hud.offset_bottom = -8
  hud.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
  race_tower = TOWER_SCRIPT.new()
@@ -633,10 +649,10 @@ func _make_ui() -> void:
  controls.add_child(mini_map)
  mini_map.anchor_left = 1.0
  mini_map.anchor_right = 1.0
- mini_map.offset_left = -300
+ mini_map.offset_left = -330
  mini_map.offset_right = -30
  mini_map.offset_top = 82
- mini_map.offset_bottom = 245
+ mini_map.offset_bottom = 260
  mini_map.mouse_filter = Control.MOUSE_FILTER_IGNORE
  mini_map.show_riders = true
  mini_map.set_points(track)
@@ -931,6 +947,7 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
  countdown = true
  countdown_clock = 0.0
  start_lights.clock = 0.0
+ start_lights.modulate.a = 1.0
  start_lights.visible = true
  if fill:
   _spawn_ai()

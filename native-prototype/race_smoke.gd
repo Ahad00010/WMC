@@ -62,6 +62,13 @@ func _run() -> void:
   if game.track.size() < 100 or game.circuit_id != id or game.mini_map.points.size() != game.track.size():
    _fail("Circuit did not build: " + id)
    return
+ # Visible states are explicit, not dependent on a device's dark default theme.
+ if not game.race_menu.ai_check.has_theme_icon_override("checked") or not game.race_menu.ai_check.has_theme_icon_override("unchecked") or game.race_menu.ai_check.get_theme_icon("checked") == game.race_menu.ai_check.get_theme_icon("unchecked"):
+  _fail("AI checkbox states are not distinct")
+  return
+ if not game.race_menu.lap_slider.has_theme_stylebox_override("slider") or not game.race_menu.lap_slider.has_theme_icon_override("grabber") or not game.race_menu.speed_choice.has_theme_stylebox_override("normal"):
+  _fail("Slider or speed dropdown lacks visible styling")
+  return
  # Start from the actual circuit button signal, exercising the menu values.
  await process_frame
  var circuit_items = game.race_menu.body.get_children()
@@ -82,10 +89,21 @@ func _run() -> void:
  if circuit_button == null:
   _fail("No clickable circuit selection")
   return
+ if not circuit_button.has_theme_stylebox_override("normal") or circuit_button.get_theme_stylebox("normal").border_width_left < 1:
+  _fail("Circuit tiles lack visible borders")
+  return
  circuit_button.pressed.emit()
  await create_timer(0.6).timeout
  if not game.active or not game.racing or game.race_laps != 2 or game.speed_factor != 2 or game.ai_riders.size() != 9 or not game.mini_map.show_riders:
   _fail("Race selection did not start with selected settings")
+  return
+ # The bike must already face down the selected straight before movement.
+ if absf(angle_difference(game.bike.rotation.y, game.heading)) > 0.001:
+  _fail("Bike starts sideways")
+  return
+ var tower_bottom: float = game.race_tower.position.y + game.race_tower.size.y * game.race_tower.scale.y
+ if game.race_tower.scale.x <= 1.0 or tower_bottom > game.controls.size.y - 145:
+  _fail("Race tower did not scale up while leaving room for controls")
   return
  # Countdown must freeze all riders and the race clock, including when paused.
  if not game.countdown or not game.start_lights.visible or game.start_lights.lit_count() < 1 or game.mini_map.opponents.size() != 9 or game.race_tower.rows.size() != 10:
@@ -120,6 +138,14 @@ func _run() -> void:
  game._physics_process(1.0)
  if game.countdown or game.start_lights.lit_count() != 0 or game.elapsed != 0:
   _fail("Lights did not go out before the race began")
+  return
+ game._process(0.4)
+ if not game.start_lights.visible or game.start_lights.modulate.a <= 0.0 or game.start_lights.modulate.a >= 1.0:
+  _fail("GO lights did not gradually fade")
+  return
+ game._process(0.8)
+ if game.start_lights.visible:
+  _fail("GO lights did not disappear after fading")
   return
  # Website-style lap display, progress bar, footer and finished rider indicators.
  game.race_laps = 3
