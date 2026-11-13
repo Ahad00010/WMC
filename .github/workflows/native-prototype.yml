@@ -72,6 +72,19 @@ jobs:
             while IFS= read -r line; do echo "::error::$line"; done < <(grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-import.log /tmp/godot-run.log)
             exit 1
           fi
+      - name: Test rendered race and real viewport capture
+        run: |
+          set -o pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          if ! LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a godot --rendering-method gl_compatibility --path native-prototype --script res://render_race_smoke.gd > /tmp/godot-render-test.log 2>&1; then
+            echo "::error::RENDER TEST LOG BASE64 $(base64 -w0 /tmp/godot-render-test.log)"
+            exit 1
+          fi
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/godot-render-test.log; then
+            echo "::error::RENDER TEST LOG BASE64 $(base64 -w0 /tmp/godot-render-test.log)"
+            exit 1
+          fi
       - name: Export Windows and Android debug builds
         run: |
           mkdir -p native-prototype/build

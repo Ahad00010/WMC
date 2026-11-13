@@ -481,6 +481,8 @@ func _physics_process(dt: float) -> void:
   start_lights.queue_redraw()
   if countdown_clock >= LIGHTS_SCRIPT.RELEASE_TIME:
    countdown = false
+   if diagnostics:
+    diagnostics.note("COUNTDOWN released")
   return
  elapsed += dt
  var factor := speed_factor if racing else 1
@@ -1158,8 +1160,11 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
   return
  diagnostics.note("RACE START circuit=%s laps=%d speed=%d ai=%s capture_setting=%s" % [id, laps, factor, fill, capture_setting])
  race_menu.visible = false
+ diagnostics.note("START stage=change-circuit")
  _change_circuit(id)
+ diagnostics.note("START stage=reset")
  _reset()
+ diagnostics.note("START stage=reset-complete")
  race_laps = clampi(laps, 1, 10)
  speed_factor = clampi(factor, 1, 4)
  racing = true
@@ -1180,10 +1185,14 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
   recorder.start(encoder_stage)
   replay_enabled = true
  if fill:
+  diagnostics.note("START stage=spawn-ai")
   _spawn_ai()
+  diagnostics.note("START stage=spawn-ai-complete")
+ diagnostics.note("START stage=map-and-tower")
  _update_map_markers()
  race_tower.reset()
  _update_race_tower(_standings(), 1)
+ diagnostics.note("START stage=map-and-tower-complete")
  menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
  music_target = 0.0
  var tween := create_tween()
@@ -1192,10 +1201,12 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
   menu.visible = false
   controls.visible = true
   active = true
+  diagnostics.note("START stage=countdown-active ai=%d" % ai_riders.size())
  )
 
 func _spawn_ai() -> void:
  for i in range(9):
+  diagnostics.note("START ai=%d stage=instantiate" % i)
   var node := Node3D.new()
   add_child(node)
   node.add_child(BIKE.instantiate())
@@ -1206,6 +1217,7 @@ func _spawn_ai() -> void:
   var data := {"node": node, "progress": progress, "speed": 0.0, "lane": -2.7 if i % 2 == 0 else 2.7, "skill": float(i % 5 - 2), "finished": false}
   ai_riders.append(data)
   _place_ai(data)
+  diagnostics.note("START ai=%d stage=ready" % i)
 
 func _place_ai(rider: Dictionary) -> void:
  var segment := floori(rider.progress)
