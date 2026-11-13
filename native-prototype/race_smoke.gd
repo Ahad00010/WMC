@@ -121,6 +121,33 @@ func _run() -> void:
  if game.countdown or game.start_lights.lit_count() != 0 or game.elapsed != 0:
   _fail("Lights did not go out before the race began")
   return
+ # Website-style lap display, progress bar, footer and finished rider indicators.
+ game.race_laps = 3
+ game.player_progress = game.track.size() * 0.5
+ game._update_race_tower(game._standings(), 1)
+ if game.race_tower.display_state() != "1/3" or absf(game.race_tower.lap_progress - 0.5) > 0.01:
+  _fail("Tower does not show normal lap and within-lap progress")
+  return
+ game.player_progress = game.track.size() * 2.25
+ game._update_race_tower(game._standings(), 3)
+ if game.race_tower.display_state() != "LAST LAP" or absf(game.race_tower.lap_progress - 0.25) > 0.01:
+  _fail("Tower does not show last lap")
+  return
+ game.race_laps = 1
+ game.player_progress = 0
+ game._update_race_tower(game._standings(), 1)
+ if game.race_tower.display_state() != "LAST LAP":
+  _fail("One-lap race must start on last lap")
+  return
+ game.race_laps = 2
+ game.ai_riders[1].finished = true
+ game.ai_riders[1].finish_time = 1.0
+ game._update_race_tower(game._standings(), 1)
+ if not game.race_tower.rows["ai1"].finished or game.race_tower.hashtag.is_empty():
+  _fail("Finished rider flag or circuit footer missing")
+  return
+ game.ai_riders[1].finished = false
+ game._update_race_tower(game._standings(), 1)
  # A genuine position change animates the tower rows, rather than just relabeling them.
  var old_target: float = game.race_tower.targets["ai0"]
  game.ai_riders[0].progress = 8.0
@@ -169,8 +196,12 @@ func _run() -> void:
  for i in range(1, game.track.size() + 1):
   game.nearest = i % game.track.size()
   game._update_player_laps()
- if game.active or not game.finish_panel.visible or not game.finish_text.text.contains("POSITION"):
-  _fail("Finishing a lap did not end the race")
+ if game.active or game.finish_panel.visible or not game.finish_text.text.contains("POSITION") or game.race_tower.display_state() != "FINISH" or not game.race_tower.rows["player"].finished:
+  _fail("Finish tower or finished player flag missing")
+  return
+ await create_timer(2.7).timeout
+ if not game.finish_panel.visible:
+  _fail("Results did not appear after the finish tower")
   return
  game._return_to_menu()
  if not game.menu.visible or game.ai_riders.size() != 0 or game.finish_panel.visible:

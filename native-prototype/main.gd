@@ -34,6 +34,8 @@ var racing := false
 var race_laps := 3
 var speed_factor := 1
 var player_progress := 0.0
+var player_finished := false
+var race_generation := 0
 var player_prev_index := 0
 var ai_riders: Array[Dictionary] = []
 var bike: Node3D
@@ -374,6 +376,8 @@ func _make_trees() -> void:
   add_child(node)
 
 func _reset() -> void:
+ race_generation += 1
+ player_finished = false
  racing = false
  countdown = false
  countdown_clock = 0.0
@@ -533,7 +537,7 @@ func _process(dt: float) -> void:
    tower_clock += dt
    if tower_clock >= 0.15:
     tower_clock = 0.0
-    race_tower.update_standings(order, lap, race_laps)
+    _update_race_tower(order, lap)
    if not countdown and start_lights.visible:
     start_lights.clock += dt
     start_lights.queue_redraw()
@@ -552,11 +556,17 @@ func _update_map_markers() -> void:
   mini_map.opponents.append(Vector2(rider.node.position.x, rider.node.position.z))
  mini_map.queue_redraw()
 
+func _update_race_tower(order: Array, lap: int) -> void:
+ var hashtags := {"sepang":"#MalaysianGP", "silverstone":"#BritishGP", "assen":"#DutchGP", "brno":"#CzechGP", "monza":"#ItalianGP", "jerez":"#SpanishGP"}
+ var progress := clampf((player_progress - (lap - 1) * track.size()) / track.size(), 0.0, 1.0)
+ race_tower.update_standings(order, lap, race_laps, progress, player_finished, hashtags.get(circuit_id, "#WMC"))
+
 func _standings() -> Array:
- var entries: Array = [{"id":"player", "name": str(profile.get("display_name", "RIDER")), "number":str(profile.get("rider_number", 93)), "is_player":true, "progress":player_progress, "finished":false, "finish_time":INF}]
+ var entries: Array = [{"id":"player", "name": str(profile.get("display_name", "RIDER")), "number":str(profile.get("rider_number", 93)), "color":str(profile.get("plate_color", "red")), "is_player":true, "progress":player_progress, "finished":player_finished, "finish_time":elapsed if player_finished else INF}]
+ var colors := ["blue", "red", "yellow", "orange", "green", "cyan", "purple", "pink", "white"]
  for i in range(ai_riders.size()):
   var rider: Dictionary = ai_riders[i]
-  entries.append({"id":"ai%d" % i, "name":"AI %02d" % (i + 1), "number":str(21 + i), "is_player":false, "progress":float(rider.progress), "finished":bool(rider.finished), "finish_time":float(rider.get("finish_time", INF))})
+  entries.append({"id":"ai%d" % i, "name":"AI %02d" % (i + 1), "number":str(21 + i), "color":colors[i % colors.size()], "is_player":false, "progress":float(rider.progress), "finished":bool(rider.finished), "finish_time":float(rider.get("finish_time", INF))})
  entries.sort_custom(func(a, b):
   if a.finished != b.finished:
    return a.finished
@@ -608,7 +618,7 @@ func _make_ui() -> void:
  hud.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
  race_tower = TOWER_SCRIPT.new()
  race_tower.position = Vector2(22, 20)
- race_tower.size = Vector2(200, 390)
+ race_tower.size = Vector2(200, 437)
  controls.add_child(race_tower)
  start_lights = LIGHTS_SCRIPT.new()
  controls.add_child(start_lights)
@@ -926,7 +936,7 @@ func _start_race(id: String, laps: int, factor: int, fill: bool) -> void:
   _spawn_ai()
  _update_map_markers()
  race_tower.reset()
- race_tower.update_standings(_standings(), 1, race_laps)
+ _update_race_tower(_standings(), 1)
  menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
  music_target = 0.0
  var tween := create_tween()
@@ -1017,12 +1027,19 @@ func _finish_race() -> void:
   if rider.finished or float(rider.progress) > player_progress:
    place += 1
  active = false
+ player_finished = true
  racing = false
  countdown = false
  start_lights.visible = false
  _clear_touch()
+ _update_race_tower(_standings(), race_laps)
  finish_text.text = "POSITION %d / %d    ·    %02d:%02d" % [place, ai_riders.size() + 1, int(elapsed) / 60, int(elapsed) % 60]
- finish_panel.visible = true
+ # Leave the checkered FINISH tower visible before the simple results panel.
+ var generation := race_generation
+ get_tree().create_timer(2.5).timeout.connect(func():
+  if race_generation == generation and player_finished:
+   finish_panel.visible = true
+ )
 
 # Synthesize the same sawtooth + half-frequency square blend used on the website.
 # It follows the simulated RPM and is silent in menus and while paused.
