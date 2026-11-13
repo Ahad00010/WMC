@@ -92,6 +92,14 @@ func _run() -> void:
   _fail("Start lights, map dots or race tower were not initialized")
   return
  var grid_position: Vector3 = game.bike.position
+ if game.race_tower.get_rect().intersects(game.mini_map.get_rect()) or game.race_tower.get_rect().intersects(game.start_lights.get_rect()) or game.start_lights.get_rect().intersects(game.mini_map.get_rect()):
+  _fail("Race HUD overlays collide")
+  return
+ for i in range(game.ai_riders.size()):
+  var rider_position: Vector3 = game.ai_riders[i].node.position
+  if game.mini_map.opponents[i] != Vector2(rider_position.x, rider_position.z):
+   _fail("AI dot does not match rider position")
+   return
  var ai_grid: float = game.ai_riders[0].progress
  game.touch["accelerate"] = true
  game._physics_process(0.7)
@@ -105,7 +113,11 @@ func _run() -> void:
   _fail("Countdown did not pause")
   return
  game._resume_game()
- game._physics_process(3.5)
+ game._physics_process(2.0)
+ if not game.countdown or game.start_lights.lit_count() != 5 or game.elapsed != 0:
+  _fail("All five red lights should be lit before release")
+  return
+ game._physics_process(1.0)
  if game.countdown or game.start_lights.lit_count() != 0 or game.elapsed != 0:
   _fail("Lights did not go out before the race began")
   return
