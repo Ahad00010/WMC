@@ -92,8 +92,40 @@ func _make_rider_scene() -> void:
  world.add_child(rider_figure)
  var model: Node3D = RIDER.instantiate()
  rider_figure.add_child(model)
+ _stand_rider(model)
  model.position.y = 0.12
  model.rotation.x = -0.72
+
+# The asset is unrigged. Match the website's results-only vertex deformation
+# on private mesh copies; never alter the gameplay rider or its final framing.
+func _stand_rider(node: Node) -> void:
+ if node is MeshInstance3D and (node.name == "Pilot_M_Pilot_0" or node.name == "Pilot_Decals_M_Pilot_Decals_0"):
+  var original: Mesh = node.mesh
+  if original:
+   var posed := ArrayMesh.new()
+   var c := cos(0.72)
+   var s := sin(0.72)
+   for surface in range(original.get_surface_count()):
+    var arrays := original.surface_get_arrays(surface)
+    var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+    for i in range(vertices.size()):
+     var v := vertices[i]
+     var up := v.y * c + v.z * s
+     var depth := -v.y * s + v.z * c
+     var weight := clampf((0.14 - up) / 0.48, 0.0, 1.0)
+     weight = weight * weight * (3.0 - 2.0 * weight)
+     up -= 0.28 * weight
+     v.x *= 1.0 - 0.20 * weight
+     depth += (-0.15 - depth) * 0.55 * weight
+     v.y = up * c - depth * s
+     v.z = up * s + depth * c
+     vertices[i] = v
+    arrays[Mesh.ARRAY_VERTEX] = vertices
+    posed.add_surface_from_arrays(original.surface_get_primitive_type(surface), arrays)
+    posed.surface_set_material(surface, original.surface_get_material(surface))
+   node.mesh = posed
+ for child in node.get_children():
+  _stand_rider(child)
 
 func _request_menu() -> void:
  if leaving:
