@@ -9,6 +9,7 @@ const CHECK_ON = preload("res://assets/check-on.svg")
 const SLIDER_THUMB = preload("res://assets/slider-thumb.svg")
 const NAMES = {"sepang":"PETRONAS SEPANG\nINTERNATIONAL CIRCUIT", "silverstone":"SILVERSTONE CIRCUIT", "assen":"TT CIRCUIT ASSEN", "brno":"AUTOMOTODROM BRNO\nCIRCUIT", "monza":"AUTODROMO NAZIONALE\nMONZA", "jerez":"CIRCUITO DE JEREZ"}
 var page := "mode"
+var gui_factor := 1.0
 var card: Control
 var heading: Label
 var body: Control
@@ -98,6 +99,7 @@ func show_page(next: String) -> void:
  close_button.position.x = 730 if compact else 950
  body.size = Vector2(728, 180) if compact else Vector2(948, 480)
  back.position.y = 315 if compact else 616
+ apply_scale()
  heading.text = {"mode":"CHOOSE YOUR MODE", "practice":"PRACTICE", "circuit":"CIRCUIT"}[page]
  back.visible = page != "mode"
  for child in body.get_children():
@@ -111,6 +113,14 @@ func show_page(next: String) -> void:
   _choice("QUALIFYING", "Under development", 368, true, func(): pass)
  else:
   _make_circuits()
+
+func apply_scale() -> void:
+ if not card:
+  return
+ # Keep the centred panel on screen even at the largest GUI setting.
+ var max_fit := minf((size.x - 24) / maxf(card.size.x, 1), (size.y - 24) / maxf(card.size.y, 1))
+ card.pivot_offset = card.size * 0.5
+ card.scale = Vector2.ONE * minf(gui_factor, max_fit)
 
 func _choice(title: String, description: String, x: float, disabled: bool, action: Callable) -> void:
  var choice := _button(body, "", Vector2(x, 12), Vector2(350, 150), 18)

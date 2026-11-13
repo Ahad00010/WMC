@@ -14,6 +14,23 @@ func _run() -> void:
  if game.circuit_sources.size() != 6:
   _fail("Six circuits are required")
   return
+ # Settings are present on both platforms; GUI scaling is PC-only and saved.
+ if game.settings_panel == null or game.settings_panel.gui_choice == null or game.settings_panel.gui_choice.item_count != 4:
+  _fail("PC settings or GUI scale choices missing")
+  return
+ game._settings_changed(0.5, 0.6, 0.7, 3)
+ var settings_file := ConfigFile.new()
+ if settings_file.load("user://settings.cfg") != OK or int(settings_file.get_value("display", "gui_scale")) != 3 or absf(game.master_volume - 0.5) > 0.01 or absf(game._gui_factor() - 1.2) > 0.01:
+  _fail("Audio or GUI settings not applied and persisted")
+  return
+ game._settings_changed(1.0, 1.0, 1.0, 0)
+ var mobile_settings = load("res://settings_menu.gd").new()
+ root.add_child(mobile_settings)
+ mobile_settings.setup(true)
+ if mobile_settings.gui_choice != null or mobile_settings.master_slider == null:
+  _fail("Mobile settings should show audio but not PC GUI scale")
+  return
+ mobile_settings.queue_free()
  game._start_from_menu()
  if not game.race_menu.visible or game.race_menu.page != "mode":
   _fail("Play did not open mode selection")
@@ -102,7 +119,7 @@ func _run() -> void:
   _fail("Bike starts sideways")
   return
  var tower_bottom: float = game.race_tower.position.y + game.race_tower.size.y * game.race_tower.scale.y
- if game.race_tower.scale.x <= 1.0 or tower_bottom > game.controls.size.y - 145:
+ if game.race_tower.scale.x < 0.99 or tower_bottom > game.controls.size.y - 145:
   _fail("Race tower did not scale up while leaving room for controls")
   return
  var original_controls_size: Vector2 = game.controls.size
@@ -233,15 +250,31 @@ func _run() -> void:
  for i in range(1, game.track.size() + 1):
   game.nearest = i % game.track.size()
   game._update_player_laps()
- if game.active or game.finish_panel.visible or not game.finish_text.text.contains("POSITION") or game.race_tower.display_state() != "FINISH" or not game.race_tower.rows["player"].finished:
-  _fail("Finish tower or finished player flag missing")
+ if game.active or not game.results_screen.running or game.results_screen.phase != "waiting" or game.race_tower.display_state() != "FINISH" or not game.race_tower.rows["player"].finished:
+  _fail("Finish tower or results sequence missing")
   return
- await create_timer(2.7).timeout
- if not game.finish_panel.visible:
-  _fail("Results did not appear after the finish tower")
+ game.results_screen.advance(20.0)
+ if not game.results_screen.cued or game.results_screen.phase != "waiting":
+  _fail("Results music cue timing is wrong")
+  return
+ game.results_screen.advance(3.0)
+ if game.results_screen.phase != "grand_prix" or game.results_screen.entries.size() != 10:
+  _fail("Grand Prix result presentation missing")
+  return
+ game.results_screen.advance(20.0)
+ if game.results_screen.phase != "championship":
+  _fail("Championship phase timing is wrong")
+  return
+ game.results_screen.advance(20.0)
+ if game.results_screen.phase != "fade":
+  _fail("Results fade timing is wrong")
+  return
+ game.results_screen.advance(0.4)
+ if game.results_screen.phase != "winner" or not game.results_screen.menu_button.visible:
+  _fail("Winner screen or main menu action is missing")
   return
  game._return_to_menu()
- if not game.menu.visible or game.ai_riders.size() != 0 or game.finish_panel.visible:
+ if not game.menu.visible or game.ai_riders.size() != 0 or game.finish_panel.visible or game.results_screen.running:
   _fail("Returning to menu did not clear race state")
   return
  game.queue_free()

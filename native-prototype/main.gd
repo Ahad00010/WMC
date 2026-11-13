@@ -11,6 +11,8 @@ const MAP_SCRIPT = preload("res://circuit_map.gd")
 const LIGHTS_SCRIPT = preload("res://start_lights.gd")
 const TOWER_SCRIPT = preload("res://race_tower.gd")
 const RACE_MENU = preload("res://race_menu.gd")
+const SETTINGS_MENU = preload("res://settings_menu.gd")
+const RESULTS_SCREEN = preload("res://results_screen.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
@@ -28,6 +30,7 @@ var start_lights: Control
 var countdown := false
 var countdown_clock := 0.0
 var tower_clock := 0.0
+var results_screen: Control
 var finish_panel: Control
 var finish_text: Label
 var racing := false
@@ -70,6 +73,11 @@ var engine_gain := 0.0
 var menu: Control
 var music: AudioStreamPlayer
 var music_muted := false
+var master_volume := 1.0
+var music_volume := 1.0
+var engine_volume := 1.0
+var gui_scale_index := 0
+var settings_panel: Control
 var sound_button: Button
 var music_target := 0.0
 var auth_status: Label
@@ -87,6 +95,7 @@ var profile_save: Button
 
 func _ready() -> void:
  mobile = OS.has_feature("mobile")
+ _load_settings()
  _load_circuits()
  _read_track("sepang")
  _make_world()
@@ -376,6 +385,8 @@ func _make_trees() -> void:
   add_child(node)
 
 func _reset() -> void:
+ if results_screen:
+  results_screen.cancel()
  race_generation += 1
  player_finished = false
  racing = false
@@ -514,11 +525,14 @@ func _driving_step(dt: float) -> void:
 func _process(dt: float) -> void:
  if music:
   var volume := db_to_linear(music.volume_db)
-  volume = move_toward(volume, 0.0 if music_muted else music_target, dt * 0.55 / 0.85)
+  volume = move_toward(volume, 0.0 if music_muted else music_target * master_volume * music_volume, dt * 0.55 / 0.85)
   music.volume_db = linear_to_db(maxf(volume, 0.0001))
   if music_target == 0.0 and volume <= 0.0001 and music.playing:
    music.stop()
  _update_engine(dt)
+ if results_screen:
+  results_screen.volume = master_volume * music_volume
+  results_screen.muted = music_muted
  if active and replay_enabled:
   replay_clock += dt
   if replay_clock >= 1.0 / REPLAY_FPS:
@@ -572,7 +586,8 @@ func _resize_race_tower() -> void:
   return
  # Keep the tower readable, but leave room for the steering pads below it.
  var height_available := maxf(180.0, controls.size.y - 190.0)
- var factor := minf(1.5, height_available / race_tower.size.y)
+ var requested := 1.5 if mobile else _gui_factor()
+ var factor := minf(requested, height_available / race_tower.size.y)
  factor = minf(factor, controls.size.x * 0.30 / race_tower.size.x)
  race_tower.scale = Vector2.ONE * maxf(0.75, factor)
 
@@ -691,9 +706,31 @@ func _make_ui() -> void:
  race_menu.start_requested.connect(_start_race)
  race_menu.sound_toggled.connect(_toggle_sound)
  _make_finish_menu(layer)
+ results_screen = RESULTS_SCREEN.new()
+ layer.add_child(results_screen)
+ results_screen.setup()
+ results_screen.main_menu_requested.connect(_return_to_menu)
+ settings_panel = SETTINGS_MENU.new()
+ layer.add_child(settings_panel)
+ settings_panel.setup(mobile)
+ settings_panel.set_values(master_volume, music_volume, engine_volume, gui_scale_index)
+ settings_panel.settings_changed.connect(_settings_changed)
+ _apply_gui_scale()
 
 func _unhandled_key_input(event: InputEvent) -> void:
  if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+  if settings_panel and settings_panel.visible:
+   settings_panel.visible = false
+   get_viewport().set_input_as_handled()
+   return
+  if race_menu and race_menu.visible:
+   race_menu.visible = false
+   get_viewport().set_input_as_handled()
+   return
+  if profile_panel and profile_panel.visible:
+   profile_panel.visible = false
+   get_viewport().set_input_as_handled()
+   return
   if active:
    _pause_game()
   elif paused:
@@ -763,6 +800,8 @@ func _make_pause_menu(layer: CanvasLayer) -> void:
  title.add_theme_font_override("font", DISPLAY_FONT)
  var resume := _button(pause_card, "RESUME", Vector2(0, 120), Vector2(280, 55))
  resume.pressed.connect(_resume_game)
+ var settings := _button(pause_card, "SETTINGS", Vector2(0, 260), Vector2(280, 55))
+ settings.pressed.connect(func(): settings_panel.visible = true)
  var home := _button(pause_card, "MAIN MENU", Vector2(0, 190), Vector2(280, 55))
  home.pressed.connect(_return_to_menu)
 
@@ -786,6 +825,7 @@ func _resume_game() -> void:
 func _return_to_menu() -> void:
  _reset()
  finish_panel.visible = false
+ settings_panel.visible = false
  race_menu.visible = false
  pause_panel.visible = false
  controls.visible = false
@@ -852,8 +892,20 @@ func _make_menu(layer: CanvasLayer) -> void:
  menu.add_child(shade)
  shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ var settings := _button(menu, "SETTINGS", Vector2.ZERO, Vector2(155, 48))
+ settings.name = "Settings"
+ settings.anchor_left = 1.0
+ settings.anchor_right = 1.0
+ settings.offset_left = -180
+ settings.offset_right = -25
+ settings.offset_top = 20
+ settings.offset_bottom = 68
+ settings.add_theme_font_size_override("font_size", 16)
+ settings.pressed.connect(func(): settings_panel.visible = true)
  var card := Control.new()
+ card.name = "MenuCard"
  menu.add_child(card)
+ menu.move_child(card, 1)
  card.set_anchors_preset(Control.PRESET_CENTER)
  card.offset_left = -380
  card.offset_top = -330
@@ -920,6 +972,62 @@ and keep out of the gravel.", 22, 265)
  play.pressed.connect(_start_from_menu)
  var credit := _menu_label(card, "Bike: Ducati Lenovo Team - MotoGP26 by Kenny3D89 · CC BY 4.0  |  WMC · practice only", 14, 631)
  credit.add_theme_color_override("font_color", Color("9da3aa"))
+
+func _load_settings() -> void:
+ var config := ConfigFile.new()
+ if config.load("user://settings.cfg") != OK:
+  return
+ master_volume = clampf(float(config.get_value("audio", "master", 1.0)), 0.0, 1.0)
+ music_volume = clampf(float(config.get_value("audio", "music", 1.0)), 0.0, 1.0)
+ engine_volume = clampf(float(config.get_value("audio", "engine", 1.0)), 0.0, 1.0)
+ gui_scale_index = clampi(int(config.get_value("display", "gui_scale", 0)), 0, 3)
+
+func _settings_changed(master: float, music_level: float, engine: float, gui: int) -> void:
+ master_volume = master
+ music_volume = music_level
+ engine_volume = engine
+ if not mobile:
+  gui_scale_index = gui
+ var config := ConfigFile.new()
+ config.set_value("audio", "master", master_volume)
+ config.set_value("audio", "music", music_volume)
+ config.set_value("audio", "engine", engine_volume)
+ config.set_value("display", "gui_scale", gui_scale_index)
+ config.save("user://settings.cfg")
+ _apply_gui_scale()
+
+func _gui_factor() -> float:
+ return [1.0, 0.8, 1.0, 1.2][clampi(gui_scale_index, 0, 3)]
+
+func _apply_gui_scale() -> void:
+ if mobile:
+  _resize_race_tower()
+  return
+ var factor := _gui_factor()
+ _resize_race_tower()
+ if hud:
+  hud.add_theme_font_size_override("font_size", roundi(16 * factor))
+ if mini_map:
+  mini_map.offset_left = -30 - 300 * factor
+  mini_map.offset_bottom = 82 + 178 * factor
+ if start_lights:
+  start_lights.pivot_offset = Vector2(132, 0)
+  start_lights.scale = Vector2.ONE * factor
+ if menu:
+  var card: Control = menu.get_node("MenuCard")
+  card.pivot_offset = card.size / 2.0
+  card.scale = Vector2.ONE * factor
+ if race_menu:
+  race_menu.gui_factor = factor
+  race_menu.apply_scale()
+ if profile_panel:
+  var profile_card: Control = profile_panel.get_child(1)
+  profile_card.pivot_offset = profile_card.size / 2.0
+  profile_card.scale = Vector2.ONE * minf(factor, (profile_panel.size.y - 24) / profile_card.size.y)
+ if pause_panel:
+  var card: Control = pause_panel.get_child(1)
+  card.pivot_offset = card.size / 2.0
+  card.scale = Vector2.ONE * factor
 
 func _toggle_sound() -> void:
  music_muted = not music_muted
@@ -1051,12 +1159,10 @@ func _finish_race() -> void:
  _clear_touch()
  _update_race_tower(_standings(), race_laps)
  finish_text.text = "POSITION %d / %d    ·    %02d:%02d" % [place, ai_riders.size() + 1, int(elapsed) / 60, int(elapsed) % 60]
- # Leave the checkered FINISH tower visible before the simple results panel.
- var generation := race_generation
- get_tree().create_timer(2.5).timeout.connect(func():
-  if race_generation == generation and player_finished:
-   finish_panel.visible = true
- )
+ # The native build does not yet record real footage. Keep the finish scene
+ # visible until the same results cue time rather than fabricating a replay.
+ var hashtags := {"sepang":"#MalaysianGP", "silverstone":"#BritishGP", "assen":"#DutchGP", "brno":"#CzechGP", "monza":"#ItalianGP", "jerez":"#SpanishGP"}
+ results_screen.begin(_standings(), RACE_MENU.NAMES.get(circuit_id, circuit_id), hashtags.get(circuit_id, "#WMC"))
 
 # Synthesize the same sawtooth + half-frequency square blend used on the website.
 # It follows the simulated RPM and is silent in menus and while paused.
@@ -1068,7 +1174,7 @@ func _update_engine(dt: float) -> void:
  var fraction := minf(1.0, (absf(speed) - (gear - 1) * 14.6) / 14.6)
  var target_rpm := 0.18 if absf(speed) < 0.5 and not throttle else 0.3 + 0.7 * fraction
  engine_rpm = lerpf(engine_rpm, target_rpm, minf(1.0, dt * 10.0))
- var desired_gain := (0.03 + 0.05 * float(throttle) + 0.02 * engine_rpm) if active and not music_muted else 0.0
+ var desired_gain := (0.03 + 0.05 * float(throttle) + 0.02 * engine_rpm) * master_volume * engine_volume if active and not music_muted else 0.0
  engine_gain = lerpf(engine_gain, desired_gain, minf(1.0, dt * 16.0))
  var frequency := 48.0 + engine_rpm * 190.0
  var cutoff := 500.0 + engine_rpm * 1400.0 + float(throttle) * 500.0
