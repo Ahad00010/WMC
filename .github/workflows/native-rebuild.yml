@@ -32,7 +32,7 @@ jobs:
           fi
           cat /tmp/test.log
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|Assertion failed|ERROR:' /tmp/import.log /tmp/test.log; then
-            echo "::error::Import and runtime logs base64 $(head -100 /tmp/import.log /tmp/test.log | base64 -w0)"
+            echo "::error::Import and runtime logs base64 $(grep -E -A 3 -B 1 'SCRIPT ERROR|Parse Error|Failed to load script|Assertion failed|ERROR:' /tmp/import.log /tmp/test.log | head -30 | base64 -w0)"
             exit 1
           fi
       - name: Verify rendered race footage and winner playback
