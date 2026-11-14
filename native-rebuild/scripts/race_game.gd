@@ -87,7 +87,7 @@ func _physics_process(delta: float) -> void:
 			_race_time_seconds += stable_delta
 		_player.drive(_player_command(), stable_delta)
 		for rider in _riders:
-			if rider == _player or rider.finished:
+			if rider == _player:
 				continue
 			var brain: WmcAiRider = _brains.get(rider.rider_id)
 			rider.drive(brain.command_for(rider, circuit), stable_delta)
@@ -258,9 +258,11 @@ func _create_pause_menu() -> void:
 
 func _leave_results() -> void:
 	_finish_screen._menu.disabled = true
+	_finish_screen._early_menu.disabled = true
 	_fade_music(_results_audio, false)
 	await get_tree().create_timer(0.5).timeout
 	_finish_screen._menu.disabled = false
+	_finish_screen._early_menu.disabled = false
 	_go_home()
 
 func _go_home() -> void:

@@ -12,6 +12,7 @@ var _portrait: TextureRect
 var _card: Control
 var _winner: Label
 var _menu: Button
+var _early_menu: Button
 var _phase := "hidden"
 
 func _ready() -> void:
@@ -26,6 +27,18 @@ func _ready() -> void:
 	shade.color = Color(0.01, 0.015, 0.025, 0.5)
 	add_child(shade)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_early_menu = Button.new()
+	_early_menu.text = "MAIN MENU"
+	_early_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_early_menu.offset_left = -190
+	_early_menu.offset_right = -24
+	_early_menu.offset_top = 20
+	_early_menu.offset_bottom = 72
+	_early_menu.add_theme_font_override("font", TEXT)
+	_early_menu.add_theme_font_size_override("font_size", 16)
+	_early_menu.pressed.connect(func(): main_menu_requested.emit())
+	add_child(_early_menu)
 	_card = Control.new()
 	_card.size = Vector2(840, 460)
 	add_child(_card)
@@ -90,6 +103,7 @@ func begin(footage: Array, winner_name: String) -> void:
 	_portrait.texture = null
 	_first_time = float(_frames[0].time) if not _frames.is_empty() else 0.0
 	_phase = "replay" if not _frames.is_empty() else "card"
+	_early_menu.visible = _phase == "replay"
 	if _phase == "card":
 		_show_card()
 
@@ -112,6 +126,7 @@ func _process(delta: float) -> void:
 
 func _show_card() -> void:
 	_phase = "card"
+	_early_menu.visible = false
 	_card.visible = true
 	_card.modulate.a = 0.0
 	var transition := create_tween()
