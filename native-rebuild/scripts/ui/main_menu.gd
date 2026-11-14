@@ -164,6 +164,7 @@ func _show_page(page: String) -> void:
 			var info: Dictionary = WmcCircuitData.circuits[id]
 			var button := _button(_content, str(info["name"]), Vector2((i % 3) * 310, (i / 3) * 145), Vector2(296, 125), false)
 			button.add_theme_font_size_override("font_size", 16)
+			button.size = Vector2(296, 125)
 			button.pressed.connect(func(): race_requested.emit(id, _laps, _speed, _ai))
 	if _fade and _fade.is_valid():
 		_fade.kill()
