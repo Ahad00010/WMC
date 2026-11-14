@@ -23,7 +23,7 @@ def model(filename):
             assert primitive.get('mode', 4) == 4
             triangles += scene['accessors'][accessor]['count'] // 3
     nodes = [{k: node.get(k) for k in ('name', 'translation', 'rotation', 'scale')} for node in scene['nodes']]
-    return nodes, [image_hash(image) for image in scene['images']], triangles
+    return nodes, [image_hash(image) for image in scene.get('images', [])], triangles
 
 for source, optimized in [('bike-mobile.glb', 'bike-ai.glb'), ('marc-rider.glb', 'rider-ai.glb')]:
     a, b = model(source), model(optimized)
