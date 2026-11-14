@@ -18,6 +18,10 @@ const DIAGNOSTICS = preload("res://diagnostics.gd")
 const MENU_MUSIC = preload("res://assets/menu-music.mp3")
 const ASPHALT = preload("res://assets/asphalt.png")
 const ROAD_WIDTH := 9.0
+# Keep distant track geometry visible while giving older depth buffers much
+# more precision. Both real-time and capture cameras see the same world.
+const RACE_CAMERA_NEAR := 0.5
+const RACE_CAMERA_FAR := 2200.0
 const REPLAY_FPS := 60.0
 const MAX_SPEED := 88.0
 const ENGINE_RATE := 22050.0
@@ -187,7 +191,7 @@ func _make_world() -> void:
  var ground_mesh := PlaneMesh.new()
  ground_mesh.size = Vector2(4000, 4000)
  ground.mesh = ground_mesh
- ground.position.y = -0.1
+ ground.position.y = -0.5
  ground.material_override = _material(Color("4b7542"))
  add_child(ground)
  _build_track()
@@ -203,7 +207,8 @@ func _make_world() -> void:
  add_child(camera)
  camera.current = true
  camera.fov = 58
- camera.far = 2200
+ camera.near = RACE_CAMERA_NEAR
+ camera.far = RACE_CAMERA_FAR
  # Render the real race world into a separate broadcast camera for capture.
  replay_view = SubViewport.new()
  replay_view.size = Vector2i(854, 480) if mobile else Vector2i(1920, 1080)
@@ -212,7 +217,8 @@ func _make_world() -> void:
  add_child(replay_view)
  replay_camera = Camera3D.new()
  replay_camera.fov = 48
- replay_camera.far = 2200
+ replay_camera.near = RACE_CAMERA_NEAR
+ replay_camera.far = RACE_CAMERA_FAR
  replay_view.add_child(replay_camera)
  replay_camera.current = true
 
@@ -283,14 +289,16 @@ func _ribbon(inner: float, outer: float, height: float, kind: String) -> void:
 
 func _make_track_surfaces() -> void:
  _ribbon(-ROAD_WIDTH, ROAD_WIDTH, 0.01, "asphalt")
- _ribbon(ROAD_WIDTH, ROAD_WIDTH + 2.0, 0.025, "kerb")
- _ribbon(-ROAD_WIDTH - 2.0, -ROAD_WIDTH, 0.025, "kerb")
+ # Keep neighbouring surfaces distinct in low-precision depth buffers.
+ _ribbon(ROAD_WIDTH, ROAD_WIDTH + 2.0, 0.10, "kerb")
+ _ribbon(-ROAD_WIDTH - 2.0, -ROAD_WIDTH, 0.10, "kerb")
  _ribbon(ROAD_WIDTH + 2.0, ROAD_WIDTH + 9.0, 0.0, "gravel")
  _ribbon(-ROAD_WIDTH - 9.0, -ROAD_WIDTH - 2.0, 0.0, "gravel")
 
 func _make_barriers() -> void:
  var box := BoxMesh.new()
- box.size = Vector3(0.7, 1.05, 5.2)
+ # Adjacent barrier segments must not overlap on straight track sections.
+ box.size = Vector3(0.7, 1.05, 5.0)
  box.material = _material(Color.WHITE)
  var instances := MultiMesh.new()
  instances.transform_format = MultiMesh.TRANSFORM_3D
@@ -352,7 +360,7 @@ func _make_start_finish() -> void:
  # Actual chequered line on the track.
  for x in range(18):
   for z in range(2):
-   _box(group, Vector3(1.0, 0.02, 0.8), Vector3(-8.5 + x, 0.05, -1.0 + z * 0.8), white if (x + z) % 2 == 0 else dark)
+   _box(group, Vector3(1.0, 0.02, 0.8), Vector3(-8.5 + x, 0.13, -1.0 + z * 0.8), white if (x + z) % 2 == 0 else dark)
 
 func _make_trees() -> void:
  var rng := RandomNumberGenerator.new()

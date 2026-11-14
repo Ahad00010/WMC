@@ -14,6 +14,10 @@ func _run() -> void:
  if game.circuit_sources.size() != 6:
   _fail("Six circuits are required")
   return
+ # Both cameras need the same depth precision without shortening the horizon.
+ if game.camera.near < 0.5 or game.replay_camera.near < 0.5 or game.camera.far < 2200 or game.replay_camera.far < 2200:
+  _fail("Race/replay depth precision or distant visibility regressed")
+  return
  # Verify capture stores and reads actual rendered image pixels, not positions.
  var recorder = load("res://replay_recorder.gd").new()
  recorder.start()
