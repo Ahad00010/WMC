@@ -1,0 +1,385 @@
+extends Node3D
+
+## Stage 1 native race loop: one human rider, nine AI riders, shared physics,
+## all six supplied centre-line circuits, keyboard/touch input, and a responsive
+## in-race HUD. Menus, profiles, results, and replay presentation return later.
+const RACE_LAPS := 3
+const AI_NAMES := [
+	"A. MARTIN", "L. BIANCHI", "K. SATO", "M. RAHMAN", "D. SILVA",
+	"R. EVANS", "N. PETROV", "F. MORALES", "J. PARK",
+]
+const AI_COLOURS := [
+	Color("3185fc"), Color("ef3f46"), Color("f1bd38"),
+	Color("f17d32"), Color("40ad76"), Color("46b7ce"),
+	Color("9362bf"),
+	Color("d7589a"), Color("d6dde4"),
+]
+
+var circuit: WmcCircuit
+var _current_circuit_id := "sepang"
+var _world: Node3D
+var _track_root: Node3D
+var _riders_root: Node3D
+var _camera: Camera3D
+var _hud: WmcRaceHud
+var _player: WmcRaceBike
+var _riders: Array[WmcRaceBike] = []
+var _brains: Dictionary = {}
+var _replay_recorder := WmcReplayRecorder.new()
+var _race_time_seconds := 0.0
+var _ambience: AudioStreamPlayer
+var _menu: WmcMainMenu
+var _race_running := false
+
+
+func _ready() -> void:
+	_create_world()
+	_create_camera()
+	_create_interface()
+	_create_ambience()
+	_load_circuit(_current_circuit_id)
+	_hud.visible = false
+	_create_menu()
+
+
+func _physics_process(delta: float) -> void:
+	if not _race_running or not _player or _player.finished:
+		_update_hud()
+		return
+	var stable_delta := minf(delta, 1.0 / 30.0)
+	_race_time_seconds += stable_delta
+	_player.drive(_player_command(), stable_delta)
+	for rider in _riders:
+		if rider == _player or rider.finished:
+			continue
+		var brain: WmcAiRider = _brains.get(rider.rider_id)
+		rider.drive(brain.command_for(rider, circuit), stable_delta)
+	_resolve_rider_contacts()
+	_finish_completed_riders()
+	_replay_recorder.capture(stable_delta, _riders)
+	_update_camera(stable_delta)
+	_update_hud()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if not _race_running:
+			return
+		if event.keycode >= KEY_F1 and event.keycode <= KEY_F6:
+			var ids := WmcCircuitData.ids()
+			var requested_id := ids[event.keycode - KEY_F1]
+			_load_circuit(requested_id)
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F7:
+			var label := UiScale.cycle()
+			_hud.refresh_scale()
+			_hud.set_notice("GUI SCALE %s" % label.to_upper())
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_R and _player:
+			_player.reset_to_grid()
+			_hud.set_notice("RIDER RESET")
+			get_viewport().set_input_as_handled()
+
+
+func _create_world() -> void:
+	_world = Node3D.new()
+	_world.name = "RaceWorld"
+	add_child(_world)
+
+	var environment_node := WorldEnvironment.new()
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color("77a9d0")
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color("d8e7f3")
+	environment.ambient_light_energy = 0.75
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment_node.environment = environment
+	_world.add_child(environment_node)
+
+	var sun := DirectionalLight3D.new()
+	sun.name = "Sun"
+	sun.light_color = Color("fff2dc")
+	sun.light_energy = 1.0
+	sun.rotation_degrees = Vector3(-54.0, -28.0, 0.0)
+	# Keep this conservative for broad Compatibility-renderer coverage. This is
+	# a default performance choice, not a claim about a specific Intel driver.
+	sun.shadow_enabled = false
+	_world.add_child(sun)
+
+
+func _create_camera() -> void:
+	_camera = Camera3D.new()
+	_camera.name = "FollowCamera"
+	_camera.fov = 66.0
+	add_child(_camera)
+	_camera.make_current()
+
+
+func _create_interface() -> void:
+	var canvas := CanvasLayer.new()
+	canvas.name = "RaceInterface"
+	add_child(canvas)
+	_hud = WmcRaceHud.new()
+	canvas.add_child(_hud)
+	_hud.set_notice("PRACTICE RACE  •  W A S D / ARROWS  •  F1–F6 CIRCUITS  •  F7 GUI SCALE")
+
+
+func _create_menu() -> void:
+	_menu = WmcMainMenu.new()
+	$RaceInterface.add_child(_menu)
+	_menu.race_requested.connect(func(id: String):
+		_load_circuit(id)
+		_menu.visible = false
+		_hud.visible = true
+		_race_running = true
+	)
+
+
+func _create_ambience() -> void:
+	_ambience = AudioStreamPlayer.new()
+	_ambience.name = "MenuTheme"
+	_ambience.stream = load("res://assets/audio/menu-theme.mp3") as AudioStream
+	_ambience.volume_db = -22.0
+	add_child(_ambience)
+	if _ambience.stream:
+		_ambience.play()
+
+
+func _load_circuit(circuit_id: String) -> void:
+	_current_circuit_id = circuit_id
+	circuit = WmcCircuitData.create(circuit_id)
+	_race_time_seconds = 0.0
+	if _track_root:
+		_track_root.queue_free()
+	if _riders_root:
+		_riders_root.queue_free()
+	_track_root = Node3D.new()
+	_track_root.name = "Track_%s" % circuit.id
+	_world.add_child(_track_root)
+	_riders_root = Node3D.new()
+	_riders_root.name = "Riders"
+	_world.add_child(_riders_root)
+	_build_track()
+	_spawn_riders()
+	_replay_recorder.begin(_riders)
+	_hud.touch_controls.clear()
+	_hud.set_notice("PRACTICE RACE  •  %s  •  F1–F6 SWITCH CIRCUIT" % circuit.hashtag)
+	_update_camera(1.0)
+
+
+func _build_track() -> void:
+	var bounds := _track_bounds()
+	var ground := MeshInstance3D.new()
+	var ground_mesh := PlaneMesh.new()
+	ground_mesh.size = Vector2(maxf(1900.0, bounds.x + 320.0), maxf(1900.0, bounds.y + 320.0))
+	ground.mesh = ground_mesh
+	var ground_material := StandardMaterial3D.new()
+	ground_material.albedo_color = Color("426f38")
+	ground_material.roughness = 1.0
+	ground.material_override = ground_material
+	ground.position.y = -0.08
+	_track_root.add_child(ground)
+
+	_add_ribbon("Asphalt", 0, 0.015, Color("292d35"), false)
+	_add_ribbon("LeftKerb", 1, 0.025, Color("d82430"), true)
+	_add_ribbon("RightKerb", 2, 0.025, Color("d82430"), true)
+	_add_ribbon("LeftRunoff", 3, 0.008, Color("b5a27b"), false)
+	_add_ribbon("RightRunoff", 4, 0.008, Color("b5a27b"), false)
+	_add_barriers()
+	_add_start_line()
+
+
+func _track_bounds() -> Vector2:
+	var min_x := INF
+	var max_x := -INF
+	var min_z := INF
+	var max_z := -INF
+	for point in circuit.samples:
+		min_x = minf(min_x, point.x)
+		max_x = maxf(max_x, point.x)
+		min_z = minf(min_z, point.z)
+		max_z = maxf(max_z, point.z)
+	return Vector2(max_x - min_x, max_z - min_z)
+
+
+func _add_ribbon(label: String, band: int, height: float, base_colour: Color, striped: bool) -> void:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var count := circuit.size()
+	for index in count:
+		var next_index := circuit.wrap_index(index + 1)
+		var offsets := _band_offsets(index, band)
+		var next_offsets := _band_offsets(next_index, band)
+		var first_colour := _ribbon_colour(index, base_colour, striped)
+		var second_colour := _ribbon_colour(next_index, base_colour, striped)
+		var a := circuit.samples[index] + circuit.lefts[index] * offsets.x + Vector3.UP * height
+		var b := circuit.samples[index] + circuit.lefts[index] * offsets.y + Vector3.UP * height
+		var c := circuit.samples[next_index] + circuit.lefts[next_index] * next_offsets.x + Vector3.UP * height
+		var d := circuit.samples[next_index] + circuit.lefts[next_index] * next_offsets.y + Vector3.UP * height
+		_add_coloured_triangle(surface, a, c, b, first_colour, second_colour, first_colour)
+		_add_coloured_triangle(surface, b, c, d, first_colour, second_colour, second_colour)
+	surface.generate_normals()
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = label
+	mesh_instance.mesh = surface.commit()
+	var material := StandardMaterial3D.new()
+	material.albedo_color = base_colour
+	if band == 0:
+		material.albedo_color = Color.WHITE
+		material.albedo_texture = load("res://assets/asphalt.png")
+		material.texture_repeat = true
+	material.vertex_color_use_as_albedo = striped
+	material.roughness = 0.92
+	# Track strips must be visible from above on every renderer.
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh_instance.material_override = material
+	_track_root.add_child(mesh_instance)
+
+
+func _band_offsets(index: int, band: int) -> Vector2:
+	var road := circuit.road_half_width(index)
+	var kerb := circuit.kerb_edge(index)
+	var wall := circuit.wall_edge(index)
+	match band:
+		1:
+			return Vector2(road, kerb)
+		2:
+			return Vector2(-kerb, -road)
+		3:
+			return Vector2(kerb, wall)
+		4:
+			return Vector2(-wall, -kerb)
+		_:
+			return Vector2(-road, road)
+
+
+func _ribbon_colour(index: int, base_colour: Color, striped: bool) -> Color:
+	if not striped:
+		return base_colour
+	return base_colour if (index / 9) % 2 == 0 else Color("f2f3f5")
+
+
+func _add_coloured_triangle(surface: SurfaceTool, first: Vector3, second: Vector3, third: Vector3, first_colour: Color, second_colour: Color, third_colour: Color) -> void:
+	surface.set_color(first_colour)
+	surface.set_uv(Vector2(first.x, first.z) / 12.0)
+	surface.add_vertex(first)
+	surface.set_color(second_colour)
+	surface.set_uv(Vector2(second.x, second.z) / 12.0)
+	surface.add_vertex(second)
+	surface.set_color(third_colour)
+	surface.set_uv(Vector2(third.x, third.z) / 12.0)
+	surface.add_vertex(third)
+
+
+func _add_barriers() -> void:
+	var barrier_mesh := BoxMesh.new()
+	barrier_mesh.size = Vector3(0.55, 1.05, 6.0)
+	var barrier_material := StandardMaterial3D.new()
+	barrier_material.albedo_color = Color("e2e6e9")
+	barrier_material.roughness = 0.72
+	var instance_count := ceili(float(circuit.size()) / 8.0) * 2
+	var multi_mesh := MultiMesh.new()
+	multi_mesh.transform_format = MultiMesh.TRANSFORM_3D
+	multi_mesh.instance_count = instance_count
+	multi_mesh.mesh = barrier_mesh
+	var instance_index := 0
+	for index in range(0, circuit.size(), 8):
+		for side in [-1.0, 1.0]:
+			var transform := Transform3D(Basis(Vector3.UP, circuit.heading_at(index)), circuit.samples[index] + circuit.lefts[index] * side * circuit.wall_edge(index) + Vector3.UP * 0.53)
+			multi_mesh.set_instance_transform(instance_index, transform)
+			instance_index += 1
+	var barriers := MultiMeshInstance3D.new()
+	barriers.name = "SafetyBarriers"
+	barriers.multimesh = multi_mesh
+	barriers.material_override = barrier_material
+	_track_root.add_child(barriers)
+
+
+func _add_start_line() -> void:
+	var line := MeshInstance3D.new()
+	var line_mesh := BoxMesh.new()
+	line_mesh.size = Vector3(circuit.road_half_width(0) * 2.0 + 5.0, 0.03, 0.55)
+	line.mesh = line_mesh
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color("f7f7f4")
+	line.material_override = material
+	line.position = circuit.samples[0] + Vector3.UP * 0.05
+	line.rotation.y = circuit.heading_at(0)
+	_track_root.add_child(line)
+
+
+func _spawn_riders() -> void:
+	_riders.clear()
+	_brains.clear()
+	_player = WmcRaceBike.new()
+	_player.name = "Player"
+	_riders_root.add_child(_player)
+	_player.configure(circuit, 1, "player", "YOU", true, Color("e12431"))
+	_riders.append(_player)
+	for index in AI_NAMES.size():
+		var rider := WmcRaceBike.new()
+		rider.name = "AiRider%02d" % (index + 1)
+		_riders_root.add_child(rider)
+		rider.configure(circuit, index + 2, "ai-%02d" % (index + 1), AI_NAMES[index], false, AI_COLOURS[index])
+		_riders.append(rider)
+		_brains[rider.rider_id] = WmcAiRider.new(20261114 + index * 31)
+
+
+func _player_command() -> Vector3:
+	var keyboard_throttle := Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP)
+	var keyboard_brake := Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_SPACE)
+	var keyboard_left := Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT)
+	var keyboard_right := Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)
+	var touch_command := _hud.touch_controls.command()
+	return Vector3(
+		maxf(1.0 if keyboard_throttle else 0.0, touch_command.x),
+		maxf(1.0 if keyboard_brake else 0.0, touch_command.y),
+		clampf(float(int(keyboard_right) - int(keyboard_left)) + touch_command.z, -1.0, 1.0)
+	)
+
+
+func _resolve_rider_contacts() -> void:
+	for first_index in _riders.size():
+		for second_index in range(first_index + 1, _riders.size()):
+			var first := _riders[first_index]
+			var second := _riders[second_index]
+			var separation := second.global_position - first.global_position
+			separation.y = 0.0
+			var distance := separation.length()
+			if distance >= 2.05:
+				continue
+			var direction := separation.normalized() if distance > 0.01 else circuit.lefts[first.track_index]
+			var impulse := direction * (2.05 - distance) * 7.0
+			first.apply_contact_push(-impulse)
+			second.apply_contact_push(impulse)
+
+
+func _finish_completed_riders() -> void:
+	for rider in _riders:
+		if not rider.finished and rider.laps_completed >= RACE_LAPS:
+			rider.finished = true
+			rider.finish_time_seconds = _race_time_seconds
+			if rider == _player:
+				_hud.set_notice("FINISHED  •  RECORDED RIDER DATA IS KEPT FOR THE UPCOMING REPLAY FEATURE")
+
+
+func _update_camera(delta: float) -> void:
+	if not _player:
+		return
+	var forward := Vector3(sin(_player.heading), 0.0, cos(_player.heading))
+	var desired_position := _player.global_position - forward * 8.6 + Vector3.UP * 3.55
+	_camera.global_position = _camera.global_position.lerp(desired_position, minf(1.0, delta * 5.0))
+	_camera.look_at(_player.global_position + forward * 12.0 + Vector3.UP * 0.65, Vector3.UP)
+
+
+func _update_hud() -> void:
+	if not _player or not _hud:
+		return
+	var ordered := _riders.duplicate()
+	ordered.sort_custom(func(first: WmcRaceBike, second: WmcRaceBike) -> bool:
+		return first.race_progress_samples > second.race_progress_samples
+	)
+	var race_position := ordered.find(_player) + 1
+	var shown_lap := min(RACE_LAPS, _player.laps_completed + 1)
+	_hud.set_race_state(circuit, shown_lap, RACE_LAPS, _player.speed_metres_per_second, race_position, _riders.size(), _race_time_seconds)

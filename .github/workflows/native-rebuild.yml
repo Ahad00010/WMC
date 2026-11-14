@@ -1,0 +1,25 @@
+name: Native rebuild validation
+on:
+  push:
+    branches: ['arena/**']
+    paths: ['native-rebuild/**', '.github/workflows/native-rebuild.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.4.1
+        run: |
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 /usr/local/bin/godot
+      - name: Source and runtime tests
+        run: |
+          set -euo pipefail
+          python3 native-rebuild/tests/validate_project.py
+          godot --headless --editor --path native-rebuild --import 2>&1 | tee /tmp/import.log
+          godot --headless --path native-rebuild --script res://tests/race_view.gd 2>&1 | tee /tmp/test.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|Assertion failed|ERROR:' /tmp/import.log /tmp/test.log

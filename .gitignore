@@ -11,3 +11,7 @@ server/node_modules/
 # Native Godot prototype imports and exported binaries
 native-prototype/.godot/
 native-prototype/build/
+
+# Separate native rebuild
+native-rebuild/.godot/
+native-rebuild/build/
