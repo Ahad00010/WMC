@@ -49,44 +49,38 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           SETTINGS
-      # Reuse the exact custom Godot Windows engine the user reported stable.
-      # Only the small stripped EXE is cached/distributed, not debug symbols.
-      - name: Cache Windows engine template
+      # The previous custom template omitted ANGLE, forcing affected Intel GPUs
+      # onto native OpenGL. Use the same ANGLE release as Godot 4.4.1 CI.
+      - name: Cache ANGLE-enabled Windows engine
         id: windows-engine-cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/wmc-windows-engine
-          key: wmc-windows-godot-4.4.1-mingw-debug-template-v1
-      - name: Seed template from tested diagnostic build
-        id: seed-template
-        if: steps.windows-engine-cache.outputs.cache-hit != 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: WMC-Windows-symbolized-diagnostic
-          run-id: 43554812651
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: /tmp/wmc-diagnostic-seed
-      - name: Prepare tested Windows engine
+          path: ~/.cache/wmc-windows-engine-angle
+          key: wmc-windows-godot-4.4.1-mingw-debug-angle-6601.2-v1
+      - name: Build Windows engine with ANGLE
         if: steps.windows-engine-cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
-          mkdir -p "$HOME/.cache/wmc-windows-engine"
-          if [ -s /tmp/wmc-diagnostic-seed/WMC.exe ]; then
-            cp /tmp/wmc-diagnostic-seed/WMC.exe "$HOME/.cache/wmc-windows-engine/WMC.exe"
-            rm -rf /tmp/wmc-diagnostic-seed
-          else
-            # Artifact/cache expiry must not silently revert to the old engine.
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq g++-mingw-w64-x86-64-posix scons
-            sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-            sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-            curl -L --retry 3 https://codeload.github.com/godotengine/godot/tar.gz/refs/tags/4.4.1-stable -o /tmp/wmc-godot-source.tar.gz
-            mkdir -p /tmp/wmc-godot-source
-            tar -xf /tmp/wmc-godot-source.tar.gz --strip-components=1 -C /tmp/wmc-godot-source
-            (cd /tmp/wmc-godot-source && scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes -j4)
-            cp /tmp/wmc-godot-source/bin/godot.windows.template_debug.x86_64.exe "$HOME/.cache/wmc-windows-engine/WMC.exe"
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-mingw-w64-x86-64-posix scons
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+          curl -L --retry 3 https://codeload.github.com/godotengine/godot/tar.gz/refs/tags/4.4.1-stable -o /tmp/wmc-godot-source.tar.gz
+          mkdir -p /tmp/wmc-godot-source /tmp/wmc-angle "$HOME/.cache/wmc-windows-engine-angle"
+          tar -xf /tmp/wmc-godot-source.tar.gz --strip-components=1 -C /tmp/wmc-godot-source
+          wget -q 'https://github.com/godotengine/godot-angle-static/releases/download/chromium/6601.2/godot-angle-static-x86_64-gcc-release.zip' -O /tmp/wmc-angle.zip
+          unzip -q /tmp/wmc-angle.zip -d /tmp/wmc-angle
+          test -f /tmp/wmc-angle/libANGLE.windows.x86_64.a
+          (cd /tmp/wmc-godot-source && scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=no angle_libs=/tmp/wmc-angle -j4)
+          cp /tmp/wmc-godot-source/bin/godot.windows.template_debug.x86_64.exe "$HOME/.cache/wmc-windows-engine-angle/WMC.exe"
+      - name: Check ANGLE is statically linked
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          data = (Path.home() / '.cache/wmc-windows-engine-angle/WMC.exe').read_bytes()
+          assert b'drivers seem not to support GLES3 / ANGLE, switching to native OpenGL' in data
+          assert b'ANGLE dynamic libraries (libEGL.dll and libGLESv2.dll) are missing' not in data
+          PYCODE
       - name: Import and test project
         run: |
           set -o pipefail
@@ -128,7 +122,7 @@ jobs:
         run: |
           mkdir -p native-prototype/build
           set -o pipefail
-          cp "$HOME/.cache/wmc-windows-engine/WMC.exe" native-prototype/build/WMC.exe
+          cp "$HOME/.cache/wmc-windows-engine-angle/WMC.exe" native-prototype/build/WMC.exe
           godot --headless --path native-prototype --export-pack Windows "$GITHUB_WORKSPACE/native-prototype/build/WMC.pck"
           if ! godot --headless --path native-prototype --export-debug Android "build/WMC.apk" > /tmp/export.log 2>&1; then
             echo "::error::ANDROID EXPORT LOG BASE64 $(base64 -w0 /tmp/export.log)"

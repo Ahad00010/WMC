@@ -24,8 +24,12 @@ jobs:
           curl -L --retry 3 https://codeload.github.com/godotengine/godot/tar.gz/refs/tags/4.4.1-stable -o /tmp/godot-source.tar.gz
           mkdir /tmp/godot-src
           tar -xf /tmp/godot-source.tar.gz --strip-components=1 -C /tmp/godot-src
+          mkdir -p /tmp/wmc-angle
+          wget -q 'https://github.com/godotengine/godot-angle-static/releases/download/chromium/6601.2/godot-angle-static-x86_64-gcc-release.zip' -O /tmp/wmc-angle.zip
+          unzip -q /tmp/wmc-angle.zip -d /tmp/wmc-angle
+          test -f /tmp/wmc-angle/libANGLE.windows.x86_64.a
           cd /tmp/godot-src
-          scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes -j4
+          scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes angle_libs=/tmp/wmc-angle -j4
           ls -lh bin/
       - name: Import WMC and make resource pack
         run: |
