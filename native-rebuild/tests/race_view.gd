@@ -24,12 +24,13 @@ func _run() -> void:
 	for i in tiles.size():
 		for j in range(i + 1, tiles.size()):
 			assert(not Rect2(tiles[i].position, tiles[i].size).intersects(Rect2(tiles[j].position, tiles[j].size)), "Circuit tiles overlap")
-	var old_scale: int = UiScale.selected_mode
-	UiScale.set_mode(1)
+	var ui_scale = root.get_node("UiScale")
+	var old_scale: int = ui_scale.selected_mode
+	ui_scale.set_mode(1)
 	var small_card: float = game._menu._card.scale.x
-	UiScale.set_mode(3)
+	ui_scale.set_mode(3)
 	assert(game._menu._card.scale.x > small_card, "GUI Scale must resize the menu immediately")
-	UiScale.set_mode(old_scale)
+	ui_scale.set_mode(old_scale)
 	game._menu.race_requested.emit("assen", 2, 1, true)
 	await process_frame
 	assert(game._race_running and game._hud.visible and game.circuit.id == "assen")
