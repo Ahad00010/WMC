@@ -44,7 +44,7 @@ func configure(
 	_build_visual(accent)
 
 
-func drive(command: Vector3, delta: float) -> void:
+func drive(command: Vector3, delta: float, hard_brake := false) -> void:
 	if circuit == null or delta <= 0.0:
 		return
 	_impact_cooldown = maxf(0.0, _impact_cooldown - delta)
@@ -60,7 +60,9 @@ func drive(command: Vector3, delta: float) -> void:
 	var acceleration := 0.0
 	if throttle > 0.0:
 		acceleration += 18.0 * (1.0 - pow(maxf(speed_metres_per_second, 0.0) / maximum_speed, 1.55)) * throttle
-	if brake > 0.0:
+	if hard_brake:
+		acceleration = -45.0 * grip * signf(speed_metres_per_second)
+	elif brake > 0.0:
 		acceleration -= (39.0 * grip if speed_metres_per_second > 0.4 else 9.0) * brake
 	if throttle <= 0.0 and brake <= 0.0:
 		acceleration -= (1.35 + 0.00075 * speed_metres_per_second * speed_metres_per_second) * signf(speed_metres_per_second)
@@ -70,7 +72,7 @@ func drive(command: Vector3, delta: float) -> void:
 
 	var old_speed := speed_metres_per_second
 	speed_metres_per_second = maxf(-9.0, speed_metres_per_second + acceleration * delta)
-	if throttle == 0.0 and brake == 0.0 and old_speed * speed_metres_per_second < 0.0:
+	if (hard_brake or (throttle == 0.0 and brake == 0.0)) and old_speed * speed_metres_per_second < 0.0:
 		speed_metres_per_second = 0.0
 	steer_amount = move_toward(steer_amount, target_steer, delta * (6.0 if absf(target_steer) > 0.01 else 10.0))
 	var speed_abs := absf(speed_metres_per_second)

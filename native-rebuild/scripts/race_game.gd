@@ -1,8 +1,7 @@
 extends Node3D
 
-## Stage 1 native race loop: one human rider, nine AI riders, shared physics,
-## all six supplied centre-line circuits, keyboard/touch input, and a responsive
-## in-race HUD. Menus, profiles, results, and replay presentation return later.
+## Native practice race with shared player/AI physics and a real race-world
+## capture path. Online race rules and championship flow remain separate work.
 var race_laps := 3
 var speed_factor := 1
 var fill_ai := false
@@ -87,7 +86,7 @@ func _physics_process(delta: float) -> void:
 		_simulation_time += stable_delta
 		if not _player.finished:
 			_race_time_seconds += stable_delta
-		_player.drive(_player_command(), stable_delta)
+		_player.drive(_player_command(), stable_delta, Input.is_key_pressed(KEY_SPACE))
 		for rider in _riders:
 			if rider == _player:
 				continue
@@ -595,7 +594,7 @@ func _spawn_riders() -> void:
 
 func _player_command() -> Vector3:
 	var keyboard_throttle := Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP)
-	var keyboard_brake := Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_SPACE)
+	var keyboard_brake := Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN)
 	var keyboard_left := Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT)
 	var keyboard_right := Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)
 	var touch_command := _hud.touch_controls.command()

@@ -32,9 +32,12 @@ func _run() -> void:
 	var start_time: float = game._race_time_seconds
 	game._player.drive(Vector3(0.0, 1.0, 0.0), 0.1)
 	assert(game._player.speed_metres_per_second < 0.0, "Brake must reverse from rest")
+	game._player.drive(Vector3.ZERO, 0.1, true)
+	assert(game._player.speed_metres_per_second == 0.0, "Hard brake must stop reverse rather than accelerate forwards")
 	game._player.laps_completed = game.race_laps
 	game._finish_completed_riders()
 	assert(game._player.finished and game._winner_name == game._player.display_name)
+	assert(game._summary.visible and game._race_running, "Finish order must show while the player can still cruise")
 	game._physics_process(0.01)
 	assert(game._race_time_seconds == start_time, "Finishing must freeze the player timer")
 	for dimensions in [Vector2(960, 540), Vector2(1280, 720), Vector2(2400, 1080)]:
