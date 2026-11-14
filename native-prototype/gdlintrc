@@ -1,0 +1,3 @@
+# The circuit source is intentionally stored as complete Vector2 arrays; those
+# generated data rows exceed normal code line widths.
+max-line-length: 65536

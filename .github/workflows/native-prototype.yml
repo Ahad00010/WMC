@@ -1,0 +1,82 @@
+name: Build Native Godot Prototype
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths:
+      - 'native-prototype/**'
+      - '.github/workflows/native-prototype.yml'
+  pull_request:
+    paths:
+      - 'native-prototype/**'
+      - '.github/workflows/native-prototype.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate native source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Validate source and responsive layouts
+        run: python3 native-prototype/tests/validate_project.py
+
+  export:
+    name: Export Windows and Android prototype
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Set up Godot with export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.3.0
+          include-templates: true
+      - name: Set up JDK and Android SDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android export platform
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Configure Godot Android export paths
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
+          export/android/debug_keystore = "$HOME/.android/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOF
+      - name: Parse and import Godot project
+        run: godot --headless --path native-prototype --editor --quit
+      - name: Export Windows desktop build
+        run: |
+          mkdir -p native-prototype/build/windows native-prototype/build/android
+          godot --headless --path native-prototype --export-release "Windows Desktop" build/windows/WMC-Race.exe
+      - name: Export Android APK
+        run: godot --headless --path native-prototype --export-release "Android" build/android/WMC-Race.apk
+      - name: Upload native prototype builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: WMC-native-prototype
+          path: |
+            native-prototype/build/windows/WMC-Race.exe
+            native-prototype/build/windows/WMC-Race.pck
+            native-prototype/build/android/WMC-Race.apk
+          if-no-files-found: error

@@ -1,0 +1,40 @@
+; WMC native race prototype — Godot 4 project.
+; This project deliberately uses the Compatibility renderer for broad device coverage.
+; It is not a verified fix for the prior Intel HD Graphics 4600 rendering issue.
+config_version=5
+
+[application]
+config/name="WMC Race Prototype"
+run/main_scene="res://scenes/Race.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+boot_splash/bg_color=Color(0.025, 0.035, 0.055, 1)
+
+[autoload]
+UiScale="*res://scripts/ui/ui_scale.gd"
+
+[display/window]
+size/viewport_width=1280
+size/viewport_height=720
+size/window_width_override=1280
+size/window_height_override=720
+size/resizable=true
+stretch/mode="canvas_items"
+stretch/aspect="expand"
+handheld/orientation=1
+
+[gui]
+theme/default_font_multichannel_signed_distance_field=true
+theme/default_font_multichannel_signed_distance_field_pixel_range=8
+
+[physics]
+common/enable_pause_aware_picking=true
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+textures/canvas_textures/default_texture_filter=1
+environment/defaults/default_clear_color=Color(0.035, 0.07, 0.12, 1)
+
+[debug]
+gdscript/warnings/integer_division=0
