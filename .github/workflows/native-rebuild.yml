@@ -26,13 +26,13 @@ jobs:
             exit 1
           fi
           cat /tmp/import.log
-          if ! timeout 20s godot --headless --path native-rebuild --script res://tests/race_view.gd > /tmp/test.log 2>&1; then
+          if ! timeout 20s godot --verbose --headless --path native-rebuild --script res://tests/race_view.gd > /tmp/test.log 2>&1; then
             echo "::error::Runtime test log base64 $(head -100 /tmp/test.log | base64 -w0)"
             exit 1
           fi
           cat /tmp/test.log
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|Assertion failed' /tmp/import.log /tmp/test.log || grep -E 'ERROR:' /tmp/test.log; then
-            echo "::error::Import and runtime logs base64 $((grep -E -A 2 'SCRIPT ERROR|Parse Error|Failed to load script|Assertion failed' /tmp/import.log /tmp/test.log; grep -E -A 2 'ERROR:' /tmp/test.log || true) | head -20 | base64 -w0)"
+            echo "::error::Import and runtime logs base64 $((grep -E -A 2 'SCRIPT ERROR|Parse Error|Failed to load script|Assertion failed' /tmp/import.log /tmp/test.log; grep -E -A 12 -B 8 'ERROR:' /tmp/test.log || true) | head -20 | base64 -w0)"
             exit 1
           fi
       - name: Verify rendered race footage and winner playback
