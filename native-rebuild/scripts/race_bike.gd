@@ -44,8 +44,9 @@ func configure(
 
 
 func drive(command: Vector3, delta: float) -> void:
-	if finished or circuit == null or delta <= 0.0:
+	if circuit == null or delta <= 0.0:
 		return
+	_impact_cooldown = maxf(0.0, _impact_cooldown - delta)
 	var previous_index := track_index
 	_update_nearest_track_point()
 	var throttle := clampf(command.x, 0.0, 1.0)
@@ -59,18 +60,21 @@ func drive(command: Vector3, delta: float) -> void:
 	if throttle > 0.0:
 		acceleration += 18.0 * (1.0 - pow(maxf(speed_metres_per_second, 0.0) / maximum_speed, 1.55)) * throttle
 	if brake > 0.0:
-		acceleration -= 39.0 * grip * brake
+		acceleration -= (39.0 * grip if speed_metres_per_second > 0.4 else 9.0) * brake
 	if throttle <= 0.0 and brake <= 0.0:
-		acceleration -= 1.35 + 0.00075 * speed_metres_per_second * speed_metres_per_second
+		acceleration -= (1.35 + 0.00075 * speed_metres_per_second * speed_metres_per_second) * signf(speed_metres_per_second)
 	if speed_metres_per_second > maximum_speed:
 		acceleration -= minf(42.0, (speed_metres_per_second - maximum_speed) * 3.0 + 8.0)
-	acceleration -= 2.2 * absf(steer_amount) * (absf(speed_metres_per_second) / MAX_SPEED)
+	acceleration -= 2.2 * absf(steer_amount) * (absf(speed_metres_per_second) / MAX_SPEED) * signf(speed_metres_per_second)
 
-	speed_metres_per_second = maxf(0.0, speed_metres_per_second + acceleration * delta)
+	var old_speed := speed_metres_per_second
+	speed_metres_per_second = maxf(-9.0, speed_metres_per_second + acceleration * delta)
+	if throttle == 0.0 and brake == 0.0 and old_speed * speed_metres_per_second < 0.0:
+		speed_metres_per_second = 0.0
 	steer_amount = move_toward(steer_amount, target_steer, delta * (6.0 if absf(target_steer) > 0.01 else 10.0))
 	var speed_abs := absf(speed_metres_per_second)
 	var yaw_speed := steer_amount * minf(1.9, 18.0 * grip / maxf(speed_abs, 0.01)) * minf(1.0, speed_abs / 4.0)
-	heading += yaw_speed * delta
+	heading += yaw_speed * delta * (-0.7 if speed_metres_per_second < 0.0 else 1.0)
 	var forward := Vector3(sin(heading), 0.0, cos(heading))
 	global_position += (forward * speed_metres_per_second + _push_velocity) * delta
 	_push_velocity = _push_velocity.lerp(Vector3.ZERO, minf(1.0, 3.2 * delta))
@@ -129,7 +133,6 @@ func _apply_track_limits(delta: float) -> void:
 	if _impact_cooldown <= 0.0:
 		heading = lerp_angle(heading, circuit.heading_at(track_index), minf(1.0, delta * 2.6))
 		_impact_cooldown = 0.5
-	_impact_cooldown = maxf(0.0, _impact_cooldown - delta)
 	_update_nearest_track_point()
 
 

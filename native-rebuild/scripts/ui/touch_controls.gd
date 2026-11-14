@@ -24,12 +24,12 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventScreenTouch:
-		if event.pressed:
+		if event.pressed and not event.canceled:
 			_touches[event.index] = event.position
 		else:
 			_touches.erase(event.index)
 		queue_redraw()
-	elif event is InputEventScreenDrag:
+	elif event is InputEventScreenDrag and _touches.has(event.index):
 		_touches[event.index] = event.position
 		queue_redraw()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:

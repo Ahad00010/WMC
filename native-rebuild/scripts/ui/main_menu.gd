@@ -1,7 +1,8 @@
 class_name WmcMainMenu
 extends Control
 
-signal race_requested(circuit_id: String)
+signal race_requested(circuit_id: String, laps: int, speed: int, ai: bool)
+signal audio_changed
 
 const DISPLAY = preload("res://assets/fonts/MGPDisplay-Bold.otf")
 const TEXT = preload("res://assets/fonts/MGPText-Bold.ttf")
@@ -12,6 +13,10 @@ var _title: Label
 var _back: Button
 var _page := "home"
 var _fade: Tween
+var _laps := 3
+var _speed := 1
+var _ai := false
+var _settings_return := "home"
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -40,7 +45,16 @@ func _ready() -> void:
 	_content.size = Vector2(916, 340)
 	_card.add_child(_content)
 	_back = _button(_card, "← BACK", Vector2(42, 540), Vector2(155, 45), false)
-	_back.pressed.connect(func(): _show_page("home" if _page == "mode" else "mode"))
+	_back.pressed.connect(func():
+		var previous := "mode"
+		if _page == "settings":
+			previous = _settings_return
+		elif _page == "mode":
+			previous = "home"
+		elif _page == "circuit":
+			previous = "practice"
+		_show_page(previous)
+	)
 	resized.connect(_fit)
 	_fit()
 	_show_page("home")
@@ -55,7 +69,7 @@ func _fit() -> void:
 func _show_page(page: String) -> void:
 	_page = page
 	_back.visible = page != "home"
-	_title.text = {"home": "WMC", "mode": "CHOOSE YOUR MODE", "circuit": "SELECT A CIRCUIT"}[page]
+	_title.text = {"home": "WMC", "mode": "CHOOSE YOUR MODE", "practice": "PRACTICE", "circuit": "SELECT A CIRCUIT", "settings": "SETTINGS"}[page]
 	_title.add_theme_font_size_override("font_size", 82 if page == "home" else 55)
 	for child in _content.get_children():
 		_content.remove_child(child)
@@ -65,11 +79,63 @@ func _show_page(page: String) -> void:
 		_label(_content, "Choose a circuit and take to the track.", Vector2(0, 80), Vector2(850, 45), 21, false)
 		var play := _button(_content, "PLAY  →", Vector2(0, 190), Vector2(280, 72), true)
 		play.pressed.connect(func(): _show_page("mode"))
+		var settings := _button(_content, "SETTINGS", Vector2(310, 190), Vector2(260, 72), false)
+		settings.pressed.connect(func():
+			_settings_return = "home"
+			_show_page("settings")
+		)
 	elif page == "mode":
 		var practice := _button(_content, "PRACTICE  →", Vector2(0, 30), Vector2(438, 125), true)
-		practice.pressed.connect(func(): _show_page("circuit"))
+		practice.pressed.connect(func(): _show_page("practice"))
 		var multiplayer := _button(_content, "MULTIPLAYER\nUNDER DEVELOPMENT", Vector2(478, 30), Vector2(438, 125), false)
 		multiplayer.disabled = true
+	elif page == "practice":
+		_label(_content, "RACE LAPS", Vector2(0, 12), Vector2(270, 40), 20, false)
+		var laps := SpinBox.new()
+		laps.position = Vector2(0, 55)
+		laps.size = Vector2(200, 55)
+		laps.min_value = 1
+		laps.max_value = 10
+		laps.step = 1
+		laps.value = _laps
+		laps.value_changed.connect(func(value: float): _laps = int(value))
+		_content.add_child(laps)
+		_label(_content, "BIKE SPEED  /  PRACTICE ONLY", Vector2(250, 12), Vector2(450, 40), 20, false)
+		var speed := OptionButton.new()
+		speed.position = Vector2(250, 55)
+		speed.size = Vector2(220, 55)
+		for i in range(1, 5):
+			speed.add_item("%dx" % i)
+		speed.select(_speed - 1)
+		speed.item_selected.connect(func(index: int): _speed = index + 1)
+		_content.add_child(speed)
+		var fill := CheckBox.new()
+		fill.text = "FILL GRID WITH 9 AI RIDERS"
+		fill.position = Vector2(0, 140)
+		fill.size = Vector2(600, 55)
+		fill.button_pressed = _ai
+		fill.add_theme_font_override("font", TEXT)
+		fill.add_theme_font_size_override("font_size", 20)
+		fill.toggled.connect(func(value: bool): _ai = value)
+		_content.add_child(fill)
+		var next := _button(_content, "CHOOSE CIRCUIT  →", Vector2(0, 230), Vector2(360, 70), true)
+		next.pressed.connect(func(): _show_page("circuit"))
+		var qualifying := _button(_content, "QUALIFYING / COMING SOON", Vector2(400, 230), Vector2(400, 70), false)
+		qualifying.disabled = true
+	elif page == "settings":
+		_add_volume("MASTER", 0, UiScale.master, func(value: float): UiScale.master = value)
+		_add_volume("MUSIC", 90, UiScale.music, func(value: float): UiScale.music = value)
+		_add_volume("ENGINE", 180, UiScale.engine, func(value: float): UiScale.engine = value)
+		if not OS.has_feature("mobile"):
+			_label(_content, "GUI SCALE", Vector2(570, 10), Vector2(250, 40), 19, false)
+			var scale := OptionButton.new()
+			scale.position = Vector2(570, 56)
+			scale.size = Vector2(240, 52)
+			for name in UiScale.NAMES:
+				scale.add_item(name)
+			scale.select(UiScale.selected_mode)
+			scale.item_selected.connect(func(index: int): UiScale.set_mode(index))
+			_content.add_child(scale)
 	else:
 		var ids := WmcCircuitData.ids()
 		for i in ids.size():
@@ -77,7 +143,7 @@ func _show_page(page: String) -> void:
 			var info: Dictionary = WmcCircuitData.circuits[id]
 			var button := _button(_content, str(info["name"]), Vector2((i % 3) * 310, (i / 3) * 145), Vector2(296, 125), false)
 			button.add_theme_font_size_override("font_size", 16)
-			button.pressed.connect(func(): race_requested.emit(id))
+			button.pressed.connect(func(): race_requested.emit(id, _laps, _speed, _ai))
 	if _fade and _fade.is_valid():
 		_fade.kill()
 	_content.modulate.a = 0.0
@@ -119,3 +185,19 @@ func _button(parent: Control, text: String, pos: Vector2, dimensions: Vector2, p
 	button.add_theme_stylebox_override("disabled", disabled_style)
 	parent.add_child(button)
 	return button
+
+func _add_volume(title: String, y: float, current: float, update: Callable) -> void:
+	_label(_content, title, Vector2(0, y), Vector2(180, 40), 19, false)
+	var slider := HSlider.new()
+	slider.position = Vector2(190, y + 3)
+	slider.size = Vector2(290, 44)
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = current
+	slider.value_changed.connect(func(value: float):
+		update.call(value)
+		UiScale.save_settings()
+		audio_changed.emit()
+	)
+	_content.add_child(slider)

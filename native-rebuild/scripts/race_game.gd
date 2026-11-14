@@ -3,7 +3,11 @@ extends Node3D
 ## Stage 1 native race loop: one human rider, nine AI riders, shared physics,
 ## all six supplied centre-line circuits, keyboard/touch input, and a responsive
 ## in-race HUD. Menus, profiles, results, and replay presentation return later.
-const RACE_LAPS := 3
+var race_laps := 3
+var speed_factor := 1
+var fill_ai := false
+var countdown := 0.0
+var paused := false
 const AI_NAMES := [
 	"A. MARTIN", "L. BIANCHI", "K. SATO", "M. RAHMAN", "D. SILVA",
 	"R. EVANS", "N. PETROV", "F. MORALES", "J. PARK",
@@ -25,7 +29,11 @@ var _hud: WmcRaceHud
 var _player: WmcRaceBike
 var _riders: Array[WmcRaceBike] = []
 var _brains: Dictionary = {}
-var _replay_recorder := WmcReplayRecorder.new()
+var _footage: WmcFootageCapture
+var _winner_frames: Array = []
+var _winner_name := ""
+var _finish_delay := -1.0
+var _finish_screen: WmcFinishScreen
 var _race_time_seconds := 0.0
 var _ambience: AudioStreamPlayer
 var _menu: WmcMainMenu
@@ -40,14 +48,20 @@ func _ready() -> void:
 	_load_circuit(_current_circuit_id)
 	_hud.visible = false
 	_create_menu()
+	_create_finish_screen()
 
 
 func _physics_process(delta: float) -> void:
-	if not _race_running or not _player or _player.finished:
+	if not _race_running or not _player:
 		_update_hud()
 		return
-	var stable_delta := minf(delta, 1.0 / 30.0)
-	_race_time_seconds += stable_delta
+	if countdown > 0.0:
+		countdown = maxf(0.0, countdown - delta)
+		_hud.set_notice("START IN %d" % ceili(countdown) if countdown > 0.0 else "GO!")
+		return
+	var stable_delta := minf(delta, 1.0 / 30.0) * speed_factor
+	if not _player.finished:
+		_race_time_seconds += stable_delta
 	_player.drive(_player_command(), stable_delta)
 	for rider in _riders:
 		if rider == _player or rider.finished:
@@ -56,13 +70,28 @@ func _physics_process(delta: float) -> void:
 		rider.drive(brain.command_for(rider, circuit), stable_delta)
 	_resolve_rider_contacts()
 	_finish_completed_riders()
-	_replay_recorder.capture(stable_delta, _riders)
+	if _footage and _winner_name.is_empty():
+		var leader := _riders[0]
+		for rider in _riders:
+			if rider.race_progress_samples > leader.race_progress_samples:
+				leader = rider
+		_footage.capture(delta, Time.get_ticks_msec() / 1000.0, leader, leader.heading)
+	if _finish_delay >= 0.0:
+		_finish_delay -= delta
+		if _finish_delay < 0.0:
+			_race_running = false
+			_hud.visible = false
+			_finish_screen.begin(_winner_frames, _winner_name)
 	_update_camera(stable_delta)
 	_update_hud()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE and (_race_running or paused):
+			_toggle_pause()
+			get_viewport().set_input_as_handled()
+			return
 		if not _race_running:
 			return
 		if event.keycode >= KEY_F1 and event.keycode <= KEY_F6:
@@ -122,18 +151,50 @@ func _create_interface() -> void:
 	add_child(canvas)
 	_hud = WmcRaceHud.new()
 	canvas.add_child(_hud)
+	_hud.pause_requested.connect(_toggle_pause)
 	_hud.set_notice("PRACTICE RACE  •  W A S D / ARROWS  •  F1–F6 CIRCUITS  •  F7 GUI SCALE")
 
 
 func _create_menu() -> void:
 	_menu = WmcMainMenu.new()
 	$RaceInterface.add_child(_menu)
-	_menu.race_requested.connect(func(id: String):
+	_menu.race_requested.connect(func(id: String, laps: int, speed: int, ai: bool):
+		race_laps = laps
+		speed_factor = speed
+		fill_ai = ai
 		_load_circuit(id)
 		_menu.visible = false
 		_hud.visible = true
 		_race_running = true
+		countdown = 3.0
+		_start_capture()
 	)
+	_menu.audio_changed.connect(_update_audio)
+
+
+func _create_finish_screen() -> void:
+	_finish_screen = WmcFinishScreen.new()
+	$RaceInterface.add_child(_finish_screen)
+	_finish_screen.main_menu_requested.connect(func():
+		_finish_screen.close()
+		_winner_frames.clear()
+		if _footage:
+			_footage.queue_free()
+			_footage = null
+		_menu.visible = true
+		_menu._show_page("home")
+		_hud.visible = false
+	)
+
+func _start_capture() -> void:
+	if _footage:
+		_footage.queue_free()
+	_footage = WmcFootageCapture.new()
+	add_child(_footage)
+	_footage.begin(get_viewport().world_3d)
+	_winner_frames.clear()
+	_winner_name = ""
+	_finish_delay = -1.0
 
 
 func _create_ambience() -> void:
@@ -142,9 +203,23 @@ func _create_ambience() -> void:
 	_ambience.stream = load("res://assets/audio/menu-theme.mp3") as AudioStream
 	_ambience.volume_db = -22.0
 	add_child(_ambience)
+	_update_audio()
 	if _ambience.stream:
 		_ambience.play()
 
+
+func _update_audio() -> void:
+	if _ambience:
+		_ambience.volume_db = linear_to_db(maxf(0.0001, UiScale.master * UiScale.music)) - 10.0
+
+func _toggle_pause() -> void:
+	paused = not paused
+	_race_running = not paused
+	_hud.touch_controls.clear()
+	if paused:
+		_hud.set_notice("PAUSED  •  ESC TO RESUME")
+	else:
+		_hud.set_notice("RESUMED")
 
 func _load_circuit(circuit_id: String) -> void:
 	_current_circuit_id = circuit_id
@@ -162,7 +237,6 @@ func _load_circuit(circuit_id: String) -> void:
 	_world.add_child(_riders_root)
 	_build_track()
 	_spawn_riders()
-	_replay_recorder.begin(_riders)
 	_hud.touch_controls.clear()
 	_hud.set_notice("PRACTICE RACE  •  %s  •  F1–F6 SWITCH CIRCUIT" % circuit.hashtag)
 	_update_camera(1.0)
@@ -317,7 +391,7 @@ func _spawn_riders() -> void:
 	_riders_root.add_child(_player)
 	_player.configure(circuit, 1, "player", "YOU", true, Color("e12431"))
 	_riders.append(_player)
-	for index in AI_NAMES.size():
+	for index in (AI_NAMES.size() if fill_ai else 0):
 		var rider := WmcRaceBike.new()
 		rider.name = "AiRider%02d" % (index + 1)
 		_riders_root.add_child(rider)
@@ -357,11 +431,16 @@ func _resolve_rider_contacts() -> void:
 
 func _finish_completed_riders() -> void:
 	for rider in _riders:
-		if not rider.finished and rider.laps_completed >= RACE_LAPS:
+		if not rider.finished and rider.laps_completed >= race_laps:
 			rider.finished = true
 			rider.finish_time_seconds = _race_time_seconds
+			if _winner_name.is_empty():
+				_winner_name = rider.display_name
+				if _footage:
+					_winner_frames = _footage.finish()
 			if rider == _player:
-				_hud.set_notice("FINISHED  •  RECORDED RIDER DATA IS KEPT FOR THE UPCOMING REPLAY FEATURE")
+				_hud.set_notice("FINISH")
+				_finish_delay = 4.0
 
 
 func _update_camera(delta: float) -> void:
@@ -381,5 +460,5 @@ func _update_hud() -> void:
 		return first.race_progress_samples > second.race_progress_samples
 	)
 	var race_position := ordered.find(_player) + 1
-	var shown_lap := min(RACE_LAPS, _player.laps_completed + 1)
-	_hud.set_race_state(circuit, shown_lap, RACE_LAPS, _player.speed_metres_per_second, race_position, _riders.size(), _race_time_seconds)
+	var shown_lap := mini(race_laps, _player.laps_completed + 1)
+	_hud.set_race_state(circuit, shown_lap, race_laps, _player.speed_metres_per_second, race_position, _riders.size(), _race_time_seconds)

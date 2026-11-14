@@ -1,5 +1,6 @@
 class_name WmcRaceHud
 extends Control
+signal pause_requested
 
 var touch_controls: WmcTouchControls
 var _display_font: Font
@@ -11,6 +12,7 @@ var _lap_label: Label
 var _position_label: Label
 var _track_label: Label
 var _notice_label: Label
+var _pause_button: Button
 
 
 func _ready() -> void:
@@ -34,6 +36,13 @@ func _ready() -> void:
 	add_child(_timing_panel)
 	add_child(_track_panel)
 	add_child(_notice_label)
+	_pause_button = Button.new()
+	_pause_button.text = "Ⅱ"
+	_pause_button.add_theme_font_override("font", _text_font)
+	_pause_button.add_theme_font_size_override("font_size", 22)
+	_pause_button.focus_mode = Control.FOCUS_NONE
+	_pause_button.pressed.connect(func(): pause_requested.emit())
+	add_child(_pause_button)
 	touch_controls = WmcTouchControls.new()
 	add_child(touch_controls)
 	resized.connect(_layout)
@@ -77,6 +86,8 @@ func _layout() -> void:
 	_position_label.size = Vector2(timing_width * 0.35, timing_height * 0.30)
 	_position_label.add_theme_font_size_override("font_size", roundi(clampf(shortest_side * 0.034 * unit, 17.0, 34.0)))
 
+	_pause_button.position = Vector2(viewport_size.x - margin - 62, margin + 85 * unit)
+	_pause_button.size = Vector2(62, 52)
 	var track_width := clampf(viewport_size.x * 0.42, 300.0 * unit, 680.0 * unit)
 	var track_height := clampf(shortest_side * 0.070, 42.0 * unit, 78.0 * unit)
 	_track_panel.position = Vector2(viewport_size.x - margin - track_width, margin)
