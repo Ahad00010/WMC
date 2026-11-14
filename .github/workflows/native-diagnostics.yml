@@ -1,0 +1,48 @@
+name: Build symbolized Windows diagnostic
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths: ['.github/workflows/native-diagnostics.yml']
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cross compiler and SCons
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-mingw-w64-x86-64-posix scons
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+      - name: Compile Godot 4.4.1 Windows debug template with symbols
+        run: |
+          set -euxo pipefail
+          curl -L --retry 3 https://codeload.github.com/godotengine/godot/tar.gz/refs/tags/4.4.1-stable -o /tmp/godot-source.tar.gz
+          mkdir /tmp/godot-src
+          tar -xf /tmp/godot-source.tar.gz --strip-components=1 -C /tmp/godot-src
+          cd /tmp/godot-src
+          scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes -j4
+          ls -lh bin/
+      - name: Import WMC and make resource pack
+        run: |
+          set -euxo pipefail
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -O /tmp/godot-editor.zip
+          unzip -q /tmp/godot-editor.zip -d /tmp/godot-editor
+          GODOT=/tmp/godot-editor/Godot_v4.4.1-stable_linux.x86_64
+          "$GODOT" --headless --editor --path native-prototype --import
+          mkdir -p diagnostic
+          "$GODOT" --headless --path native-prototype --export-pack Windows "$GITHUB_WORKSPACE/diagnostic/WMC.pck"
+          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe diagnostic/WMC.exe
+          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe.debugsymbols diagnostic/WMC.exe.debugsymbols
+          printf '%s\n' 'Keep all three files together. Run WMC.exe, reproduce the crash, and send the resulting godot.log. The .debugsymbols file enables native stack traces.' > diagnostic/README.txt
+          ls -lh diagnostic/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-Windows-symbolized-diagnostic
+          path: diagnostic/
+          if-no-files-found: error
+          retention-days: 7

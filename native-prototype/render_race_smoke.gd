@@ -19,10 +19,20 @@ func _run() -> void:
  game.replay_view.size = Vector2i(640, 360)
  game.capture_setting = true
  game._start_race("sepang", 1, 1, true)
- await create_timer(6.5).timeout
+ await create_timer(1.0).timeout
+ _set_w(true)
+ await create_timer(1.0).timeout
+ if not game.countdown or not Input.is_key_pressed(KEY_W) or game.speed != 0.0:
+  _fail("W during countdown should keep the bike on the grid")
+  return
+ await create_timer(5.0).timeout
  if not game.active or game.countdown or game.ai_riders.size() != 9:
   _fail("Rendered AI race did not complete start countdown")
   return
+ if game.speed <= 0.0 or game.engine_gain <= 0.0:
+  _fail("Holding W through countdown did not accelerate with engine audio")
+  return
+ _set_w(false)
  if game.capture_readbacks < 3 or not game.recorder or game.recorder.sequence < 3 or game.recorder.rejected != 0:
   _fail("Rendered race did not successfully capture real viewport frames")
   return
@@ -33,7 +43,19 @@ func _run() -> void:
  if not game.active or game.countdown or not game.ai_riders.is_empty() or game.recorder != null:
   _fail("Rendered solo race with capture disabled did not start correctly")
   return
+ _set_w(true)
+ await create_timer(2.0).timeout
+ if game.speed <= 0.0 or game.engine_gain <= 0.0:
+  _fail("W pressed after lights did not accelerate with engine audio")
+  return
+ _set_w(false)
  game._return_to_menu()
  game.queue_free()
  await process_frame
  quit(0)
+
+func _set_w(pressed: bool) -> void:
+ var event := InputEventKey.new()
+ event.keycode = KEY_W
+ event.pressed = pressed
+ Input.parse_input_event(event)
