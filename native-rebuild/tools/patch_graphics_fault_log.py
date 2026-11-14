@@ -52,8 +52,9 @@ replace('drivers/gles3/storage/texture_storage.cpp',
 			glDeleteFramebuffers(1, &rt->fbo);''')
 for kind in ('buffer', 'texture'):
     replace('drivers/gles3/storage/utilities.h',
-            f'\t\tERR_FAIL_COND(!{kind}_allocs_cache.has(p_id));',
-            f'''#ifdef WINDOWS_ENABLED
+            f'\t_FORCE_INLINE_ void {kind}_free_data(GLuint p_id) {{\n\t\tERR_FAIL_COND(!{kind}_allocs_cache.has(p_id));',
+            f'''	_FORCE_INLINE_ void {kind}_free_data(GLuint p_id) {{
+#ifdef WINDOWS_ENABLED
 		if (!{kind}_allocs_cache.has(p_id)) {{
 			static unsigned int wmc_missing_{kind} = 0;
 			if (wmc_missing_{kind}++ < 4) {{
