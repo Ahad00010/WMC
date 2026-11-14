@@ -35,6 +35,9 @@ var _winner_name := ""
 var _finish_delay := -1.0
 var _finish_screen: WmcFinishScreen
 var _pause_menu: WmcPauseMenu
+var _profile_service: WmcProfileService
+var _profile_editor: WmcProfileEditor
+var _profile: Dictionary = {}
 var _race_time_seconds := 0.0
 var _ambience: AudioStreamPlayer
 var _engine_audio: AudioStreamPlayer
@@ -53,6 +56,7 @@ func _ready() -> void:
 	_create_menu()
 	_create_finish_screen()
 	_create_pause_menu()
+	_create_profile()
 	# Newly-created UI children must complete _ready before their fields are used.
 	call_deferred("_initialize_session")
 
@@ -178,6 +182,41 @@ func _create_menu() -> void:
 	)
 	_menu.audio_changed.connect(_update_audio)
 
+
+func _create_profile() -> void:
+	_profile_service = WmcProfileService.new()
+	add_child(_profile_service)
+	_profile_editor = WmcProfileEditor.new()
+	$RaceInterface.add_child(_profile_editor)
+	_menu.account_requested.connect(func():
+		if _profile_service.token.is_empty():
+			_profile_service.sign_in()
+		else:
+			_profile_editor.open(_profile)
+	)
+	_profile_service.status_changed.connect(func(text: String):
+		_menu.account_status = text
+		if _menu.visible and _menu._page == "home":
+			_menu._show_page("home")
+	)
+	_profile_service.profile_error.connect(func(text: String):
+		_menu.account_status = text
+		if _profile_editor.visible:
+			_profile_editor.set_status(text)
+		elif _menu.visible:
+			_menu._show_page("home")
+	)
+	_profile_service.profile_loaded.connect(func(data: Dictionary):
+		_profile = data.duplicate()
+		_menu.signed_in = true
+		_menu.account_status = "@%s  ·  #%d" % [str(_profile.get("username", "rider")), int(_profile.get("rider_number", 0))]
+		if _profile.is_empty():
+			_profile_editor.open(_profile)
+		else:
+			_profile_editor.visible = false
+			_menu._show_page("home")
+	)
+	_profile_editor.save_requested.connect(_profile_service.save_profile)
 
 func _create_pause_menu() -> void:
 	_pause_menu = WmcPauseMenu.new()
@@ -487,7 +526,7 @@ func _spawn_riders() -> void:
 	_player = WmcRaceBike.new()
 	_player.name = "Player"
 	_riders_root.add_child(_player)
-	_player.configure(circuit, 1, "player", "YOU", true, Color("e12431"))
+	_player.configure(circuit, 1, "player", str(_profile.get("display_name", "YOU")), true, Color(str(_profile.get("plate_color", "red"))))
 	_riders.append(_player)
 	for index in (AI_NAMES.size() if fill_ai else 0):
 		var rider := WmcRaceBike.new()

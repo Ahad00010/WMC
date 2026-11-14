@@ -3,6 +3,10 @@ extends Control
 
 signal race_requested(circuit_id: String, laps: int, speed: int, ai: bool)
 signal audio_changed
+signal account_requested
+signal sign_out_requested
+var signed_in := false
+var account_status := ""
 
 const DISPLAY = preload("res://assets/fonts/MGPDisplay-Bold.otf")
 const TEXT = preload("res://assets/fonts/MGPText-Bold.ttf")
@@ -83,6 +87,9 @@ func _show_page(page: String) -> void:
 		var play := _button(_content, "PLAY  →", Vector2(0, 190), Vector2(280, 72), true)
 		play.pressed.connect(func(): _show_page("mode"))
 		var settings := _button(_content, "SETTINGS", Vector2(310, 190), Vector2(260, 72), false)
+		var account := _button(_content, "EDIT PROFILE" if signed_in else "SIGN IN", Vector2(600, 190), Vector2(260, 72), false)
+		account.pressed.connect(func(): account_requested.emit())
+		_label(_content, account_status, Vector2(0, 280), Vector2(800, 40), 16, false)
 		settings.pressed.connect(func():
 			_settings_return = "home"
 			_show_page("settings")
