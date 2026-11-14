@@ -3,6 +3,10 @@ extends Node3D
 # A native rendering/controls benchmark, not a port of the multiplayer rules.
 const BIKE = preload("res://assets/bike-mobile.glb")
 const RIDER = preload("res://assets/marc-rider.glb")
+# The player retains the original models; AI uses the same textured models
+# with lower triangle counts to reduce rendering work in crowded races.
+const AI_BIKE = preload("res://assets/bike-ai.glb")
+const AI_RIDER = preload("res://assets/rider-ai.glb")
 const DISPLAY_FONT = preload("res://assets/MGPDisplay-Medium.otf")
 const TEXT_FONT = preload("res://assets/MGPText-Bold.ttf")
 const AUTH_SCRIPT = preload("res://auth.gd")
@@ -1224,8 +1228,8 @@ func _spawn_ai() -> void:
   diagnostics.note("START ai=%d stage=instantiate" % i)
   var node := Node3D.new()
   add_child(node)
-  node.add_child(BIKE.instantiate())
-  var rider := RIDER.instantiate()
+  node.add_child(AI_BIKE.instantiate())
+  var rider := AI_RIDER.instantiate()
   rider.position.y = 0.72374
   node.add_child(rider)
   var progress := -float(3 + int(i / 2) * 4)

@@ -195,6 +195,10 @@ func _run() -> void:
   _fail("Race HUD overlays collide")
   return
  for i in range(game.ai_riders.size()):
+  var ai_node: Node = game.ai_riders[i].node
+  if ai_node.get_child_count() != 2 or ai_node.get_child(0).scene_file_path != "res://assets/bike-ai.glb" or ai_node.get_child(1).scene_file_path != "res://assets/rider-ai.glb":
+   _fail("Every AI must retain both optimized bike and rider models")
+   return
   var rider_position: Vector3 = game.ai_riders[i].node.position
   if game.mini_map.opponents[i] != Vector2(rider_position.x, rider_position.z):
    _fail("AI dot does not match rider position")
