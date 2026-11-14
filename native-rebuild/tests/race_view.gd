@@ -55,6 +55,7 @@ func _run() -> void:
 	left_key.keycode = KEY_A
 	left_key.pressed = true
 	Input.parse_input_event(left_key)
+	await process_frame
 	assert(game._player_command().z > 0.0, "A must turn left in the chase camera")
 	left_key.pressed = false
 	Input.parse_input_event(left_key)
@@ -62,6 +63,7 @@ func _run() -> void:
 	right_key.keycode = KEY_D
 	right_key.pressed = true
 	Input.parse_input_event(right_key)
+	await process_frame
 	assert(game._player_command().z < 0.0, "D must turn right in the chase camera")
 	right_key.pressed = false
 	Input.parse_input_event(right_key)
