@@ -17,5 +17,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh run view 43563108221 --log-failed > /tmp/failed.txt
-          tail -30 /tmp/failed.txt > /tmp/tail.txt
+          tail -12 /tmp/failed.txt > /tmp/tail.txt
           echo "::notice::TRACE LOG BASE64 $(base64 -w0 /tmp/tail.txt)"
