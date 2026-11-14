@@ -19,6 +19,24 @@ func _run() -> void:
 	await process_frame
 	assert(game._race_running and game._hud.visible and game.circuit.id == "assen")
 	assert(game._riders.size() == 10)
+	assert(game.race_laps == 2 and game.countdown > 0.0)
+	game._toggle_pause()
+	assert(game.paused and game._pause_menu.visible and not game._race_running)
+	game._pause_menu.settings_requested.emit()
+	assert(game._menu.visible and game._menu._page == "settings")
+	game._menu.settings_closed.emit()
+	assert(game._pause_menu.visible and not game._menu.visible)
+	game._toggle_pause()
+	assert(game._race_running and not game.paused)
+	game.countdown = 0.0
+	var start_time: float = game._race_time_seconds
+	game._player.drive(Vector3(0.0, 1.0, 0.0), 0.1)
+	assert(game._player.speed_metres_per_second < 0.0, "Brake must reverse from rest")
+	game._player.laps_completed = game.race_laps
+	game._finish_completed_riders()
+	assert(game._player.finished and game._winner_name == game._player.display_name)
+	game._physics_process(0.01)
+	assert(game._race_time_seconds == start_time, "Finishing must freeze the player timer")
 	for dimensions in [Vector2(960, 540), Vector2(1280, 720), Vector2(2400, 1080)]:
 		game._menu.size = dimensions
 		game._menu._fit()
