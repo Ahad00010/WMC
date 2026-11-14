@@ -1,0 +1,21 @@
+name: Inspect crash-trace CI failure
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths: ['.github/workflows/inspect-crash-trace.yml']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect trace test log
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run view 43563108221 --log-failed > /tmp/failed.txt
+          tail -100 /tmp/failed.txt > /tmp/tail.txt
+          echo "::notice::TRACE LOG BASE64 $(base64 -w0 /tmp/tail.txt)"
