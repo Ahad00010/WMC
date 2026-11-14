@@ -605,3 +605,11 @@ func _update_hud() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _hud and _hud.touch_controls:
 		_hud.touch_controls.clear()
+
+func _exit_tree() -> void:
+	if _ambience:
+		_ambience.stop()
+	if _results_audio:
+		_results_audio.stop()
+	if _engine_audio:
+		_engine_audio.stop()
