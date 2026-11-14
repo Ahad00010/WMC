@@ -169,7 +169,7 @@ func _create_world() -> void:
 func _create_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "FollowCamera"
-	_camera.fov = 66.0
+	_camera.fov = 58.0
 	add_child(_camera)
 	_camera.make_current()
 
@@ -643,9 +643,9 @@ func _update_camera(delta: float) -> void:
 	if not _player:
 		return
 	var forward := Vector3(sin(_player.heading), 0.0, cos(_player.heading))
-	var desired_position := _player.global_position - forward * 8.6 + Vector3.UP * 3.55
+	var desired_position := _player.global_position - forward * 6.2 + Vector3.UP * 2.8
 	_camera.global_position = _camera.global_position.lerp(desired_position, minf(1.0, delta * 5.0))
-	_camera.look_at(_player.global_position + forward * 12.0 + Vector3.UP * 0.65, Vector3.UP)
+	_camera.look_at(_player.global_position + forward * 7.0 + Vector3.UP * 0.8, Vector3.UP)
 
 
 func _update_hud() -> void:
