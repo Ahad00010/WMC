@@ -25,6 +25,7 @@ var _push_velocity := Vector3.ZERO
 var _impact_cooldown := 0.0
 var _grid_position := 1
 var _visual_pivot: Node3D
+var _number_label: Label3D
 
 
 func configure(
@@ -182,6 +183,18 @@ func _build_visual(accent: Color) -> void:
 	plate.material_override = plate_material
 	plate.position = Vector3(0.0, 1.0, -0.45)
 	_visual_pivot.add_child(plate)
+	_number_label = Label3D.new()
+	_number_label.text = "10"
+	_number_label.font = load("res://assets/fonts/MGPText-Bold.ttf")
+	_number_label.font_size = 36
+	_number_label.pixel_size = 0.003
+	_number_label.position = Vector3(0.0, 1.065, -0.45)
+	_number_label.rotation.x = -PI * 0.5
+	_visual_pivot.add_child(_number_label)
+
+func set_number(number: int) -> void:
+	if _number_label:
+		_number_label.text = str(clampi(number, 10, 99))
 
 
 func _add_fallback_bike(accent: Color) -> void:

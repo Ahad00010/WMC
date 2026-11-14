@@ -89,7 +89,10 @@ func _show_page(page: String) -> void:
 		var settings := _button(_content, "SETTINGS", Vector2(310, 190), Vector2(260, 72), false)
 		var account := _button(_content, "EDIT PROFILE" if signed_in else "SIGN IN", Vector2(600, 190), Vector2(260, 72), false)
 		account.pressed.connect(func(): account_requested.emit())
-		_label(_content, account_status, Vector2(0, 280), Vector2(800, 40), 16, false)
+		_label(_content, account_status, Vector2(0, 280), Vector2(570, 40), 16, false)
+		if signed_in:
+			var logout := _button(_content, "SIGN OUT", Vector2(600, 280), Vector2(260, 48), false)
+			logout.pressed.connect(func(): sign_out_requested.emit())
 		settings.pressed.connect(func():
 			_settings_return = "home"
 			_show_page("settings")

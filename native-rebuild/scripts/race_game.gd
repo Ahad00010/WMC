@@ -217,6 +217,11 @@ func _create_profile() -> void:
 			_menu._show_page("home")
 	)
 	_profile_editor.save_requested.connect(_profile_service.save_profile)
+	_menu.sign_out_requested.connect(func():
+		_profile.clear()
+		_menu.signed_in = false
+		_profile_service.sign_out()
+	)
 
 func _create_pause_menu() -> void:
 	_pause_menu = WmcPauseMenu.new()
@@ -527,6 +532,7 @@ func _spawn_riders() -> void:
 	_player.name = "Player"
 	_riders_root.add_child(_player)
 	_player.configure(circuit, 1, "player", str(_profile.get("display_name", "YOU")), true, Color(str(_profile.get("plate_color", "red"))))
+	_player.set_number(int(_profile.get("rider_number", 10)))
 	_riders.append(_player)
 	for index in (AI_NAMES.size() if fill_ai else 0):
 		var rider := WmcRaceBike.new()
