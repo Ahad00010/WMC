@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check AI LODs retain model hierarchy/textures and reduce triangle count."""
+"""Check AI LOD hierarchy and triangle reduction without duplicate textures."""
 import hashlib
 import json
 import struct
@@ -27,6 +27,7 @@ def model(filename):
 
 for source, optimized in [('bike-mobile.glb', 'bike-ai.glb'), ('marc-rider.glb', 'rider-ai.glb')]:
     a, b = model(source), model(optimized)
-    assert a[:2] == b[:2], f'{optimized}: hierarchy/transforms or image bytes changed'
+    assert a[0] == b[0], f'{optimized}: hierarchy/transforms changed'
+    assert a[1] and not b[1], f'{optimized}: original textures missing or AI embeds duplicate images'
     assert b[2] < a[2] * .70, f'{optimized}: triangle reduction too small'
     print(f'{source}: {a[2]:,} -> {optimized}: {b[2]:,} triangles')

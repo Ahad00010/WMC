@@ -84,7 +84,7 @@ jobs:
           assert b'drivers seem not to support GLES3 / ANGLE, switching to native OpenGL' in data
           assert b'ANGLE dynamic libraries (libEGL.dll and libGLESv2.dll) are missing' not in data
           PYCODE
-      - name: Verify AI model hierarchy, textures and triangle reduction
+      - name: Verify AI hierarchy, texture sharing and triangle reduction
         run: python3 native-prototype/tools/check_ai_models.py
       - name: Import and test project
         run: |

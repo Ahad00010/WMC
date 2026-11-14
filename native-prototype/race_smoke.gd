@@ -167,6 +167,31 @@ func _run() -> void:
  if not game.active or not game.racing or game.race_laps != 2 or game.speed_factor != 2 or game.ai_riders.size() != 9 or not game.mini_map.show_riders:
   _fail("Race selection did not start with selected settings")
   return
+ # AI meshes must use the player's original materials, including textures,
+ # rather than allocating a second set of embedded texture resources.
+ for i in range(game.ai_riders.size()):
+  var pair_root: Node = game.ai_riders[i].node
+  for model_index in range(2):
+   var ai_model: Node = pair_root.get_child(model_index)
+   var original: Node = game.visual.get_child(model_index)
+   var to_check: Array[Node] = [ai_model]
+   var checked_meshes := 0
+   while not to_check.is_empty():
+    var mesh_node: Node = to_check.pop_back()
+    if mesh_node is MeshInstance3D:
+     var source_mesh := original.get_node_or_null(ai_model.get_path_to(mesh_node)) as MeshInstance3D
+     if source_mesh == null or mesh_node.mesh == null or source_mesh.mesh == null:
+      _fail("AI mesh did not match the player model")
+      return
+     for surface in range(mesh_node.mesh.get_surface_count()):
+      if mesh_node.get_active_material(surface) != source_mesh.get_active_material(surface):
+       _fail("AI mesh did not reuse player materials")
+       return
+     checked_meshes += 1
+    to_check.append_array(mesh_node.get_children())
+   if checked_meshes == 0:
+    _fail("AI model had no visible meshes")
+    return
  # Test the diagnostic isolation without changing AI simulation or replay.
  var model_root: Node = game.ai_riders[0].node
  game._set_ai_diagnostic_layers(model_root)

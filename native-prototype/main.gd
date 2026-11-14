@@ -1240,8 +1240,8 @@ func _spawn_ai() -> void:
   diagnostics.note("START ai=%d stage=instantiate" % i)
   var node := Node3D.new()
   add_child(node)
-  node.add_child(AI_BIKE.instantiate())
-  var rider := AI_RIDER.instantiate()
+  node.add_child(_make_ai_model(AI_BIKE, BIKE, visual.get_child(0)))
+  var rider := _make_ai_model(AI_RIDER, RIDER, visual.get_child(1))
   rider.position.y = 0.72374
   node.add_child(rider)
   if ai_diagnostic_mode == "ai-main-hidden":
@@ -1251,6 +1251,33 @@ func _spawn_ai() -> void:
   ai_riders.append(data)
   _place_ai(data)
   diagnostics.note("START ai=%d stage=ready" % i)
+
+# Optimized AI geometry has no embedded textures. Reuse the player's original
+# materials, so the same textures are not uploaded a second time. If model
+# hierarchies ever diverge, retain correct visuals by using the original scene.
+func _make_ai_model(optimized: PackedScene, original_scene: PackedScene, original: Node) -> Node3D:
+ var model: Node3D = optimized.instantiate()
+ if not _share_ai_materials(model, original):
+  model.free()
+  diagnostics.note("AI MATERIAL fallback=original reason=model-mismatch")
+  return original_scene.instantiate()
+ return model
+
+func _share_ai_materials(model: Node, original: Node) -> bool:
+ var nodes: Array[Node] = [model]
+ while not nodes.is_empty():
+  var current: Node = nodes.pop_back()
+  if current is MeshInstance3D:
+   var source := original.get_node_or_null(model.get_path_to(current)) as MeshInstance3D
+   if source == null or source.mesh == null or current.mesh == null or source.mesh.get_surface_count() != current.mesh.get_surface_count():
+    return false
+   for surface in range(current.mesh.get_surface_count()):
+    var material := source.get_active_material(surface)
+    if material == null:
+     return false
+    current.set_surface_override_material(surface, material)
+  nodes.append_array(current.get_children())
+ return true
 
 # Hide only the main-camera AI models in this diagnostic variant. The replay
 # camera still sees layer 2, and AI simulation, tower and map remain active.
