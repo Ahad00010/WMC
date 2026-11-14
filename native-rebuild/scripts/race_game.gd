@@ -50,16 +50,19 @@ func _ready() -> void:
 	_create_camera()
 	_create_interface()
 	_create_ambience()
-	_load_circuit(_current_circuit_id)
-	_hud.visible = false
 	_create_menu()
 	_create_finish_screen()
 	_create_pause_menu()
+	# Newly-created UI children must complete _ready before their fields are used.
+	call_deferred("_initialize_session")
+
+func _initialize_session() -> void:
+	_load_circuit(_current_circuit_id)
+	_hud.visible = false
 
 
 func _physics_process(delta: float) -> void:
 	if not _race_running or not _player:
-		_update_hud()
 		return
 	if countdown > 0.0:
 		countdown = maxf(0.0, countdown - delta)
@@ -160,7 +163,6 @@ func _create_interface() -> void:
 	_hud = WmcRaceHud.new()
 	canvas.add_child(_hud)
 	_hud.pause_requested.connect(_toggle_pause)
-	_hud.set_notice("PRACTICE RACE  •  W A S D / ARROWS  •  F1–F6 CIRCUITS  •  F7 GUI SCALE")
 
 
 func _create_menu() -> void:
