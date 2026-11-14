@@ -49,3 +49,31 @@ jobs:
             echo "::error::Render test log base64 $(head -100 /tmp/render.log | base64 -w0)"
             exit 1
           fi
+  export-windows:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot and templates
+        run: |
+          set -euo pipefail
+          base=https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable
+          wget -q "$base/Godot_v4.4.1-stable_linux.x86_64.zip" -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 /usr/local/bin/godot
+          wget -q "$base/Godot_v4.4.1-stable_export_templates.tpz" -O /tmp/templates.zip
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          unzip -q /tmp/templates.zip -d /tmp/templates
+          cp -a /tmp/templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+      - name: Export Windows test build
+        run: |
+          set -euo pipefail
+          godot --headless --editor --path native-rebuild --import
+          mkdir -p native-rebuild/build/windows
+          godot --headless --path native-rebuild --export-debug 'Windows Desktop' "$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-rebuild-Windows-test
+          path: native-rebuild/build/windows/
+          if-no-files-found: error
