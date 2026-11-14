@@ -38,6 +38,7 @@ var _pause_menu: WmcPauseMenu
 var _profile_service: WmcProfileService
 var _profile_editor: WmcProfileEditor
 var _profile: Dictionary = {}
+var _diagnostics: WmcDiagnostics
 var _race_time_seconds := 0.0
 var _simulation_time := 0.0
 var _ambience: AudioStreamPlayer
@@ -50,6 +51,9 @@ var _race_running := false
 
 
 func _ready() -> void:
+	_diagnostics = WmcDiagnostics.new()
+	add_child(_diagnostics)
+	_diagnostics.setup(self)
 	_create_world()
 	_create_camera()
 	_create_interface()
@@ -189,6 +193,7 @@ func _create_menu() -> void:
 		countdown = 3.0
 		_hud.lights.update_time(countdown)
 		_start_capture()
+		_diagnostics.note("RACE START circuit=%s laps=%d speed=%d ai=%s" % [id, laps, speed, ai])
 		_fade_music(_ambience, false)
 	)
 	_menu.audio_changed.connect(_update_audio)
@@ -605,6 +610,7 @@ func _finish_completed_riders() -> void:
 			rider.finished = true
 			rider.finish_time_seconds = _simulation_time
 			if _winner_name.is_empty():
+				_diagnostics.note("RACE WINNER elapsed=%.2f" % _simulation_time)
 				_winner_name = rider.display_name
 				if _footage:
 					_winner_frames = _footage.finish()
