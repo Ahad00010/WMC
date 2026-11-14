@@ -32,6 +32,7 @@ func update(dt: float, game: Node) -> void:
   return
  clock = 0.0
  note("state active=%s racing=%s paused=%s circuit=%s lap=%d/%d ai=%d speed=%.1f fps=%d capture=%s" % [game.active, game.racing, game.paused, game.circuit_id, mini(game.race_laps, maxi(1, floori(game.player_progress / maxi(1, game.track.size())) + 1)), game.race_laps, game.ai_riders.size(), game.speed, Engine.get_frames_per_second(), game.replay_enabled])
+ note("graphics buffer_mb=%.1f texture_mb=%.1f total_mb=%.1f" % [float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_BUFFER_MEM_USED)) / 1048576.0, float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED)) / 1048576.0, float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED)) / 1048576.0])
  if game.replay_enabled:
   note("capture readbacks=%d skipped=%d avg_readback_ms=%.2f recent_readback_ms=%.2f target_fps=%.1f godot_memory_mb=%.1f" % [game.capture_readbacks, game.capture_skipped, float(game.capture_readback_us) / max(1, game.capture_readbacks) / 1000.0, game.capture_readback_ema_ms, game.capture_target_fps, OS.get_static_memory_usage() / 1048576.0])
   if game.recorder and game.recorder.rejected > 0:
