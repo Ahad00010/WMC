@@ -101,6 +101,8 @@ def main():
     removed = sorted(files_a.keys() - files_b.keys())
     changed = sorted(k for k in files_a.keys() & files_b.keys() if files_a[k][:3] != files_b[k][:3])
     print("Changed by type:", dict(Counter(".import" if k.endswith(".import") else Path(k).suffix for k in changed)))
+    print("Different compiled scenes:", [name for name in changed if name.endswith(".scn")])
+    print("Different compiled scripts:", [name for name in changed if name.endswith(".gdc")])
     for group, ending in (("compiled texture", ".ctex"), ("script", ".gd"), ("script bytecode", ".gdc")):
         members = [k for k in files_a.keys() & files_b.keys() if k.endswith(ending)]
         different = [k for k in members if files_a[k][:3] != files_b[k][:3]]
