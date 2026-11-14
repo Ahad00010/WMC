@@ -4,6 +4,7 @@ var _points := PackedVector2Array()
 var _rider_points := PackedVector2Array()
 var _minimum := Vector2.ZERO
 var _span := Vector2.ONE
+var _next_update := 0
 
 func set_circuit(circuit: WmcCircuit) -> void:
 	_points.clear()
@@ -20,6 +21,11 @@ func set_circuit(circuit: WmcCircuit) -> void:
 	queue_redraw()
 
 func update_riders(riders: Array[WmcRaceBike]) -> void:
+	# Keep the static polyline from being re-uploaded to the canvas every frame.
+	var now := Time.get_ticks_msec()
+	if now < _next_update:
+		return
+	_next_update = now + 200
 	var next := PackedVector2Array()
 	for rider in riders:
 		next.append(Vector2(rider.global_position.x, rider.global_position.z))
