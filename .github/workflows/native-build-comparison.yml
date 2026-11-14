@@ -1,0 +1,36 @@
+name: Compare Windows builds
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths: ['.github/workflows/native-build-comparison.yml', 'native-prototype/tools/compare_windows_builds.py']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: WMC-Windows
+          run-id: 43554094911
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/official
+      - uses: actions/download-artifact@v4
+        with:
+          name: WMC-Windows-symbolized-diagnostic
+          run-id: 43554812651
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/diagnostic
+      - name: Compare engine sections and all packed files
+        run: |
+          set -o pipefail
+          python3 native-prototype/tools/compare_windows_builds.py /tmp/official/WMC.exe /tmp/diagnostic/WMC.exe /tmp/diagnostic/WMC.pck | tee /tmp/comparison.txt
+          echo "::notice::COMPARISON BASE64 $(base64 -w0 /tmp/comparison.txt)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-build-comparison
+          path: /tmp/comparison.txt
+          retention-days: 7
