@@ -1,0 +1,46 @@
+name: Symbolize Windows crash
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths: ['.github/workflows/native-symbolize.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  symbols:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: WMC-crash-symbols-server-only
+          run-id: 43566119553
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/symbols
+      - uses: actions/download-artifact@v4
+        with:
+          name: WMC-Windows-crash-trace
+          run-id: 43566119553
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/binary
+      - name: Resolve stack
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq binutils-mingw-w64-x86-64
+          diff /tmp/symbols/BUILD-SHA256.txt /tmp/binary/BUILD-SHA256.txt
+          cd /tmp/binary && sha256sum -c BUILD-SHA256.txt
+          python3 - <<'PY' > /tmp/trace.txt
+          import struct, subprocess
+          from pathlib import Path
+          binary = Path('/tmp/binary/WMC.exe').read_bytes()
+          pe = struct.unpack_from('<I', binary, 0x3c)[0]
+          base = struct.unpack_from('<Q', binary, pe + 24 + 24)[0]
+          offsets = [0x29f4ed1, 0x1066384, 0x1069975, 0x21ab15f, 0x21ab3dc, 0x21dc16a, 0x21de1cd, 0x1e87773, 0x52aff, 0x60b0, 0x1670, 0x16fd, 0x10d5, 0x1409]
+          args = ['x86_64-w64-mingw32-addr2line', '-f', '-C', '-i', '-e', '/tmp/symbols/WMC.exe.debugsymbols']
+          for offset in offsets:
+              out = subprocess.check_output(args + [hex(base + offset)], text=True)
+              print(f'RVA 0x{offset:x}:\n{out}')
+          PY
+          cat /tmp/trace.txt
+          echo "::notice::SYMBOLIZED BASE64 $(base64 -w0 /tmp/trace.txt)"
