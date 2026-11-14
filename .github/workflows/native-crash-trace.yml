@@ -29,14 +29,26 @@ jobs:
           unzip -q /tmp/angle.zip -d /tmp/wmc-angle
           cd /tmp/godot-src
           scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes angle_libs=/tmp/wmc-angle -j4
+      - name: Build resource pack
+        run: |
+          set -euxo pipefail
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -O /tmp/editor.zip
+          unzip -q /tmp/editor.zip -d /tmp/editor
+          GODOT=/tmp/editor/Godot_v4.4.1-stable_linux.x86_64
+          "$GODOT" --headless --editor --path native-prototype --import
+          mkdir -p trace-build symbols
+          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe trace-build/WMC.exe
+          "$GODOT" --headless --path native-prototype --export-pack Windows "$GITHUB_WORKSPACE/trace-build/WMC.pck"
+          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe.debugsymbols symbols/WMC.exe.debugsymbols
+          sha256sum trace-build/WMC.exe | tee trace-build/BUILD-SHA256.txt symbols/BUILD-SHA256.txt
       - name: Verify a deliberately induced crash yields offline-symbolizable addresses
         run: |
           set -euxo pipefail
           mkdir -p /tmp/crash-test
-          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe /tmp/crash-test/WMC.exe
+          cp trace-build/WMC.exe trace-build/WMC.pck /tmp/crash-test/
           # No symbols beside the executable: test the small download configuration.
           set +e
-          WMC_INTERNAL_TEST_CRASH=1 WINEDEBUG=-all WINEPREFIX=/tmp/wmc-wine timeout 90s xvfb-run -a wine /tmp/crash-test/WMC.exe --headless >/tmp/crash-test/output.log 2>&1
+          WMC_INTERNAL_TEST_CRASH=1 WINEDEBUG=-all WINEPREFIX=/tmp/wmc-wine timeout 90s xvfb-run -a wine /tmp/crash-test/WMC.exe --headless --main-pack Z:/tmp/crash-test/WMC.pck >/tmp/crash-test/output.log 2>&1
           set -e
           cat /tmp/crash-test/output.log
           grep 'WMC_PC module=.*WMC.exe rva=0x' /tmp/crash-test/output.log > /tmp/crash-test/frames.txt
@@ -55,18 +67,6 @@ jobs:
           if 'wmc_trace_test_crash' not in result.stdout:
               raise SystemExit('Failed to resolve known test crash: do not ship an unverified trace build')
           PY
-      - name: Build resource pack
-        run: |
-          set -euxo pipefail
-          wget -q https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -O /tmp/editor.zip
-          unzip -q /tmp/editor.zip -d /tmp/editor
-          GODOT=/tmp/editor/Godot_v4.4.1-stable_linux.x86_64
-          "$GODOT" --headless --editor --path native-prototype --import
-          mkdir -p trace-build symbols
-          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe trace-build/WMC.exe
-          "$GODOT" --headless --path native-prototype --export-pack Windows "$GITHUB_WORKSPACE/trace-build/WMC.pck"
-          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe.debugsymbols symbols/WMC.exe.debugsymbols
-          sha256sum trace-build/WMC.exe | tee trace-build/BUILD-SHA256.txt symbols/BUILD-SHA256.txt
       - uses: actions/upload-artifact@v4
         with:
           name: WMC-Windows-crash-trace

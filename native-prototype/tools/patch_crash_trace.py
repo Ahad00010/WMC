@@ -22,27 +22,30 @@ replacement = '''\tCrashHandlerData *ch_data = reinterpret_cast<CrashHandlerData
 if s.count(needle) != 1:
     raise SystemExit('unexpected crash handler; refusing to patch')
 s = s.replace(needle, replacement)
-# Explicitly opt-in CI-only crash test, never enabled in normal play.
-needle = 'void CrashHandler::initialize() {\n#if defined(CRASH_HANDLER_EXCEPTION)'
-replacement = '''#if defined(CRASH_HANDLER_EXCEPTION)
-__attribute__((noinline)) static void wmc_trace_test_crash() {
-\traise(SIGSEGV);
-}
-#endif
+path.write_text(s)
 
-void CrashHandler::initialize() {
-#if defined(CRASH_HANDLER_EXCEPTION)'''
-if s.count(needle) != 1:
-    raise SystemExit('unexpected initialize implementation')
-s = s.replace(needle, replacement)
-needle = '\tsignal(SIGILL, CrashHandlerException);\n#endif\n}'
-replacement = '''\tsignal(SIGILL, CrashHandlerException);
+# Test only: trigger a known native crash after engine initialization when the
+# environment variable is present. Normal launches never set that variable.
+os_path = Path(sys.argv[1]) / 'platform/windows/os_windows.cpp'
+os_source = os_path.read_text()
+needle = 'void OS_Windows::run() {'
+replacement = """#include <signal.h>
+#include <cstdlib>
+__attribute__((noinline)) static void wmc_trace_test_crash() {
+ raise(SIGSEGV);
+ volatile int keep_frame = 1;
+ (void)keep_frame;
+}
+
+void OS_Windows::run() {"""
+if os_source.count(needle) != 1:
+    raise SystemExit('unexpected OS_Windows::run')
+os_source = os_source.replace(needle, replacement)
+needle = '\tmain_loop->initialize();'
+replacement = """\tmain_loop->initialize();
 \tif (getenv("WMC_INTERNAL_TEST_CRASH") != nullptr) {
 \t\twmc_trace_test_crash();
-\t}
-#endif
-}'''
-if s.count(needle) != 1:
-    raise SystemExit('unexpected signal setup')
-s = s.replace(needle, replacement)
-path.write_text(s)
+\t}"""
+if os_source.count(needle) != 1:
+    raise SystemExit('unexpected main loop initialization')
+os_path.write_text(os_source.replace(needle, replacement))
