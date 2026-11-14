@@ -150,8 +150,8 @@ func _draw() -> void:
 		return
 	draw_rect(Rect2(Vector2.ZERO, size), Color.BLACK)
 	var factor := minf(size.x / REFERENCE.x, size.y / REFERENCE.y)
-	var intro := 1.0 - pow(1.0 - clampf(_elapsed / 0.55, 0.0, 1.0), 3.0)
-	var origin := (size - REFERENCE * factor) * 0.5 + Vector2(0, 36.0 * (1.0 - intro) * factor)
+	var stage_intro: float = 1.0 - pow(1.0 - clampf(_elapsed / 0.55, 0.0, 1.0), 3.0)
+	var origin := (size - REFERENCE * factor) * 0.5 + Vector2(0, 36.0 * (1.0 - stage_intro) * factor)
 	draw_set_transform(origin, 0.0, Vector2.ONE * factor)
 	for y in [35, 105, 220, 370, 500, 615]:
 		draw_rect(Rect2(0, y, 1280, 2), Color(0.85, 0.08, 0.12, 0.25))
