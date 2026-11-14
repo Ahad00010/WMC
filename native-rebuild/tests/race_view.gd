@@ -26,8 +26,10 @@ func _run() -> void:
 		assert(card.position.x >= 0 and card.position.y >= 0)
 		assert((card.position + card.size * card.scale).x <= dimensions.x + 1)
 		assert((card.position + card.size * card.scale).y <= dimensions.y + 1)
-	game._ambience.stop()
-	game._engine_audio.stop()
+	if game._ambience:
+		game._ambience.stop()
+	if game._engine_audio:
+		game._engine_audio.stop()
 	await create_timer(0.15).timeout
 	game.queue_free()
 	await process_frame

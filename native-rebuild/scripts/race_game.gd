@@ -73,17 +73,20 @@ func _physics_process(delta: float) -> void:
 		_hud.lights.update_time(countdown)
 		_hud.set_notice("" if countdown > 0.0 else "GO!")
 		return
-	var stable_delta := minf(delta, 1.0 / 30.0) * speed_factor
-	if not _player.finished:
-		_race_time_seconds += stable_delta
-	_player.drive(_player_command(), stable_delta)
-	for rider in _riders:
-		if rider == _player or rider.finished:
-			continue
-		var brain: WmcAiRider = _brains.get(rider.rider_id)
-		rider.drive(brain.command_for(rider, circuit), stable_delta)
-	_resolve_rider_contacts()
-	_finish_completed_riders()
+	var stable_delta := minf(delta, 1.0 / 30.0)
+	# Practice speed multiplies simulation steps, not step size; this keeps
+	# contact and barriers from being skipped at high multipliers.
+	for step in speed_factor:
+		if not _player.finished:
+			_race_time_seconds += stable_delta
+		_player.drive(_player_command(), stable_delta)
+		for rider in _riders:
+			if rider == _player or rider.finished:
+				continue
+			var brain: WmcAiRider = _brains.get(rider.rider_id)
+			rider.drive(brain.command_for(rider, circuit), stable_delta)
+		_resolve_rider_contacts()
+		_finish_completed_riders()
 	if _footage and _winner_name.is_empty():
 		var leader := _riders[0]
 		for rider in _riders:
@@ -269,6 +272,10 @@ func _start_capture() -> void:
 
 
 func _create_ambience() -> void:
+	# No mixer is needed in source-only headless tests. Rendered tests and
+	# exported builds exercise real audio setup.
+	if DisplayServer.get_name() == "headless":
+		return
 	_ambience = AudioStreamPlayer.new()
 	_ambience.name = "MenuTheme"
 	_ambience.stream = load("res://assets/audio/menu-theme.mp3") as AudioStream
