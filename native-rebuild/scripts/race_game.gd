@@ -39,6 +39,7 @@ var _profile_service: WmcProfileService
 var _profile_editor: WmcProfileEditor
 var _profile: Dictionary = {}
 var _race_time_seconds := 0.0
+var _simulation_time := 0.0
 var _ambience: AudioStreamPlayer
 var _engine_audio: AudioStreamPlayer
 var _results_audio: AudioStreamPlayer
@@ -77,6 +78,7 @@ func _physics_process(delta: float) -> void:
 	# Practice speed multiplies simulation steps, not step size; this keeps
 	# contact and barriers from being skipped at high multipliers.
 	for step in speed_factor:
+		_simulation_time += stable_delta
 		if not _player.finished:
 			_race_time_seconds += stable_delta
 		_player.drive(_player_command(), stable_delta)
@@ -361,6 +363,7 @@ func _load_circuit(circuit_id: String) -> void:
 	_current_circuit_id = circuit_id
 	circuit = WmcCircuitData.create(circuit_id)
 	_race_time_seconds = 0.0
+	_simulation_time = 0.0
 	if _track_root:
 		_track_root.queue_free()
 	if _riders_root:
@@ -600,7 +603,7 @@ func _finish_completed_riders() -> void:
 	for rider in _riders:
 		if not rider.finished and rider.laps_completed >= race_laps:
 			rider.finished = true
-			rider.finish_time_seconds = _race_time_seconds
+			rider.finish_time_seconds = _simulation_time
 			if _winner_name.is_empty():
 				_winner_name = rider.display_name
 				if _footage:
