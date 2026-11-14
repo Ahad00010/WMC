@@ -85,6 +85,11 @@ def main():
     machine_b, b = sections(custom)
     print("Official PE machine:", hex(machine_a), "size:", official.stat().st_size)
     print("Custom PE machine:", hex(machine_b), "size:", custom.stat().st_size)
+    for label, path in (("official", official), ("custom", custom)):
+        blob = path.read_bytes()
+        dynamic_message = b"ANGLE dynamic libraries (libEGL.dll and libGLESv2.dll) are missing"
+        static_message = b"drivers seem not to support GLES3 / ANGLE, switching to native OpenGL"
+        print(f"{label} ANGLE dynamic-fallback-message={dynamic_message in blob} static-fallback-message={static_message in blob}")
     for name in (".text", ".rdata", ".data"):
         for label, path, entries in (("official", official, a), ("custom", custom, b)):
             section = next((item for item in entries if item[0] == name), None)
