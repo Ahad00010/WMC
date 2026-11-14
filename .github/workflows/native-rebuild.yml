@@ -22,5 +22,9 @@ jobs:
           set -euo pipefail
           python3 native-rebuild/tests/validate_project.py
           timeout 180s godot --headless --editor --path native-rebuild --import 2>&1 | tee /tmp/import.log
-          timeout 60s godot --headless --path native-rebuild --script res://tests/race_view.gd 2>&1 | tee /tmp/test.log
+          if ! timeout 45s godot --headless --path native-rebuild --script res://tests/race_view.gd > /tmp/test.log 2>&1; then
+            echo "::error::Runtime test log base64 $(tail -100 /tmp/test.log | base64 -w0)"
+            exit 1
+          fi
+          cat /tmp/test.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|Assertion failed|ERROR:' /tmp/import.log /tmp/test.log
