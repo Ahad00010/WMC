@@ -117,15 +117,16 @@ class NativePrototypeContractTests(unittest.TestCase):
         game = (NATIVE / "scripts/race_game.gd").read_text(encoding="utf-8")
         bike = (NATIVE / "scripts/race_bike.gd").read_text(encoding="utf-8")
         ai = (NATIVE / "scripts/ai_rider.gd").read_text(encoding="utf-8")
-        replay = (NATIVE / "scripts/replay/replay_recorder.gd").read_text(encoding="utf-8")
+        replay = (NATIVE / "scripts/replay/footage_capture.gd").read_text(encoding="utf-8")
         for token in ("InputEventScreenTouch", "InputEventScreenDrag", "_touches: Dictionary", "func command() -> Vector3"):
             self.assertIn(token, touch)
         self.assertIn("_player.drive(_player_command(), stable_delta)", game)
         self.assertIn("rider.drive(brain.command_for(rider, circuit), stable_delta)", game)
         self.assertIn("func drive(command: Vector3, delta: float)", bike)
         self.assertIn("func command_for(bike: WmcRaceBike, circuit: WmcCircuit)", ai)
-        self.assertIn("const SAMPLE_RATE_HZ := 30.0", replay)
-        self.assertIn('"transform": rider.global_transform', replay)
+        self.assertIn("get_texture().get_image()", replay)
+        self.assertIn("save_jpg_to_buffer", replay)
+        self.assertIn("queue.size() < 2", replay)
 
     def test_pc_gui_scale_modes_and_export_presets_exist(self) -> None:
         scale = (NATIVE / "scripts/ui/ui_scale.gd").read_text(encoding="utf-8")

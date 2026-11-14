@@ -6,6 +6,9 @@ signal audio_changed
 
 const DISPLAY = preload("res://assets/fonts/MGPDisplay-Bold.otf")
 const TEXT = preload("res://assets/fonts/MGPText-Bold.ttf")
+const CHECK_OFF = preload("res://assets/check-off.svg")
+const CHECK_ON = preload("res://assets/check-on.svg")
+const THUMB = preload("res://assets/slider-thumb.svg")
 const DESIGN_SIZE := Vector2(1000, 600)
 var _card: Control
 var _content: Control
@@ -114,6 +117,8 @@ func _show_page(page: String) -> void:
 		fill.position = Vector2(0, 140)
 		fill.size = Vector2(600, 55)
 		fill.button_pressed = _ai
+		fill.add_theme_icon_override("unchecked", CHECK_OFF)
+		fill.add_theme_icon_override("checked", CHECK_ON)
 		fill.add_theme_font_override("font", TEXT)
 		fill.add_theme_font_size_override("font_size", 20)
 		fill.toggled.connect(func(value: bool): _ai = value)
@@ -195,6 +200,17 @@ func _add_volume(title: String, y: float, current: float, update: Callable) -> v
 	slider.max_value = 1.0
 	slider.step = 0.05
 	slider.value = current
+	var rail := StyleBoxFlat.new()
+	rail.bg_color = Color("76808f")
+	rail.content_margin_top = 4
+	rail.content_margin_bottom = 4
+	var active_rail := rail.duplicate()
+	active_rail.bg_color = Color("ef3041")
+	slider.add_theme_stylebox_override("slider", rail)
+	slider.add_theme_stylebox_override("grabber_area", active_rail)
+	slider.add_theme_stylebox_override("grabber_area_highlight", active_rail)
+	slider.add_theme_icon_override("grabber", THUMB)
+	slider.add_theme_icon_override("grabber_highlight", THUMB)
 	slider.value_changed.connect(func(value: float):
 		update.call(value)
 		UiScale.save_settings()
