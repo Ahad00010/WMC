@@ -42,6 +42,11 @@ func _run() -> void:
 		push_error("Winner card was not shown after playback")
 		quit(1)
 		return
+	if game._ambience:
+		game._ambience.stop()
+	if game._engine_audio:
+		game._engine_audio.stop()
+	await create_timer(0.15).timeout
 	game.queue_free()
 	await process_frame
 	quit(0)
