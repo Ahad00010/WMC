@@ -17,7 +17,9 @@ func _run() -> void:
 	await create_timer(3.0).timeout
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-race.png")
-	var frames: Array = game._footage.finish()
+	game._player.laps_completed = game.race_laps
+	game._finish_completed_riders()
+	var frames: Array = game._winner_frames
 	if frames.size() < 3:
 		push_error("Real world capture failed: %d frames" % frames.size())
 		quit(1)
@@ -31,7 +33,12 @@ func _run() -> void:
 		push_error("Rider is behind the follow camera")
 		quit(1)
 		return
-	game._finish_screen.begin(frames, "A. MARTIN")
+	game._finish_delay = 0.01
+	game._physics_process(0.02)
+	if not game._finish_screen.visible:
+		push_error("Finish did not start the winner playback flow")
+		quit(1)
+		return
 	await create_timer(0.5).timeout
 	if game._finish_screen._screen.texture == null:
 		push_error("Captured footage did not appear in playback")
