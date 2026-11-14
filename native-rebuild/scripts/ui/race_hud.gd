@@ -15,6 +15,7 @@ var _notice_label: Label
 var _pause_button: Button
 var tower: WmcRaceTower
 var map: WmcRaceMap
+var lights: WmcStartLights
 var _notice_timer := 0.0
 
 
@@ -52,6 +53,10 @@ func _ready() -> void:
 	map = WmcRaceMap.new()
 	map.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(map)
+	lights = WmcStartLights.new()
+	lights.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lights.visible = false
+	add_child(lights)
 	touch_controls = WmcTouchControls.new()
 	add_child(touch_controls)
 	resized.connect(_layout)
@@ -104,6 +109,8 @@ func _layout() -> void:
 
 	_pause_button.position = Vector2(viewport_size.x - margin - 62, margin + 85 * unit)
 	_pause_button.size = Vector2(62, 52)
+	lights.size = Vector2(220 * unit, 64 * unit)
+	lights.position = Vector2((viewport_size.x - lights.size.x) * 0.5, margin)
 	tower.position = Vector2(margin, margin + timing_height + 10 * unit)
 	tower.size = Vector2(155 * unit, minf(shortest_side * 0.46, 330 * unit))
 	map.position = Vector2(viewport_size.x - margin - 180 * unit, margin + 145 * unit)

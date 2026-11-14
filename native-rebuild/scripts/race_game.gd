@@ -63,7 +63,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if countdown > 0.0:
 		countdown = maxf(0.0, countdown - delta)
-		_hud.set_notice("START IN %d" % ceili(countdown) if countdown > 0.0 else "GO!")
+		_hud.lights.update_time(countdown)
+		_hud.set_notice("" if countdown > 0.0 else "GO!")
 		return
 	var stable_delta := minf(delta, 1.0 / 30.0) * speed_factor
 	if not _player.finished:
@@ -174,6 +175,7 @@ func _create_menu() -> void:
 		_hud.visible = true
 		_race_running = true
 		countdown = 3.0
+		_hud.lights.update_time(countdown)
 		_start_capture()
 		_fade_music(_ambience, false)
 	)
