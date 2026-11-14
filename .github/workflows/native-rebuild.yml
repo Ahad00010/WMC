@@ -49,6 +49,11 @@ jobs:
             echo "::error::Render test log base64 $(head -100 /tmp/render.log | base64 -w0)"
             exit 1
           fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-rebuild-race-screenshot
+          path: /tmp/wmc-rebuild-race.png
+          if-no-files-found: error
   export-windows:
     needs: validate
     runs-on: ubuntu-latest

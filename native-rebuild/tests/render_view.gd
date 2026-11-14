@@ -15,6 +15,8 @@ func _run() -> void:
 	# Smaller test viewport keeps software renderer smoke time practical.
 	game._footage.view.size = Vector2i(640, 360)
 	await create_timer(3.0).timeout
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-race.png")
 	var frames: Array = game._footage.finish()
 	if frames.size() < 3:
 		push_error("Real world capture failed: %d frames" % frames.size())
