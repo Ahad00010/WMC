@@ -43,8 +43,8 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb libgl1-mesa-dri
-          if ! timeout 90s xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 godot --rendering-method gl_compatibility --path native-rebuild --script res://tests/render_view.gd --audio-driver Dummy > /tmp/render.log 2>&1; then
-            echo "::error::Render test log base64 $(head -100 /tmp/render.log | base64 -w0)"
+          if ! timeout 90s xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 godot --verbose --rendering-method gl_compatibility --path native-rebuild --script res://tests/render_view.gd --audio-driver Dummy > /tmp/render.log 2>&1; then
+            echo "::error::Render test log base64 $(tail -100 /tmp/render.log | base64 -w0)"
             exit 1
           fi
           cat /tmp/render.log
@@ -53,7 +53,7 @@ jobs:
             echo "::notice::${view} preview base64 $(base64 -w0 /tmp/wmc-preview-${view}.jpg)"
           done
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|ERROR:' /tmp/render.log; then
-            echo "::error::Render test log base64 $(head -100 /tmp/render.log | base64 -w0)"
+            echo "::error::Render test log base64 $(tail -100 /tmp/render.log | base64 -w0)"
             exit 1
           fi
       - uses: actions/upload-artifact@v4
