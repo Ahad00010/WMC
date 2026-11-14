@@ -48,6 +48,7 @@ jobs:
             exit 1
           fi
           cat /tmp/render.log
+          echo "::notice::Race preview base64 $(base64 -w0 /tmp/wmc-rebuild-preview.jpg)"
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|ERROR:' /tmp/render.log; then
             echo "::error::Render test log base64 $(head -100 /tmp/render.log | base64 -w0)"
             exit 1

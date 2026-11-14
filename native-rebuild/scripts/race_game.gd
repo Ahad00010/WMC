@@ -358,6 +358,12 @@ func _toggle_pause() -> void:
 	paused = not paused
 	_race_running = not paused
 	_pause_menu.visible = paused
+	if paused:
+		_pause_menu.modulate.a = 0.0
+		var fade := create_tween()
+		fade.tween_property(_pause_menu, "modulate:a", 1.0, 0.2).set_trans(Tween.TRANS_SINE)
+	else:
+		_pause_menu.modulate.a = 1.0
 	_hud.touch_controls.clear()
 	if paused:
 		_hud.set_notice("PAUSED  •  ESC TO RESUME")
@@ -571,6 +577,7 @@ func _spawn_riders() -> void:
 		rider.name = "AiRider%02d" % (index + 1)
 		_riders_root.add_child(rider)
 		rider.configure(circuit, index + 2, "ai-%02d" % (index + 1), AI_NAMES[index], false, AI_COLOURS[index])
+		rider.set_number(index + 11)
 		_riders.append(rider)
 		_brains[rider.rider_id] = WmcAiRider.new(20261114 + index * 31)
 
