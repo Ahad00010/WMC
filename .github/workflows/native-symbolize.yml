@@ -29,7 +29,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq binutils-mingw-w64-x86-64
           diff /tmp/symbols/BUILD-SHA256.txt /tmp/binary/BUILD-SHA256.txt
-          cd /tmp/binary && sha256sum -c BUILD-SHA256.txt
+          test "$(sha256sum /tmp/binary/WMC.exe | cut -d' ' -f1)" = "$(cut -d' ' -f1 /tmp/binary/BUILD-SHA256.txt)"
           python3 - <<'PY' > /tmp/trace.txt
           import struct, subprocess
           from pathlib import Path
