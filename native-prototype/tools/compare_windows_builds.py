@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Compare PE sections and PCK directory hashes from two Godot 4 builds."""
 import hashlib
+import difflib
+from collections import Counter
 import struct
 import sys
 from pathlib import Path
@@ -57,7 +59,10 @@ def pck_directory(path, offset):
         version, major, minor, patch, flags = struct.unpack("<IIIII", f.read(20))
         if version != 2 or flags & 1:
             raise ValueError(f"unsupported or encrypted pack version={version} flags={flags}")
-        f.read(8 + 16 * 4)
+        file_base = struct.unpack("<Q", f.read(8))[0]
+        f.read(16 * 4)
+        if flags & 2:
+            file_base += offset
         count = struct.unpack("<I", f.read(4))[0]
         if count > 100000:
             raise ValueError(f"invalid file count {count}")
@@ -70,7 +75,7 @@ def pck_directory(path, offset):
             offset_file, size = struct.unpack("<QQ", f.read(16))
             digest = f.read(16).hex()
             file_flags = struct.unpack("<I", f.read(4))[0]
-            files[name] = (size, digest, file_flags)
+            files[name] = (size, digest, file_flags, file_base + offset_file)
         return (version, major, minor, patch, flags), files
 
 
@@ -94,7 +99,26 @@ def main():
     print("Diagnostic pack header:", meta_b, "file count:", len(files_b))
     added = sorted(files_b.keys() - files_a.keys())
     removed = sorted(files_a.keys() - files_b.keys())
-    changed = sorted(k for k in files_a.keys() & files_b.keys() if files_a[k] != files_b[k])
+    changed = sorted(k for k in files_a.keys() & files_b.keys() if files_a[k][:3] != files_b[k][:3])
+    print("Changed by type:", dict(Counter(".import" if k.endswith(".import") else Path(k).suffix for k in changed)))
+    for group, ending in (("compiled texture", ".ctex"), ("script", ".gd"), ("script bytecode", ".gdc")):
+        members = [k for k in files_a.keys() & files_b.keys() if k.endswith(ending)]
+        different = [k for k in members if files_a[k][:3] != files_b[k][:3]]
+        print(f"{group}: total={len(members)} changed={len(different)}")
+    for name in ("assets/asphalt.png.import", "assets/bike-mobile.glb.import", "assets/bike-mobile_0.jpg.import"):
+        if name not in changed:
+            continue
+        texts = []
+        for path, entry in ((official, files_a[name]), (standalone, files_b[name])):
+            with path.open("rb") as f:
+                f.seek(entry[3])
+                content = f.read(entry[0])
+            if hashlib.md5(content).hexdigest() != entry[1]:
+                raise ValueError(f"failed to read packed data for {name}")
+            texts.append(content.decode("utf-8").splitlines())
+        print("Import metadata diff for", name)
+        for line in difflib.unified_diff(*texts, fromfile="official", tofile="diagnostic", lineterm=""):
+            print(line)
     print("Only diagnostic:", len(added))
     for name in added:
         print(" +", name)
@@ -103,7 +127,7 @@ def main():
         print(" -", name)
     print("Different size/hash/flags:", len(changed))
     for name in changed:
-        print(" *", name, files_a[name], files_b[name])
+        print(" *", name, files_a[name][:3], files_b[name][:3])
     print("Identical file entries:", len(files_a.keys() & files_b.keys()) - len(changed))
 
 

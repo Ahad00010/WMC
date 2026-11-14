@@ -28,7 +28,8 @@ jobs:
         run: |
           set -o pipefail
           python3 native-prototype/tools/compare_windows_builds.py /tmp/official/WMC.exe /tmp/diagnostic/WMC.exe /tmp/diagnostic/WMC.pck | tee /tmp/comparison.txt
-          echo "::notice::COMPARISON BASE64 $(base64 -w0 /tmp/comparison.txt)"
+          sed '/Only diagnostic:/,$d' /tmp/comparison.txt > /tmp/summary.txt
+          echo "::notice::COMPARISON BASE64 $(base64 -w0 /tmp/summary.txt)"
       - uses: actions/upload-artifact@v4
         with:
           name: Windows-build-comparison
