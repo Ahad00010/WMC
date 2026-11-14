@@ -1,0 +1,78 @@
+name: Compare Windows renderers with identical assets
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths: ['.github/workflows/native-render-comparison.yml', 'native-prototype/tools/render_windows_comparison.gd']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  render-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get pre-diagnostic executable
+        uses: actions/download-artifact@v4
+        with:
+          name: WMC-Windows
+          run-id: 43554094911
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/official
+      - name: Get diagnostic executable
+        uses: actions/download-artifact@v4
+        with:
+          name: WMC-Windows-symbolized-diagnostic
+          run-id: 43554812651
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/diagnostic
+      - name: Prepare software renderer and one shared resource pack
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wine64 xvfb libgl1-mesa-dri python3-pil
+          mkdir -p /tmp/wmc-ab/project /tmp/godot-ab
+          git archive a4b68bd native-prototype | tar -x -C /tmp/wmc-ab/project
+          cp native-prototype/tools/render_windows_comparison.gd /tmp/wmc-ab/project/native-prototype/render_windows_comparison.gd
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -O /tmp/godot-ab.zip
+          unzip -q /tmp/godot-ab.zip -d /tmp/godot-ab
+          godot=/tmp/godot-ab/Godot_v4.4.1-stable_linux.x86_64
+          "$godot" --headless --editor --path /tmp/wmc-ab/project/native-prototype --import
+          "$godot" --headless --path /tmp/wmc-ab/project/native-prototype --export-pack Windows /tmp/wmc-ab/shared.pck
+      - name: Render identical static scene with both Windows engines
+        run: |
+          set -euxo pipefail
+          export WINEDEBUG=-all LIBGL_ALWAYS_SOFTWARE=1 WINEPREFIX=/tmp/wmc-ab/wine
+          xvfb-run -a -s '-screen 0 1440x900x24' bash -c '
+            set -euxo pipefail
+            WMC_AB_NAME=official timeout 120s wine /tmp/official/WMC.exe --main-pack Z:/tmp/wmc-ab/shared.pck --script res://render_windows_comparison.gd --audio-driver Dummy > /tmp/wmc-ab/official.log 2>&1
+            WMC_AB_NAME=custom timeout 120s wine /tmp/diagnostic/WMC.exe --main-pack Z:/tmp/wmc-ab/shared.pck --script res://render_windows_comparison.gd --audio-driver Dummy > /tmp/wmc-ab/custom.log 2>&1
+          '
+          python3 - <<'PY' | tee /tmp/wmc-ab/summary.txt
+          from PIL import Image, ImageChops, ImageStat
+          a = Image.open('/tmp/wmc-ab/official.png').convert('RGB')
+          b = Image.open('/tmp/wmc-ab/custom.png').convert('RGB')
+          print('Official:', a.size, 'Custom:', b.size)
+          if a.size != b.size:
+              raise SystemExit('Images have different dimensions')
+          diff = ImageChops.difference(a, b)
+          print('Mean absolute RGB difference:', ImageStat.Stat(diff).mean)
+          print('Different pixel bounding box:', diff.getbbox())
+          print('Test environment: Wine + Mesa software renderer, not Intel Windows ANGLE.')
+          PY
+          echo "::notice::RENDER COMPARISON BASE64 $(base64 -w0 /tmp/wmc-ab/summary.txt)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Windows-render-comparison
+          path: |
+            /tmp/wmc-ab/official.png
+            /tmp/wmc-ab/custom.png
+            /tmp/wmc-ab/official.log
+            /tmp/wmc-ab/custom.log
+            /tmp/wmc-ab/summary.txt
+          if-no-files-found: warn
+          retention-days: 7
