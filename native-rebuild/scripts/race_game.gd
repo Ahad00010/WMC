@@ -463,7 +463,7 @@ func _add_scenery() -> void:
 	for index in range(0, circuit.size(), 22):
 		for side in [-1.0, 1.0]:
 			var offset := circuit.wall_edge(index) + 22.0 + float(index % 4) * 4.0
-			var tree_pos := circuit.samples[index] + circuit.lefts[index] * side * offset + Vector3.UP * 4.5
+			var tree_pos: Vector3 = circuit.samples[index] + circuit.lefts[index] * side * offset + Vector3.UP * 4.5
 			instances.set_instance_transform(n, Transform3D(Basis.IDENTITY, tree_pos))
 			n += 1
 	var trees := MultiMeshInstance3D.new()
