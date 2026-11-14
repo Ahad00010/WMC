@@ -22,7 +22,6 @@ var _rows: Array[Dictionary] = []
 var _signature := ""
 var _circuit_name := ""
 var _circuit_tag := ""
-var _last_draw_time := 0.0
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -102,7 +101,6 @@ func begin(circuit_name: String = "", tag: String = "") -> void:
 	_circuit_name = circuit_name
 	_circuit_tag = tag
 	_elapsed = 0.0
-	_last_draw_time = 0.0
 	_rows.clear()
 	_signature = ""
 	visible = true
@@ -124,10 +122,8 @@ func advance(delta: float) -> void:
 		_rider_figure.rotation.y = 0.08 * sin(_elapsed * 0.45)
 		_rider_figure.rotation.z = 0.015 * sin(_elapsed * 0.8)
 		_rider_figure.position.y = 0.008 * sin(_elapsed * 1.3)
-	# Animate in sync with the display without throttling to 30 Hz.
-	if _elapsed - _last_draw_time >= 1.0 / 60.0:
-		_last_draw_time = _elapsed
-		queue_redraw()
+	# Redraw each simulation tick; a time threshold can accidentally halve FPS.
+	queue_redraw()
 
 func update_results(riders: Array[WmcRaceBike]) -> void:
 	if not visible:
