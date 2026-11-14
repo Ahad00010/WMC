@@ -13,6 +13,9 @@ var _position_label: Label
 var _track_label: Label
 var _notice_label: Label
 var _pause_button: Button
+var tower: WmcRaceTower
+var map: WmcRaceMap
+var _notice_timer := 0.0
 
 
 func _ready() -> void:
@@ -43,6 +46,12 @@ func _ready() -> void:
 	_pause_button.focus_mode = Control.FOCUS_NONE
 	_pause_button.pressed.connect(func(): pause_requested.emit())
 	add_child(_pause_button)
+	tower = WmcRaceTower.new()
+	tower.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(tower)
+	map = WmcRaceMap.new()
+	map.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(map)
 	touch_controls = WmcTouchControls.new()
 	add_child(touch_controls)
 	resized.connect(_layout)
@@ -61,7 +70,14 @@ func set_race_state(circuit: WmcCircuit, current_lap: int, total_laps: int, spee
 func set_notice(message: String) -> void:
 	if _notice_label:
 		_notice_label.text = message
+		_notice_label.modulate.a = 1.0
+		_notice_timer = 1.5 if message == "GO!" or message == "RESUMED" else 0.0
 
+
+func _process(delta: float) -> void:
+	if _notice_timer > 0.0:
+		_notice_timer = maxf(0.0, _notice_timer - delta)
+		_notice_label.modulate.a = minf(1.0, _notice_timer * 2.0)
 
 func refresh_scale() -> void:
 	_layout()
@@ -88,6 +104,10 @@ func _layout() -> void:
 
 	_pause_button.position = Vector2(viewport_size.x - margin - 62, margin + 85 * unit)
 	_pause_button.size = Vector2(62, 52)
+	tower.position = Vector2(margin, margin + timing_height + 10 * unit)
+	tower.size = Vector2(155 * unit, minf(shortest_side * 0.46, 330 * unit))
+	map.position = Vector2(viewport_size.x - margin - 180 * unit, margin + 145 * unit)
+	map.size = Vector2(180 * unit, 115 * unit)
 	var track_width := clampf(viewport_size.x * 0.42, 300.0 * unit, 680.0 * unit)
 	var track_height := clampf(shortest_side * 0.070, 42.0 * unit, 78.0 * unit)
 	_track_panel.position = Vector2(viewport_size.x - margin - track_width, margin)

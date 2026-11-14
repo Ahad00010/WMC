@@ -21,7 +21,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 native-rebuild/tests/validate_project.py
-          timeout 180s godot --headless --editor --path native-rebuild --import 2>&1 | tee /tmp/import.log
+          if ! timeout 150s godot --headless --editor --path native-rebuild --import > /tmp/import.log 2>&1; then
+            echo "::error::Import log base64 $(tail -100 /tmp/import.log | base64 -w0)"
+            exit 1
+          fi
+          cat /tmp/import.log
           if ! timeout 45s godot --headless --path native-rebuild --script res://tests/race_view.gd > /tmp/test.log 2>&1; then
             echo "::error::Runtime test log base64 $(tail -100 /tmp/test.log | base64 -w0)"
             exit 1

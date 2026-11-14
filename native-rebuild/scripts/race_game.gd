@@ -34,6 +34,7 @@ var _winner_frames: Array = []
 var _winner_name := ""
 var _finish_delay := -1.0
 var _finish_screen: WmcFinishScreen
+var _pause_menu: WmcPauseMenu
 var _race_time_seconds := 0.0
 var _ambience: AudioStreamPlayer
 var _menu: WmcMainMenu
@@ -49,6 +50,7 @@ func _ready() -> void:
 	_hud.visible = false
 	_create_menu()
 	_create_finish_screen()
+	_create_pause_menu()
 
 
 func _physics_process(delta: float) -> void:
@@ -172,19 +174,30 @@ func _create_menu() -> void:
 	_menu.audio_changed.connect(_update_audio)
 
 
+func _create_pause_menu() -> void:
+	_pause_menu = WmcPauseMenu.new()
+	$RaceInterface.add_child(_pause_menu)
+	_pause_menu.resume_requested.connect(_toggle_pause)
+	_pause_menu.main_menu_requested.connect(_go_home)
+
+func _go_home() -> void:
+	_race_running = false
+	paused = false
+	_pause_menu.visible = false
+	_finish_screen.close()
+	_hud.touch_controls.clear()
+	_hud.visible = false
+	if _footage:
+		_footage.queue_free()
+		_footage = null
+	_winner_frames.clear()
+	_menu.visible = true
+	_menu._show_page("home")
+
 func _create_finish_screen() -> void:
 	_finish_screen = WmcFinishScreen.new()
 	$RaceInterface.add_child(_finish_screen)
-	_finish_screen.main_menu_requested.connect(func():
-		_finish_screen.close()
-		_winner_frames.clear()
-		if _footage:
-			_footage.queue_free()
-			_footage = null
-		_menu.visible = true
-		_menu._show_page("home")
-		_hud.visible = false
-	)
+	_finish_screen.main_menu_requested.connect(_go_home)
 
 func _start_capture() -> void:
 	if _footage:
@@ -215,6 +228,7 @@ func _update_audio() -> void:
 func _toggle_pause() -> void:
 	paused = not paused
 	_race_running = not paused
+	_pause_menu.visible = paused
 	_hud.touch_controls.clear()
 	if paused:
 		_hud.set_notice("PAUSED  •  ESC TO RESUME")
@@ -238,6 +252,7 @@ func _load_circuit(circuit_id: String) -> void:
 	_build_track()
 	_spawn_riders()
 	_hud.touch_controls.clear()
+	_hud.map.set_circuit(circuit)
 	_hud.set_notice("PRACTICE RACE  •  %s  •  F1–F6 SWITCH CIRCUIT" % circuit.hashtag)
 	_update_camera(1.0)
 
@@ -462,3 +477,9 @@ func _update_hud() -> void:
 	var race_position := ordered.find(_player) + 1
 	var shown_lap := mini(race_laps, _player.laps_completed + 1)
 	_hud.set_race_state(circuit, shown_lap, race_laps, _player.speed_metres_per_second, race_position, _riders.size(), _race_time_seconds)
+	_hud.tower.update_order(_riders, shown_lap, race_laps)
+	_hud.map.update_riders(_riders)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _hud and _hud.touch_controls:
+		_hud.touch_controls.clear()
