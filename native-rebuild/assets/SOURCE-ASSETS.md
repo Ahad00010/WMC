@@ -9,6 +9,7 @@ The new Godot project uses copies of the supplied repository assets so it can be
 | `audio/menu-theme.mp3` | `/jimgor33-loading-main-menu-145077.mp3` | Main-menu music |
 | `audio/results-theme.mp3` | `/MotoGP 2025 Session Summary Theme Music.mp3` | Results and winner music |
 | `fonts/MGPDisplay-Bold.otf` | `/assets/results/mgp/MGPDisplay-Bold.otf` | Menu, race HUD and results display type |
+| `fonts/MGPInline-Regular.otf` | `/assets/results/mgp/MGPInline-Regular.otf` | Winner typography |
 | `fonts/MGPText-Bold.ttf` | `/assets/results/mgp/MGPText-Bold.ttf` | Race HUD and control type |
 | `graphics/*.png` | `/assets/results/*.png` | Reference logos for future results polish |
 | `scripts/circuit_data.gd` | `/index.html` and `/circuits.js` | Native port of Sepang, Silverstone, Assen, Brno, Monza, and Jerez centre lines |

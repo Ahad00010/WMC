@@ -132,11 +132,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq wine64 xvfb libgl1-mesa-dri
           export WINEDEBUG=-all LIBGL_ALWAYS_SOFTWARE=1 WINEPREFIX="$HOME/.wmc-rebuild-wine"
-          if ! timeout 120s xvfb-run -a wine "$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.exe" --main-pack "Z:$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.pck" --script res://tests/race_view.gd --audio-driver Dummy > /tmp/windows.log 2>&1; then
+          if ! timeout 120s xvfb-run -a wine "$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.exe" --main-pack "Z:$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.pck" --script res://tests/windows_render.gd --audio-driver Dummy > /tmp/windows.log 2>&1; then
             echo "::error::Windows test base64 $(head -60 /tmp/windows.log | base64 -w0)"
             exit 1
           fi
-          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|CrashHandlerException|Assertion failed' /tmp/windows.log; then
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|CrashHandlerException|Assertion failed|ERROR:' /tmp/windows.log; then
             echo "::error::Windows test base64 $(head -60 /tmp/windows.log | base64 -w0)"
             exit 1
           fi

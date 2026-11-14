@@ -23,6 +23,8 @@ func _run() -> void:
 	game._player.laps_completed = game.race_laps
 	game._finish_completed_riders()
 	var frames: Array = game._winner_frames
+	game._finish_delay = game._summary.TOTAL_DURATION
+	game._physics_process(0.01)
 	game._summary.advance(3.0)
 	await process_frame
 	await RenderingServer.frame_post_draw
@@ -33,6 +35,17 @@ func _run() -> void:
 	_save_preview("championship")
 	if frames.size() < 3:
 		push_error("Real world capture failed: %d frames" % frames.size())
+		quit(1)
+		return
+	var previous_time := -1.0
+	for frame in frames:
+		if float(frame.time) <= previous_time or frame.jpeg.is_empty():
+			push_error("Captured frames are not ordered or are empty")
+			quit(1)
+			return
+		previous_time = float(frame.time)
+	if float(frames[-1].time) - float(frames[0].time) > 7.05:
+		push_error("Replay ring exceeded its seven-second window")
 		quit(1)
 		return
 	var image := Image.new()

@@ -1,11 +1,12 @@
 class_name WmcRaceSummary
 extends Control
+signal main_menu_requested
 
 # Practice never records championship points. The separate standings page is
 # explicit about that instead of inventing a championship leader.
 const TEXT = preload("res://assets/fonts/MGPText-Bold.ttf")
 const DISPLAY = preload("res://assets/fonts/MGPDisplay-Bold.otf")
-const INLINE = preload("res://assets/fonts/MGPDisplay-Bold.otf")
+const INLINE = preload("res://assets/fonts/MGPInline-Regular.otf")
 const RIDER = preload("res://assets/models/marc-rider.glb")
 const TISSOT = preload("res://assets/graphics/tissot-reference.png")
 const FIM = preload("res://assets/graphics/fim-reference.png")
@@ -15,6 +16,7 @@ const TOTAL_DURATION := RESULTS_DURATION + CHAMPIONSHIP_DURATION
 const POINTS := [25, 20, 16, 13, 11, 10, 9, 8, 7, 6]
 const REFERENCE := Vector2(1280, 720)
 
+var _menu_button: Button
 var _rider_view: SubViewport
 var _rider_figure: Node3D
 var _elapsed := 0.0
@@ -29,6 +31,19 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	_make_rider_scene()
+	_menu_button = Button.new()
+	_menu_button.text = "MAIN MENU"
+	_menu_button.focus_mode = Control.FOCUS_NONE
+	_menu_button.add_theme_font_override("font", TEXT)
+	_menu_button.add_theme_font_size_override("font_size", 16)
+	add_child(_menu_button)
+	_menu_button.anchor_left = 1.0
+	_menu_button.anchor_right = 1.0
+	_menu_button.offset_left = -190
+	_menu_button.offset_right = -24
+	_menu_button.offset_top = 20
+	_menu_button.offset_bottom = 72
+	_menu_button.pressed.connect(func(): main_menu_requested.emit())
 	resized.connect(queue_redraw)
 
 func _make_rider_scene() -> void:

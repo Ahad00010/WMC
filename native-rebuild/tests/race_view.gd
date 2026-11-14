@@ -19,6 +19,19 @@ func _run() -> void:
 	await process_frame
 	assert(game._race_running and game._hud.visible and game.circuit.id == "assen")
 	assert(game._riders.size() == 10)
+	# Player and AI must reference the same immutable imported bike meshes and
+	# textures, rather than creating a separate GPU copy for every AI rider.
+	var player_model: Node = game._player.get_node("VisualPivot/DucatiBike")
+	var ai_model: Node = game._riders[1].get_node("VisualPivot/DucatiBike")
+	var player_meshes := player_model.find_children("*", "MeshInstance3D", true, false)
+	var ai_meshes := ai_model.find_children("*", "MeshInstance3D", true, false)
+	assert(not player_meshes.is_empty() and player_meshes.size() == ai_meshes.size())
+	for i in player_meshes.size():
+		var player_mesh: MeshInstance3D = player_meshes[i]
+		var ai_mesh: MeshInstance3D = ai_meshes[i]
+		assert(player_mesh.mesh == ai_mesh.mesh, "AI duplicated bike mesh resources")
+		for surface in player_mesh.mesh.get_surface_count():
+			assert(player_mesh.get_active_material(surface) == ai_mesh.get_active_material(surface), "AI duplicated bike material resources")
 	assert(game.race_laps == 2 and game.countdown > 0.0)
 	game._toggle_pause()
 	assert(game.paused and game._pause_menu.visible and not game._race_running)
@@ -28,6 +41,27 @@ func _run() -> void:
 	assert(game._pause_menu.visible and not game._menu.visible)
 	game._toggle_pause()
 	assert(game._race_running and not game.paused)
+	# Exercise two independently held touch indices and a drag-out release.
+	var controls: WmcTouchControls = game._hud.touch_controls
+	controls.visible = true
+	controls.size = Vector2(1280, 720)
+	controls._recalculate_layout()
+	var steer := InputEventScreenTouch.new()
+	steer.index = 7
+	steer.pressed = true
+	steer.position = controls._left_rect.get_center()
+	controls._input(steer)
+	var throttle := InputEventScreenTouch.new()
+	throttle.index = 8
+	throttle.pressed = true
+	throttle.position = controls._throttle_rect.get_center()
+	controls._input(throttle)
+	assert(controls.command() == Vector3(1, 0, -1), "Steering and throttle must work together")
+	steer.pressed = false
+	controls._input(steer)
+	assert(controls.command() == Vector3(1, 0, 0), "Releasing steering must not release throttle")
+	controls.clear()
+	controls.visible = false
 	game.countdown = 0.0
 	var start_time: float = game._race_time_seconds
 	game._player.drive(Vector3(0.0, 1.0, 0.0), 0.1)
@@ -37,7 +71,10 @@ func _run() -> void:
 	game._player.laps_completed = game.race_laps
 	game._finish_completed_riders()
 	assert(game._player.finished and game._winner_name == game._player.display_name)
-	assert(game._summary.visible and game._race_running, "Finish order must show while the player can still cruise")
+	assert(not game._summary.visible and game._race_running, "Player must be able to see and cruise after finishing")
+	game._finish_delay = game._summary.TOTAL_DURATION
+	game._physics_process(0.01)
+	assert(game._summary.visible and game._race_running, "Finish order must show after the cruising period")
 	assert(game._summary._rider_view.size == Vector2i(500, 813), "Results rider reference framing changed")
 	assert(game._winner_number == game._player.racing_number)
 	game._summary.advance(game._summary.RESULTS_DURATION + 0.5)
@@ -51,6 +88,17 @@ func _run() -> void:
 		assert(card.position.x >= 0 and card.position.y >= 0)
 		assert((card.position + card.size * card.scale).x <= dimensions.x + 1)
 		assert((card.position + card.size * card.scale).y <= dimensions.y + 1)
+		game._finish_screen.size = dimensions
+		game._finish_screen._card_intro = 1.0
+		game._finish_screen._fit()
+		var winner: Control = game._finish_screen._card
+		assert(winner.position.x >= 0 and winner.position.y >= 0)
+		assert((winner.position + winner.size * winner.scale).x <= dimensions.x + 1)
+		assert((winner.position + winner.size * winner.scale).y <= dimensions.y + 1)
+	game._summary.main_menu_requested.emit()
+	assert(game._summary._menu_button.disabled, "Early exit must prevent duplicate presses")
+	await create_timer(0.7).timeout
+	assert(game._menu.visible and not game._race_running and not game._summary.visible, "Early exit did not return to the menu")
 	if game._ambience:
 		game._ambience.stop()
 	if game._engine_audio:

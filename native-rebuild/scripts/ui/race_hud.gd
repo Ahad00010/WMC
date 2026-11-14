@@ -77,7 +77,7 @@ func set_notice(message: String) -> void:
 	if _notice_label:
 		_notice_label.text = message
 		_notice_label.modulate.a = 1.0
-		_notice_timer = 1.5 if message == "GO!" or message == "RESUMED" else 0.0
+		_notice_timer = 1.5 if message == "GO!" or message == "RESUMED" or message == "FINISH" else 0.0
 
 
 func _process(delta: float) -> void:

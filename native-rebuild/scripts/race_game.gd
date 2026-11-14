@@ -32,7 +32,9 @@ var _footage: WmcFootageCapture
 var _winner_frames: Array = []
 var _winner_name := ""
 var _winner_number := 10
+const FINISH_CRUISE_SECONDS := 8.0
 var _finish_delay := -1.0
+var _summary_started := false
 var _finish_screen: WmcFinishScreen
 var _pause_menu: WmcPauseMenu
 var _summary: WmcRaceSummary
@@ -103,12 +105,16 @@ func _physics_process(delta: float) -> void:
 		_footage.capture(delta, Time.get_ticks_msec() / 1000.0, leader, leader.heading)
 	if _finish_delay >= 0.0:
 		_finish_delay -= delta
+		if not _summary_started and _finish_delay <= WmcRaceSummary.TOTAL_DURATION:
+			_summary_started = true
+			_summary.begin(circuit.display_name, circuit.hashtag)
+			_summary.update_results(_riders)
+			_fade_music(_results_audio, true)
 		if _finish_delay < 0.0:
 			_race_running = false
 			_hud.visible = false
 			_summary.close()
 			_finish_screen.begin(_winner_frames, _winner_name, _winner_number)
-			_fade_music(_results_audio, true)
 	_update_camera(stable_delta)
 	_update_hud()
 	_summary.update_results(_riders)
@@ -247,6 +253,7 @@ func _create_profile() -> void:
 func _create_summary() -> void:
 	_summary = WmcRaceSummary.new()
 	$RaceInterface.add_child(_summary)
+	_summary.main_menu_requested.connect(_leave_results)
 
 func _create_pause_menu() -> void:
 	_pause_menu = WmcPauseMenu.new()
@@ -268,10 +275,12 @@ func _create_pause_menu() -> void:
 func _leave_results() -> void:
 	_finish_screen._menu.disabled = true
 	_finish_screen._early_menu.disabled = true
+	_summary._menu_button.disabled = true
 	_fade_music(_results_audio, false)
 	await get_tree().create_timer(0.5).timeout
 	_finish_screen._menu.disabled = false
 	_finish_screen._early_menu.disabled = false
+	_summary._menu_button.disabled = false
 	_go_home()
 
 func _go_home() -> void:
@@ -306,6 +315,7 @@ func _start_capture() -> void:
 	_winner_name = ""
 	_winner_number = 10
 	_finish_delay = -1.0
+	_summary_started = false
 
 
 func _create_ambience() -> void:
@@ -637,9 +647,8 @@ func _finish_completed_riders() -> void:
 					_winner_frames = _footage.finish()
 			if rider == _player:
 				_hud.set_notice("FINISH")
-				_summary.begin(circuit.display_name, circuit.hashtag)
-				_summary.update_results(_riders)
-				_finish_delay = WmcRaceSummary.TOTAL_DURATION
+				_summary_started = false
+				_finish_delay = FINISH_CRUISE_SECONDS + WmcRaceSummary.TOTAL_DURATION
 
 
 func _update_camera(delta: float) -> void:
