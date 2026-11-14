@@ -148,7 +148,7 @@ func _make_label(font: Font, font_size: int, alignment: HorizontalAlignment) -> 
 
 
 func _format_time(seconds: float) -> String:
-	var milliseconds := max(0, roundi(seconds * 1000.0))
+	var milliseconds := maxi(0, roundi(seconds * 1000.0))
 	var minutes := milliseconds / 60000
 	var remainder_seconds := (milliseconds / 1000) % 60
 	return "%d:%02d" % [minutes, remainder_seconds]

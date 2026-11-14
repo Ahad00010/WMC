@@ -145,8 +145,8 @@ func _update_progress(previous_index: int) -> void:
 		index_delta += count
 	# Reverse motion can reduce current progress but cannot undo a completed lap.
 	race_progress_samples += float(index_delta)
-	var complete_laps := max(0, floori(race_progress_samples / float(count)))
-	laps_completed = max(laps_completed, complete_laps)
+	var complete_laps := maxi(0, floori(race_progress_samples / float(count)))
+	laps_completed = maxi(laps_completed, complete_laps)
 
 
 func _build_visual(accent: Color) -> void:

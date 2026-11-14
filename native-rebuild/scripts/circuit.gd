@@ -107,7 +107,7 @@ func _build_samples(raw_points: PackedVector2Array) -> void:
 		var start := scaled[point_index]
 		var end := scaled[(point_index + 1) % scaled.size()]
 		var segment_length := start.distance_to(end)
-		var segment_count := max(1, roundi(segment_length / SAMPLE_SPACING_METRES))
+		var segment_count := maxi(1, roundi(segment_length / SAMPLE_SPACING_METRES))
 		for step in segment_count:
 			var point := start.lerp(end, float(step) / float(segment_count))
 			samples.append(Vector3(point.x, 0.0, point.y))
