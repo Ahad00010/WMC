@@ -101,6 +101,7 @@ func _place_on_grid(grid_position: int) -> void:
 	track_index = circuit.wrap_index(circuit.size() - GRID_DISTANCE_SAMPLES - row * 4)
 	global_position = circuit.samples[track_index] + circuit.lefts[track_index] * side * 2.0
 	heading = circuit.heading_at(track_index)
+	rotation.y = heading
 	speed_metres_per_second = 0.0
 	steer_amount = 0.0
 	lean_amount = 0.0

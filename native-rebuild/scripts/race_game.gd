@@ -37,6 +37,8 @@ var _finish_screen: WmcFinishScreen
 var _pause_menu: WmcPauseMenu
 var _race_time_seconds := 0.0
 var _ambience: AudioStreamPlayer
+var _engine_audio: AudioStreamPlayer
+var _engine_phase := 0.0
 var _menu: WmcMainMenu
 var _race_running := false
 
@@ -219,7 +221,28 @@ func _create_ambience() -> void:
 	_update_audio()
 	if _ambience.stream:
 		_ambience.play()
+	_engine_audio = AudioStreamPlayer.new()
+	var generator := AudioStreamGenerator.new()
+	generator.mix_rate = 22050.0
+	generator.buffer_length = 0.12
+	_engine_audio.stream = generator
+	add_child(_engine_audio)
+	_engine_audio.play()
 
+
+func _process(_delta: float) -> void:
+	if not _engine_audio or not _engine_audio.playing:
+		return
+	var playback := _engine_audio.get_stream_playback() as AudioStreamGeneratorPlayback
+	if not playback:
+		return
+	var speed := absf(_player.speed_metres_per_second) if _player else 0.0
+	var frequency := 48.0 + minf(150.0, speed * 2.4)
+	var gain := 0.09 * UiScale.master * UiScale.engine if _race_running else 0.0
+	for i in playback.get_frames_available():
+		_engine_phase = fmod(_engine_phase + TAU * frequency / 22050.0, TAU)
+		var sample := (sin(_engine_phase) * 0.65 + sin(_engine_phase * 2.0) * 0.25) * gain
+		playback.push_frame(Vector2(sample, sample))
 
 func _update_audio() -> void:
 	if _ambience:
@@ -276,6 +299,7 @@ func _build_track() -> void:
 	_add_ribbon("LeftRunoff", 3, 0.008, Color("b5a27b"), false)
 	_add_ribbon("RightRunoff", 4, 0.008, Color("b5a27b"), false)
 	_add_barriers()
+	_add_scenery()
 	_add_start_line()
 
 
@@ -363,17 +387,17 @@ func _add_coloured_triangle(surface: SurfaceTool, first: Vector3, second: Vector
 
 func _add_barriers() -> void:
 	var barrier_mesh := BoxMesh.new()
-	barrier_mesh.size = Vector3(0.55, 1.05, 6.0)
+	barrier_mesh.size = Vector3(0.55, 1.05, 5.4)
 	var barrier_material := StandardMaterial3D.new()
 	barrier_material.albedo_color = Color("e2e6e9")
 	barrier_material.roughness = 0.72
-	var instance_count := ceili(float(circuit.size()) / 8.0) * 2
+	var instance_count := circuit.size() * 2
 	var multi_mesh := MultiMesh.new()
 	multi_mesh.transform_format = MultiMesh.TRANSFORM_3D
 	multi_mesh.instance_count = instance_count
 	multi_mesh.mesh = barrier_mesh
 	var instance_index := 0
-	for index in range(0, circuit.size(), 8):
+	for index in circuit.size():
 		for side in [-1.0, 1.0]:
 			var transform := Transform3D(Basis(Vector3.UP, circuit.heading_at(index)), circuit.samples[index] + circuit.lefts[index] * side * circuit.wall_edge(index) + Vector3.UP * 0.53)
 			multi_mesh.set_instance_transform(instance_index, transform)
@@ -383,6 +407,34 @@ func _add_barriers() -> void:
 	barriers.multimesh = multi_mesh
 	barriers.material_override = barrier_material
 	_track_root.add_child(barriers)
+
+
+func _add_scenery() -> void:
+	# Shared low-cost instancing: scenery is outside barriers, not on the road.
+	var tree_mesh := CylinderMesh.new()
+	tree_mesh.top_radius = 0.1
+	tree_mesh.bottom_radius = 3.2
+	tree_mesh.height = 9.0
+	tree_mesh.radial_segments = 6
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color("305532")
+	material.roughness = 1.0
+	var instances := MultiMesh.new()
+	instances.transform_format = MultiMesh.TRANSFORM_3D
+	instances.mesh = tree_mesh
+	instances.instance_count = ceili(float(circuit.size()) / 22.0) * 2
+	var n := 0
+	for index in range(0, circuit.size(), 22):
+		for side in [-1.0, 1.0]:
+			var offset := circuit.wall_edge(index) + 22.0 + float(index % 4) * 4.0
+			var tree_pos := circuit.samples[index] + circuit.lefts[index] * side * offset + Vector3.UP * 4.5
+			instances.set_instance_transform(n, Transform3D(Basis.IDENTITY, tree_pos))
+			n += 1
+	var trees := MultiMeshInstance3D.new()
+	trees.name = "Trees"
+	trees.multimesh = instances
+	trees.material_override = material
+	_track_root.add_child(trees)
 
 
 func _add_start_line() -> void:
