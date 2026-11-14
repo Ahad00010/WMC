@@ -39,15 +39,32 @@ jobs:
         with:
           version: 4.3.0
           include-templates: true
-      - name: Set up JDK and Android SDK
-        uses: actions/setup-java@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Install Android export platform
+      - name: Locate the preinstalled Android SDK
+        shell: bash
         run: |
-          yes | sdkmanager --licenses
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          if [[ ! -d "$sdk_root" ]]; then
+            sdkmanager="$(find /usr/local/lib /opt -type f -name sdkmanager -print -quit)"
+            test -n "$sdkmanager"
+            sdk_root="$(cd "$(dirname "$sdkmanager")/../../.." && pwd)"
+          fi
+          test -d "$sdk_root"
+          sdkmanager="$(find "$sdk_root" -type f -name sdkmanager -print -quit)"
+          test -n "$sdkmanager"
+          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "$(dirname "$sdkmanager")" >> "$GITHUB_PATH"
+      - name: Install Android export platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - name: Configure Godot Android export paths
         shell: bash
