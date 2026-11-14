@@ -1,0 +1,79 @@
+name: Build and verify Windows crash tracing
+on:
+  workflow_dispatch:
+  push:
+    branches: ['arena/**']
+    paths: ['.github/workflows/native-crash-trace.yml', 'native-prototype/tools/patch_crash_trace.py']
+permissions:
+  contents: read
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-mingw-w64-x86-64-posix scons wine64 xvfb
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+      - name: Compile engine with ANGLE and offline crash trace
+        run: |
+          set -euxo pipefail
+          curl -L --retry 3 https://codeload.github.com/godotengine/godot/tar.gz/refs/tags/4.4.1-stable -o /tmp/godot-source.tar.gz
+          mkdir -p /tmp/godot-src /tmp/wmc-angle
+          tar -xf /tmp/godot-source.tar.gz --strip-components=1 -C /tmp/godot-src
+          python3 native-prototype/tools/patch_crash_trace.py /tmp/godot-src
+          wget -q 'https://github.com/godotengine/godot-angle-static/releases/download/chromium/6601.2/godot-angle-static-x86_64-gcc-release.zip' -O /tmp/angle.zip
+          unzip -q /tmp/angle.zip -d /tmp/wmc-angle
+          cd /tmp/godot-src
+          scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes angle_libs=/tmp/wmc-angle -j4
+      - name: Verify a deliberately induced crash yields offline-symbolizable addresses
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/crash-test
+          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe /tmp/crash-test/WMC.exe
+          # No symbols beside the executable: test the small download configuration.
+          set +e
+          WMC_INTERNAL_TEST_CRASH=1 WINEDEBUG=-all WINEPREFIX=/tmp/wmc-wine timeout 90s xvfb-run -a wine /tmp/crash-test/WMC.exe --headless >/tmp/crash-test/output.log 2>&1
+          set -e
+          cat /tmp/crash-test/output.log
+          grep 'WMC_PC module=.*WMC.exe rva=0x' /tmp/crash-test/output.log > /tmp/crash-test/frames.txt
+          python3 - <<'PY'
+          import re, struct, subprocess
+          from pathlib import Path
+          binary = Path('/tmp/crash-test/WMC.exe').read_bytes()
+          pe = struct.unpack_from('<I', binary, 0x3c)[0]
+          image_base = struct.unpack_from('<Q', binary, pe + 24 + 24)[0]
+          frames = Path('/tmp/crash-test/frames.txt').read_text()
+          offsets = re.findall(r'WMC_PC module=.*?WMC\.exe rva=(0x[0-9a-fA-F]+)', frames)
+          addresses = [hex(image_base + int(offset, 16)) for offset in offsets]
+          symbol_file = '/tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe.debugsymbols'
+          result = subprocess.run(['x86_64-w64-mingw32-addr2line', '-f', '-C', '-e', symbol_file, *addresses], text=True, capture_output=True, check=True)
+          print('Resolved frames:\n' + result.stdout)
+          if 'wmc_trace_test_crash' not in result.stdout:
+              raise SystemExit('Failed to resolve known test crash: do not ship an unverified trace build')
+          PY
+      - name: Build resource pack
+        run: |
+          set -euxo pipefail
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -O /tmp/editor.zip
+          unzip -q /tmp/editor.zip -d /tmp/editor
+          GODOT=/tmp/editor/Godot_v4.4.1-stable_linux.x86_64
+          "$GODOT" --headless --editor --path native-prototype --import
+          mkdir -p trace-build symbols
+          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe trace-build/WMC.exe
+          "$GODOT" --headless --path native-prototype --export-pack Windows "$GITHUB_WORKSPACE/trace-build/WMC.pck"
+          cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe.debugsymbols symbols/WMC.exe.debugsymbols
+          sha256sum trace-build/WMC.exe | tee trace-build/BUILD-SHA256.txt symbols/BUILD-SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-Windows-crash-trace
+          path: trace-build/
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-crash-symbols-server-only
+          path: symbols/
+          retention-days: 7
