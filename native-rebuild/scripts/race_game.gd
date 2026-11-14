@@ -633,6 +633,10 @@ func _update_hud() -> void:
 		return
 	var ordered := _riders.duplicate()
 	ordered.sort_custom(func(first: WmcRaceBike, second: WmcRaceBike) -> bool:
+		if first.finished != second.finished:
+			return first.finished
+		if first.finished:
+			return first.finish_time_seconds < second.finish_time_seconds
 		return first.race_progress_samples > second.race_progress_samples
 	)
 	var race_position := ordered.find(_player) + 1
