@@ -38,6 +38,10 @@ func _run() -> void:
 	game._finish_completed_riders()
 	assert(game._player.finished and game._winner_name == game._player.display_name)
 	assert(game._summary.visible and game._race_running, "Finish order must show while the player can still cruise")
+	assert(game._summary._rider_view.size == Vector2i(500, 813), "Results rider reference framing changed")
+	assert(game._winner_number == game._player.racing_number)
+	game._summary.advance(game._summary.RESULTS_DURATION + 0.5)
+	assert(game._summary._elapsed > game._summary.RESULTS_DURATION and game._summary._rider_view.render_target_update_mode == SubViewport.UPDATE_DISABLED, "Championship transition did not switch off rider viewport")
 	game._physics_process(0.01)
 	assert(game._race_time_seconds == start_time, "Finishing must freeze the player timer")
 	for dimensions in [Vector2(960, 540), Vector2(1280, 720), Vector2(2400, 1080)]:

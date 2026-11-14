@@ -23,6 +23,14 @@ func _run() -> void:
 	game._player.laps_completed = game.race_laps
 	game._finish_completed_riders()
 	var frames: Array = game._winner_frames
+	game._summary.advance(3.0)
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-results.png")
+	game._summary.advance(game._summary.RESULTS_DURATION)
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-championship.png")
 	if frames.size() < 3:
 		push_error("Real world capture failed: %d frames" % frames.size())
 		quit(1)
@@ -54,6 +62,10 @@ func _run() -> void:
 		push_error("Winner card was not shown after playback")
 		quit(1)
 		return
+	game._finish_screen._process(1.0)
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-winner.png")
 	if game._ambience:
 		game._ambience.stop()
 	if game._engine_audio:

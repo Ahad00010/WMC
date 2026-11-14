@@ -8,6 +8,8 @@ const GRID_DISTANCE_SAMPLES := 13
 
 var rider_id := ""
 var display_name := ""
+var racing_number := 10
+var plate_color := Color.RED
 var is_player := false
 var circuit: WmcCircuit
 var speed_metres_per_second := 0.0
@@ -40,6 +42,7 @@ func configure(
 	rider_id = id_value
 	display_name = name_value
 	is_player = player_controlled
+	plate_color = accent
 	_place_on_grid(grid_position)
 	_build_visual(accent)
 
@@ -195,8 +198,9 @@ func _build_visual(accent: Color) -> void:
 	_visual_pivot.add_child(_number_label)
 
 func set_number(number: int) -> void:
+	racing_number = clampi(number, 10, 99)
 	if _number_label:
-		_number_label.text = str(clampi(number, 10, 99))
+		_number_label.text = str(racing_number)
 
 
 func _add_fallback_bike(accent: Color) -> void:

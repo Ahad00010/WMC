@@ -31,6 +31,7 @@ var _brains: Dictionary = {}
 var _footage: WmcFootageCapture
 var _winner_frames: Array = []
 var _winner_name := ""
+var _winner_number := 10
 var _finish_delay := -1.0
 var _finish_screen: WmcFinishScreen
 var _pause_menu: WmcPauseMenu
@@ -105,12 +106,13 @@ func _physics_process(delta: float) -> void:
 		if _finish_delay < 0.0:
 			_race_running = false
 			_hud.visible = false
-			_summary.visible = false
-			_finish_screen.begin(_winner_frames, _winner_name)
+			_summary.close()
+			_finish_screen.begin(_winner_frames, _winner_name, _winner_number)
 			_fade_music(_results_audio, true)
 	_update_camera(stable_delta)
 	_update_hud()
 	_summary.update_results(_riders)
+	_summary.advance(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -279,7 +281,7 @@ func _go_home() -> void:
 	paused = false
 	_pause_menu.visible = false
 	_finish_screen.close()
-	_summary.visible = false
+	_summary.close()
 	_hud.touch_controls.clear()
 	_hud.visible = false
 	if _footage:
@@ -302,6 +304,7 @@ func _start_capture() -> void:
 	_footage.begin(_world.get_world_3d())
 	_winner_frames.clear()
 	_winner_name = ""
+	_winner_number = 10
 	_finish_delay = -1.0
 
 
@@ -629,13 +632,14 @@ func _finish_completed_riders() -> void:
 			if _winner_name.is_empty():
 				_diagnostics.note("RACE WINNER elapsed=%.2f" % _simulation_time)
 				_winner_name = rider.display_name
+				_winner_number = rider.racing_number
 				if _footage:
 					_winner_frames = _footage.finish()
 			if rider == _player:
 				_hud.set_notice("FINISH")
-				_summary.begin()
+				_summary.begin(circuit.display_name, circuit.hashtag)
 				_summary.update_results(_riders)
-				_finish_delay = 10.0
+				_finish_delay = WmcRaceSummary.TOTAL_DURATION
 
 
 func _update_camera(delta: float) -> void:

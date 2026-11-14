@@ -56,7 +56,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: WMC-rebuild-race-screenshot
-          path: /tmp/wmc-rebuild-race.png
+          path: |
+            /tmp/wmc-rebuild-race.png
+            /tmp/wmc-rebuild-results.png
+            /tmp/wmc-rebuild-championship.png
+            /tmp/wmc-rebuild-winner.png
           if-no-files-found: error
   export-windows:
     needs: validate

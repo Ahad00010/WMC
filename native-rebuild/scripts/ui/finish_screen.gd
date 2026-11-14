@@ -1,19 +1,19 @@
 class_name WmcFinishScreen
 extends Control
 signal main_menu_requested
-const DISPLAY = preload("res://assets/fonts/MGPDisplay-Bold.otf")
 const TEXT = preload("res://assets/fonts/MGPText-Bold.ttf")
+const STAGE := Vector2(1280, 720)
+const CARD_POSITION := Vector2(900, 470)
 var _frames: Array = []
 var _clock := 0.0
 var _first_time := 0.0
 var _frame_index := -1
 var _screen: TextureRect
-var _portrait: TextureRect
-var _card: Control
-var _winner: Label
+var _card: WmcWinnerGraphic
 var _menu: Button
 var _early_menu: Button
 var _phase := "hidden"
+var _card_intro := 0.0
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -21,86 +21,60 @@ func _ready() -> void:
 	_screen = TextureRect.new()
 	_screen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_screen.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_screen)
 	_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var shade := ColorRect.new()
-	shade.color = Color(0.01, 0.015, 0.025, 0.5)
+	shade.color = Color(0.01, 0.015, 0.025, 0.2)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shade)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_early_menu = Button.new()
-	_early_menu.text = "MAIN MENU"
-	_early_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_early_menu = _make_button("MAIN MENU")
+	_early_menu.anchor_left = 1.0
+	_early_menu.anchor_right = 1.0
 	_early_menu.offset_left = -190
 	_early_menu.offset_right = -24
 	_early_menu.offset_top = 20
 	_early_menu.offset_bottom = 72
-	_early_menu.add_theme_font_override("font", TEXT)
-	_early_menu.add_theme_font_size_override("font_size", 16)
-	_early_menu.pressed.connect(func(): main_menu_requested.emit())
 	add_child(_early_menu)
-	_card = Control.new()
-	_card.size = Vector2(840, 460)
+	_card = WmcWinnerGraphic.new()
+	_card.size = Vector2(320, 196)
+	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_card)
-	var background := ColorRect.new()
-	background.size = _card.size
-	background.color = Color("121720")
-	_card.add_child(background)
-	_portrait = TextureRect.new()
-	_portrait.position = Vector2(500, 6)
-	_portrait.size = Vector2(340, 454)
-	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	_portrait.modulate = Color(0.9, 0.9, 0.9, 0.7)
-	_card.add_child(_portrait)
-	var stripe := ColorRect.new()
-	stripe.size = Vector2(840, 6)
-	stripe.color = Color("ee2c3d")
-	_card.add_child(stripe)
-	_add_label("RACE WINNER", Vector2(45, 36), 34, DISPLAY, Color("ef3445"))
-	_winner = _add_label("", Vector2(45, 115), 60, DISPLAY, Color.WHITE)
-	_winner.size.x = 440
-	_add_label("WMC GRAND PRIX TEAM", Vector2(45, 235), 24, TEXT, Color("c8d0dc"))
-	_add_label("+25 POINTS", Vector2(45, 285), 28, DISPLAY, Color.WHITE)
-	_menu = Button.new()
-	_menu.text = "MAIN MENU"
-	_menu.position = Vector2(45, 365)
-	_menu.size = Vector2(240, 58)
-	_menu.add_theme_font_override("font", TEXT)
-	_menu.add_theme_font_size_override("font_size", 19)
-	_menu.pressed.connect(func(): main_menu_requested.emit())
-	_card.add_child(_menu)
+	_menu = _make_button("MAIN MENU")
+	add_child(_menu)
 	resized.connect(_fit)
 	_fit()
 
-func _add_label(text: String, pos: Vector2, font_size: int, font: Font, color: Color) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.position = pos
-	label.size = Vector2(750, 90)
-	label.clip_text = true
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	_card.add_child(label)
-	return label
+func _make_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.add_theme_font_override("font", TEXT)
+	button.add_theme_font_size_override("font_size", 17)
+	button.focus_mode = Control.FOCUS_NONE
+	button.pressed.connect(func(): main_menu_requested.emit())
+	return button
 
 func _fit() -> void:
-	if not _card:
+	if not _card or not _menu:
 		return
-	var factor := minf((size.x - 32) / 840.0, (size.y - 32) / 460.0)
-	_card.scale = Vector2.ONE * maxf(0.1, factor)
-	_card.position = (size - _card.size * factor) * 0.5
+	var factor := minf(size.x / STAGE.x, size.y / STAGE.y)
+	var origin := (size - STAGE * factor) * 0.5
+	_card.scale = Vector2.ONE * factor
+	_card.position = origin + (CARD_POSITION + Vector2(35.0 * (1.0 - _card_intro), 0)) * factor
+	_menu.scale = Vector2.ONE * factor
+	_menu.position = origin + Vector2(42, 638) * factor
+	_menu.size = Vector2(210, 55)
 
-func begin(footage: Array, winner_name: String) -> void:
+func begin(footage: Array, winner_name: String, winner_number: int = 10) -> void:
 	_frames = footage
-	_winner.text = winner_name
+	_card.configure(winner_name, winner_number)
 	visible = true
 	_card.visible = false
+	_menu.visible = false
 	_clock = 0.0
 	_frame_index = -1
 	_screen.texture = null
-	_portrait.texture = null
 	_first_time = float(_frames[0].time) if not _frames.is_empty() else 0.0
 	_phase = "replay" if not _frames.is_empty() else "card"
 	_early_menu.visible = _phase == "replay"
@@ -108,6 +82,12 @@ func begin(footage: Array, winner_name: String) -> void:
 		_show_card()
 
 func _process(delta: float) -> void:
+	if _phase == "card":
+		_card_intro = minf(1.0, _card_intro + delta / 0.7)
+		_card.modulate.a = _card_intro
+		_menu.modulate.a = _card_intro
+		_fit()
+		return
 	if _phase != "replay":
 		return
 	_clock += delta
@@ -118,8 +98,13 @@ func _process(delta: float) -> void:
 	if index != _frame_index:
 		var image := Image.new()
 		if image.load_jpg_from_buffer(_frames[index].jpeg) == OK:
-			_screen.texture = ImageTexture.create_from_image(image)
-			_portrait.texture = _screen.texture
+			# Reuse a texture of the same size instead of allocating a new GPU
+			# texture every frame during replay.
+			var texture := _screen.texture as ImageTexture
+			if texture and texture.get_width() == image.get_width() and texture.get_height() == image.get_height() and texture.get_format() == image.get_format():
+				texture.update(image)
+			else:
+				_screen.texture = ImageTexture.create_from_image(image)
 		_frame_index = index
 	if _clock >= float(_frames[last].time) - _first_time + 0.25:
 		_show_card()
@@ -127,14 +112,15 @@ func _process(delta: float) -> void:
 func _show_card() -> void:
 	_phase = "card"
 	_early_menu.visible = false
+	_card_intro = 0.0
 	_card.visible = true
 	_card.modulate.a = 0.0
-	var transition := create_tween()
-	transition.tween_property(_card, "modulate:a", 1.0, 0.5).set_trans(Tween.TRANS_SINE)
+	_menu.visible = true
+	_menu.modulate.a = 0.0
+	_fit()
 
 func close() -> void:
 	_phase = "hidden"
 	visible = false
 	_frames.clear()
 	_screen.texture = null
-	_portrait.texture = null
