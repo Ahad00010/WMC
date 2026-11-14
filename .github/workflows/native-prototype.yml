@@ -81,6 +81,21 @@ jobs:
           export/android/debug_keystore_pass = "android"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
+      - name: Create an ephemeral testing Android signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/wmc-native-test-release.keystore"
+          keytool -genkeypair -v \
+            -keystore "$keystore" \
+            -storepass wmc-test-key \
+            -keypass wmc-test-key \
+            -alias wmc-native-test \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=WMC Native Test, OU=WMC, O=WMC, C=MY"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$keystore" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=wmc-native-test" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=wmc-test-key" >> "$GITHUB_ENV"
       - name: Parse and import Godot project
         run: godot --headless --path native-prototype --editor --quit
       - name: Export Windows desktop build

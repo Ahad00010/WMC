@@ -42,7 +42,7 @@ godot --headless --path native-prototype --export-release "Windows Desktop" nati
 godot --headless --path native-prototype --export-release "Android" native-prototype/build/android/WMC-Race.apk
 ```
 
-The repository workflow `.github/workflows/native-prototype.yml` validates the source then produces both artifacts on GitHub Actions. Until that workflow completes, there is no verified Windows EXE or Android APK to claim as a tested build.
+The repository workflow `.github/workflows/native-prototype.yml` validates the source then produces both artifacts on GitHub Actions. Its Android APK uses an **ephemeral CI testing key**, not a production signing key; a later run can require uninstalling the previous test APK before installation. A production Android release must use a securely managed, stable signing key. Until that workflow completes, there is no verified Windows EXE or Android APK to claim as a tested build.
 
 ## Validation
 
