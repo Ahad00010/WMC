@@ -8,6 +8,7 @@ var _clock := 0.0
 var _first_time := 0.0
 var _frame_index := -1
 var _screen: TextureRect
+var _portrait: TextureRect
 var _card: Control
 var _winner: Label
 var _menu: Button
@@ -32,12 +33,20 @@ func _ready() -> void:
 	background.size = _card.size
 	background.color = Color("121720")
 	_card.add_child(background)
+	_portrait = TextureRect.new()
+	_portrait.position = Vector2(500, 6)
+	_portrait.size = Vector2(340, 454)
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_portrait.modulate = Color(0.9, 0.9, 0.9, 0.7)
+	_card.add_child(_portrait)
 	var stripe := ColorRect.new()
 	stripe.size = Vector2(840, 6)
 	stripe.color = Color("ee2c3d")
 	_card.add_child(stripe)
 	_add_label("RACE WINNER", Vector2(45, 36), 34, DISPLAY, Color("ef3445"))
-	_winner = _add_label("", Vector2(45, 115), 66, DISPLAY, Color.WHITE)
+	_winner = _add_label("", Vector2(45, 115), 60, DISPLAY, Color.WHITE)
+	_winner.size.x = 440
 	_add_label("WMC GRAND PRIX TEAM", Vector2(45, 235), 24, TEXT, Color("c8d0dc"))
 	_add_label("+25 POINTS", Vector2(45, 285), 28, DISPLAY, Color.WHITE)
 	_menu = Button.new()
@@ -78,6 +87,7 @@ func begin(footage: Array, winner_name: String) -> void:
 	_clock = 0.0
 	_frame_index = -1
 	_screen.texture = null
+	_portrait.texture = null
 	_first_time = float(_frames[0].time) if not _frames.is_empty() else 0.0
 	_phase = "replay" if not _frames.is_empty() else "card"
 	if _phase == "card":
@@ -95,6 +105,7 @@ func _process(delta: float) -> void:
 		var image := Image.new()
 		if image.load_jpg_from_buffer(_frames[index].jpeg) == OK:
 			_screen.texture = ImageTexture.create_from_image(image)
+			_portrait.texture = _screen.texture
 		_frame_index = index
 	if _clock >= float(_frames[last].time) - _first_time + 0.25:
 		_show_card()
@@ -111,3 +122,4 @@ func close() -> void:
 	visible = false
 	_frames.clear()
 	_screen.texture = null
+	_portrait.texture = null
