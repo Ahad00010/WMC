@@ -35,6 +35,7 @@ var _winner_name := ""
 var _finish_delay := -1.0
 var _finish_screen: WmcFinishScreen
 var _pause_menu: WmcPauseMenu
+var _summary: WmcRaceSummary
 var _profile_service: WmcProfileService
 var _profile_editor: WmcProfileEditor
 var _profile: Dictionary = {}
@@ -60,6 +61,7 @@ func _ready() -> void:
 	_create_ambience()
 	_create_menu()
 	_create_finish_screen()
+	_create_summary()
 	_create_pause_menu()
 	_create_profile()
 	# Newly-created UI children must complete _ready before their fields are used.
@@ -104,10 +106,12 @@ func _physics_process(delta: float) -> void:
 		if _finish_delay < 0.0:
 			_race_running = false
 			_hud.visible = false
+			_summary.visible = false
 			_finish_screen.begin(_winner_frames, _winner_name)
 			_fade_music(_results_audio, true)
 	_update_camera(stable_delta)
 	_update_hud()
+	_summary.update_results(_riders)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -239,6 +243,10 @@ func _create_profile() -> void:
 		_profile_service.sign_out()
 	)
 
+func _create_summary() -> void:
+	_summary = WmcRaceSummary.new()
+	$RaceInterface.add_child(_summary)
+
 func _create_pause_menu() -> void:
 	_pause_menu = WmcPauseMenu.new()
 	$RaceInterface.add_child(_pause_menu)
@@ -272,6 +280,7 @@ func _go_home() -> void:
 	paused = false
 	_pause_menu.visible = false
 	_finish_screen.close()
+	_summary.visible = false
 	_hud.touch_controls.clear()
 	_hud.visible = false
 	if _footage:
@@ -625,7 +634,9 @@ func _finish_completed_riders() -> void:
 					_winner_frames = _footage.finish()
 			if rider == _player:
 				_hud.set_notice("FINISH")
-				_finish_delay = 4.0
+				_summary.begin()
+				_summary.update_results(_riders)
+				_finish_delay = 10.0
 
 
 func _update_camera(delta: float) -> void:
