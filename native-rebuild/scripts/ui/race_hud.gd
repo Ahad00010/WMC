@@ -59,6 +59,7 @@ func _ready() -> void:
 	add_child(lights)
 	touch_controls = WmcTouchControls.new()
 	add_child(touch_controls)
+	touch_controls.visible = OS.has_feature("mobile")
 	resized.connect(_layout)
 	call_deferred("_layout")
 
