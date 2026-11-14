@@ -167,6 +167,25 @@ func _run() -> void:
  if not game.active or not game.racing or game.race_laps != 2 or game.speed_factor != 2 or game.ai_riders.size() != 9 or not game.mini_map.show_riders:
   _fail("Race selection did not start with selected settings")
   return
+ # Test the diagnostic isolation without changing AI simulation or replay.
+ var model_root: Node = game.ai_riders[0].node
+ game._set_ai_diagnostic_layers(model_root)
+ var found_ai_mesh := false
+ var todo: Array[Node] = [model_root]
+ while not todo.is_empty():
+  var item: Node = todo.pop_back()
+  if item is VisualInstance3D:
+   found_ai_mesh = true
+   if item.layers != 2:
+    _fail("AI diagnostic layers did not include an AI mesh")
+    return
+  todo.append_array(item.get_children())
+ if not found_ai_mesh or (game.replay_camera.cull_mask & 2) == 0:
+  _fail("AI diagnostic must preserve meshes in the replay camera")
+  return
+ # Restore the ordinary race visibility for the rest of this test.
+ for item in model_root.find_children("*", "VisualInstance3D", true, false):
+  item.layers = 1
  # The bike must already face down the selected straight before movement.
  if absf(angle_difference(game.bike.rotation.y, game.heading)) > 0.001:
   _fail("Bike starts sideways")

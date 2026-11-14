@@ -48,6 +48,8 @@ var player_finish_time := 0.0
 var race_generation := 0
 var player_prev_index := 0
 var ai_riders: Array[Dictionary] = []
+# Opt-in diagnostics only; normal launches retain all race visuals.
+var ai_diagnostic_mode := "normal"
 var bike: Node3D
 var visual: Node3D
 var camera: Camera3D
@@ -116,6 +118,12 @@ var profile_save: Button
 func _ready() -> void:
  diagnostics = DIAGNOSTICS.new()
  diagnostics.start()
+ var args := OS.get_cmdline_user_args()
+ if "--wmc-test-ai-main-hidden" in args:
+  ai_diagnostic_mode = "ai-main-hidden"
+ elif "--wmc-test-tower-hidden" in args:
+  ai_diagnostic_mode = "tower-hidden"
+ diagnostics.note("AI DIAGNOSTIC mode=%s" % ai_diagnostic_mode)
  mobile = OS.has_feature("mobile")
  _load_settings()
  _load_circuits()
@@ -208,6 +216,8 @@ func _make_world() -> void:
  camera.current = true
  camera.fov = 58
  camera.far = 2200
+ if ai_diagnostic_mode == "ai-main-hidden":
+  camera.cull_mask &= ~2
  # Render the real race world into a separate broadcast camera for capture.
  replay_view = SubViewport.new()
  replay_view.size = Vector2i(854, 480) if mobile else Vector2i(1920, 1080)
@@ -770,6 +780,8 @@ func _make_ui() -> void:
  race_tower.position = Vector2(22, 20)
  race_tower.size = Vector2(200, 437)
  controls.add_child(race_tower)
+ if ai_diagnostic_mode == "tower-hidden":
+  race_tower.visible = false
  start_lights = LIGHTS_SCRIPT.new()
  controls.add_child(start_lights)
  start_lights.anchor_left = 0.5
@@ -1232,11 +1244,21 @@ func _spawn_ai() -> void:
   var rider := AI_RIDER.instantiate()
   rider.position.y = 0.72374
   node.add_child(rider)
+  if ai_diagnostic_mode == "ai-main-hidden":
+   _set_ai_diagnostic_layers(node)
   var progress := -float(3 + int(i / 2) * 4)
   var data := {"node": node, "progress": progress, "speed": 0.0, "lane": -2.7 if i % 2 == 0 else 2.7, "skill": float(i % 5 - 2), "finished": false}
   ai_riders.append(data)
   _place_ai(data)
   diagnostics.note("START ai=%d stage=ready" % i)
+
+# Hide only the main-camera AI models in this diagnostic variant. The replay
+# camera still sees layer 2, and AI simulation, tower and map remain active.
+func _set_ai_diagnostic_layers(node: Node) -> void:
+ if node is VisualInstance3D:
+  node.layers = 2
+ for child in node.get_children():
+  _set_ai_diagnostic_layers(child)
 
 func _place_ai(rider: Dictionary) -> void:
  var segment := floori(rider.progress)

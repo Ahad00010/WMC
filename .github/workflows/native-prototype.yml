@@ -164,6 +164,17 @@ jobs:
             native-prototype/build/WMC.exe
             native-prototype/build/WMC.pck
           if-no-files-found: error
+      - name: Prepare controlled AI comparison
+        run: |
+          mkdir -p /tmp/wmc-ai-comparison
+          cp native-prototype/build/WMC.exe native-prototype/build/WMC.pck /tmp/wmc-ai-comparison/
+          cp native-prototype/diagnostic-launchers/* /tmp/wmc-ai-comparison/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-AI-render-comparison
+          path: /tmp/wmc-ai-comparison/
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: WMC-Android
