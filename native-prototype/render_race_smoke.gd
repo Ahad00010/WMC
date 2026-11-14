@@ -37,7 +37,7 @@ func _run() -> void:
   _fail("Rendered race did not successfully capture real viewport frames")
   return
  # Verify that the real rendered viewport survives the JPEG capture path.
- var original := game.replay_view.get_texture().get_image()
+ var original: Image = game.replay_view.get_texture().get_image()
  game._return_to_menu()
  var recorder = load("res://replay_recorder.gd").new()
  recorder.start()
@@ -50,7 +50,7 @@ func _run() -> void:
  if replay_image.load(frames[0].path) != OK:
   _fail("Recorded viewport image could not be decoded")
   return
- var errors := original.compute_image_metrics(replay_image, true)
+ var errors: Dictionary = original.compute_image_metrics(replay_image, true)
  if float(errors.get("mean", INF)) > 15.0:
   _fail("Replay image differs excessively from the rendered frame")
   return
