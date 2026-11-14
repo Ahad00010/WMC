@@ -1,6 +1,5 @@
 class_name WmcRaceSummary
 extends Control
-signal main_menu_requested
 
 # Practice never records championship points. The separate standings page is
 # explicit about that instead of inventing a championship leader.
@@ -16,7 +15,6 @@ const TOTAL_DURATION := RESULTS_DURATION + CHAMPIONSHIP_DURATION
 const POINTS := [25, 20, 16, 13, 11, 10, 9, 8, 7, 6]
 const REFERENCE := Vector2(1280, 720)
 
-var _menu_button: Button
 var _rider_view: SubViewport
 var _rider_figure: Node3D
 var _elapsed := 0.0
@@ -31,19 +29,6 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	_make_rider_scene()
-	_menu_button = Button.new()
-	_menu_button.text = "MAIN MENU"
-	_menu_button.focus_mode = Control.FOCUS_NONE
-	_menu_button.add_theme_font_override("font", TEXT)
-	_menu_button.add_theme_font_size_override("font_size", 16)
-	add_child(_menu_button)
-	_menu_button.anchor_left = 1.0
-	_menu_button.anchor_right = 1.0
-	_menu_button.offset_left = -190
-	_menu_button.offset_right = -24
-	_menu_button.offset_top = 20
-	_menu_button.offset_bottom = 72
-	_menu_button.pressed.connect(func(): main_menu_requested.emit())
 	resized.connect(queue_redraw)
 
 func _make_rider_scene() -> void:
@@ -139,9 +124,8 @@ func advance(delta: float) -> void:
 		_rider_figure.rotation.y = 0.08 * sin(_elapsed * 0.45)
 		_rider_figure.rotation.z = 0.015 * sin(_elapsed * 0.8)
 		_rider_figure.position.y = 0.008 * sin(_elapsed * 1.3)
-	# Limit redraws during the short animated transition while the simulation
-	# stays at full rate. The static championship page needs no continuous upload.
-	if _elapsed - _last_draw_time >= 1.0 / 30.0:
+	# Animate in sync with the display without throttling to 30 Hz.
+	if _elapsed - _last_draw_time >= 1.0 / 60.0:
 		_last_draw_time = _elapsed
 		queue_redraw()
 
@@ -168,10 +152,11 @@ func update_results(riders: Array[WmcRaceBike]) -> void:
 func _draw() -> void:
 	if not visible:
 		return
+	draw_rect(Rect2(Vector2.ZERO, size), Color.BLACK)
 	var factor := minf(size.x / REFERENCE.x, size.y / REFERENCE.y)
-	var origin := (size - REFERENCE * factor) * 0.5
+	var intro := 1.0 - pow(1.0 - clampf(_elapsed / 0.55, 0.0, 1.0), 3.0)
+	var origin := (size - REFERENCE * factor) * 0.5 + Vector2(0, 36.0 * (1.0 - intro) * factor)
 	draw_set_transform(origin, 0.0, Vector2.ONE * factor)
-	draw_rect(Rect2(Vector2.ZERO, REFERENCE), Color(0.055, 0.045, 0.075, 0.91))
 	for y in [35, 105, 220, 370, 500, 615]:
 		draw_rect(Rect2(0, y, 1280, 2), Color(0.85, 0.08, 0.12, 0.25))
 	var championship := _elapsed >= RESULTS_DURATION
@@ -187,6 +172,9 @@ func _draw() -> void:
 	if boundary < 0.35:
 		draw_rect(Rect2(Vector2.ZERO, REFERENCE), Color(0.02, 0.015, 0.025, 1.0 - boundary / 0.35))
 	draw_set_transform(Vector2.ZERO)
+	var opening := clampf(_elapsed / 0.55, 0.0, 1.0)
+	if opening < 1.0:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 1.0 - opening))
 
 func _draw_header(title: String, intro: float) -> void:
 	var x := 350.0 + 70.0 * (1.0 - intro)
@@ -216,7 +204,7 @@ func _draw_results() -> void:
 		var result := _format_time(float(row.time)) if row.finished else "ON TRACK"
 		draw_string(TEXT, Vector2(x + 590, y + 25), result, HORIZONTAL_ALIGNMENT_RIGHT, 145, 16, Color.WHITE)
 		draw_string(DISPLAY, Vector2(x + 770, y + 23), "WMC", HORIZONTAL_ALIGNMENT_LEFT, 85, 12, Color.WHITE)
-	var winner_intro := clampf((_elapsed - 2.6) / 0.65, 0.0, 1.0)
+	var winner_intro := 1.0 - pow(1.0 - clampf((_elapsed - 1.2) / 0.48, 0.0, 1.0), 3.0)
 	if winner_intro > 0.0:
 		draw_set_transform((size - REFERENCE * minf(size.x / REFERENCE.x, size.y / REFERENCE.y)) * 0.5 + Vector2(85, 620 - 75 * (1.0 - winner_intro)) * minf(size.x / REFERENCE.x, size.y / REFERENCE.y), -PI / 2, Vector2.ONE * minf(size.x / REFERENCE.x, size.y / REFERENCE.y))
 		draw_string(INLINE, Vector2.ZERO, "WINNER", HORIZONTAL_ALIGNMENT_LEFT, -1, 60, Color(1, 1, 1, winner_intro))

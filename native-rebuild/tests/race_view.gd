@@ -49,6 +49,18 @@ func _run() -> void:
 		for surface in player_mesh.mesh.get_surface_count():
 			assert(player_mesh.get_active_material(surface) == ai_mesh.get_active_material(surface), "AI duplicated bike material resources")
 	assert(game.race_laps == 2 and game.countdown > 0.0)
+	for mode in range(4):
+		ui_scale.set_mode(mode)
+		for circuit_id in WmcCircuitData.ids():
+			var track: WmcCircuit = WmcCircuitData.create(circuit_id)
+			game._hud.set_race_state(track, 1, 2, 20.0, 1, 10, 0.0)
+			var label: Label = game._hud._track_label
+			assert(game._hud._display_font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size("font_size")).x <= label.size.x + 1.0, "Circuit name is clipped")
+	ui_scale.set_mode(old_scale)
+	game._update_hud()
+	var speed_label: Label = game._hud._speed_label
+	var lap_label: Label = game._hud._lap_label
+	assert(speed_label.position.y + speed_label.size.y <= lap_label.position.y, "Speed and KM/H overlap")
 	assert(not game._hud._speed_label.text.is_empty() and game._hud.tower._rows.size() == 10, "HUD must be populated during countdown")
 	assert(game._hud._display_font.get_string_size(game._hud._track_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, game._hud._track_label.get_theme_font_size("font_size")).x <= game._hud._track_label.size.x + 1.0, "Circuit name is clipped")
 	var left_key := InputEventKey.new()
@@ -108,6 +120,8 @@ func _run() -> void:
 	assert(not game._summary.visible and game._race_running, "Player must be able to see and cruise after finishing")
 	game._finish_delay = game._summary.TOTAL_DURATION
 	game._physics_process(0.01)
+	if game._engine_audio:
+		assert(game._engine_audio.volume_db <= -80.0, "Engine audio must cut off when results open")
 	assert(game._summary.visible and game._race_running, "Finish order must show after the cruising period")
 	assert(game._summary._rider_view.size == Vector2i(500, 813), "Results rider reference framing changed")
 	assert(game._winner_number == game._player.racing_number)
@@ -129,10 +143,13 @@ func _run() -> void:
 		assert(winner.position.x >= 0 and winner.position.y >= 0)
 		assert((winner.position + winner.size * winner.scale).x <= dimensions.x + 1)
 		assert((winner.position + winner.size * winner.scale).y <= dimensions.y + 1)
-	game._summary.main_menu_requested.emit()
-	assert(game._summary._menu_button.disabled, "Early exit must prevent duplicate presses")
+	assert(game._summary.find_children("*", "Button", true, false).is_empty(), "Results must not show a menu button")
+	game._summary.close()
+	game._finish_screen.begin([], "TEST", 10)
+	assert(game._finish_screen._menu.visible, "Winner card must provide Main Menu")
+	game._finish_screen._menu.pressed.emit()
 	await create_timer(0.7).timeout
-	assert(game._menu.visible and not game._race_running and not game._summary.visible, "Early exit did not return to the menu")
+	assert(game._menu.visible and not game._race_running and not game._summary.visible, "Winner menu did not return home")
 	if game._ambience:
 		game._ambience.stop()
 	if game._engine_audio:

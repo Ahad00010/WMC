@@ -11,7 +11,6 @@ var _frame_index := -1
 var _screen: TextureRect
 var _card: WmcWinnerGraphic
 var _menu: Button
-var _early_menu: Button
 var _phase := "hidden"
 var _card_intro := 0.0
 
@@ -29,14 +28,6 @@ func _ready() -> void:
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shade)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_early_menu = _make_button("MAIN MENU")
-	_early_menu.anchor_left = 1.0
-	_early_menu.anchor_right = 1.0
-	_early_menu.offset_left = -190
-	_early_menu.offset_right = -24
-	_early_menu.offset_top = 20
-	_early_menu.offset_bottom = 72
-	add_child(_early_menu)
 	_card = WmcWinnerGraphic.new()
 	_card.size = Vector2(320, 196)
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -77,7 +68,6 @@ func begin(footage: Array, winner_name: String, winner_number: int = 10) -> void
 	_screen.texture = null
 	_first_time = float(_frames[0].time) if not _frames.is_empty() else 0.0
 	_phase = "replay" if not _frames.is_empty() else "card"
-	_early_menu.visible = _phase == "replay"
 	if _phase == "card":
 		_show_card()
 
@@ -111,7 +101,6 @@ func _process(delta: float) -> void:
 
 func _show_card() -> void:
 	_phase = "card"
-	_early_menu.visible = false
 	_card_intro = 0.0
 	_card.visible = true
 	_card.modulate.a = 0.0

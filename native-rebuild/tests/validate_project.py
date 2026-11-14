@@ -120,8 +120,8 @@ class NativePrototypeContractTests(unittest.TestCase):
         replay = (NATIVE / "scripts/replay/footage_capture.gd").read_text(encoding="utf-8")
         for token in ("InputEventScreenTouch", "InputEventScreenDrag", "_touches: Dictionary", "func command() -> Vector3"):
             self.assertIn(token, touch)
-        self.assertIn("_player.drive(_player_command(), stable_delta, Input.is_key_pressed(KEY_SPACE))", game)
-        self.assertIn("rider.drive(brain.command_for(rider, circuit), stable_delta)", game)
+        self.assertIn("_player.drive(command, step_delta * speed_factor, Input.is_key_pressed(KEY_SPACE))", game)
+        self.assertIn("rider.drive(brain.command_for(rider, circuit), step_delta)", game)
         self.assertIn("func drive(command: Vector3, delta: float, hard_brake := false)", bike)
         self.assertIn("func command_for(bike: WmcRaceBike, circuit: WmcCircuit)", ai)
         self.assertIn("get_texture().get_image()", replay)

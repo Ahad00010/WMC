@@ -51,12 +51,14 @@ var _music_tweens: Dictionary = {}
 var _engine_phase := 0.0
 var _menu: WmcMainMenu
 var _race_running := false
+var _last_frame_usec := 0
 
 
 func _ready() -> void:
 	_diagnostics = WmcDiagnostics.new()
 	add_child(_diagnostics)
 	_diagnostics.setup(self)
+	get_window().size_changed.connect(_refresh_after_resize)
 	_create_world()
 	_create_camera()
 	_create_interface()
@@ -83,18 +85,20 @@ func _physics_process(delta: float) -> void:
 		_hud.set_notice("" if countdown > 0.0 else "GO!")
 		return
 	var stable_delta := minf(delta, 1.0 / 30.0)
-	# Practice speed multiplies simulation steps, not step size; this keeps
-	# contact and barriers from being skipped at high multipliers.
+	# Match the website: only the player's practice physics is accelerated.
+	# AI and the race clock remain in real time, with short shared contact steps.
+	_simulation_time += stable_delta
+	if not _player.finished:
+		_race_time_seconds += stable_delta
+	var step_delta := stable_delta / float(speed_factor)
+	var command := _player_command()
 	for step in speed_factor:
-		_simulation_time += stable_delta
-		if not _player.finished:
-			_race_time_seconds += stable_delta
-		_player.drive(_player_command(), stable_delta, Input.is_key_pressed(KEY_SPACE))
+		_player.drive(command, step_delta * speed_factor, Input.is_key_pressed(KEY_SPACE))
 		for rider in _riders:
 			if rider == _player:
 				continue
 			var brain: WmcAiRider = _brains.get(rider.rider_id)
-			rider.drive(brain.command_for(rider, circuit), stable_delta)
+			rider.drive(brain.command_for(rider, circuit), step_delta)
 		_resolve_rider_contacts()
 		_finish_completed_riders()
 	if _footage and _winner_name.is_empty():
@@ -107,6 +111,8 @@ func _physics_process(delta: float) -> void:
 		_finish_delay -= delta
 		if not _summary_started and _finish_delay <= WmcRaceSummary.TOTAL_DURATION:
 			_summary_started = true
+			if _engine_audio:
+				_engine_audio.volume_db = -80.0
 			_summary.begin(circuit.display_name, circuit.hashtag)
 			_summary.update_results(_riders)
 			_fade_music(_results_audio, true)
@@ -115,7 +121,7 @@ func _physics_process(delta: float) -> void:
 			_hud.visible = false
 			_summary.close()
 			_finish_screen.begin(_winner_frames, _winner_name, _winner_number)
-	_update_camera(stable_delta)
+	_update_camera(stable_delta * speed_factor)
 	_update_hud()
 	_summary.update_results(_riders)
 	_summary.advance(delta)
@@ -201,6 +207,8 @@ func _create_menu() -> void:
 		_menu.visible = false
 		_hud.visible = true
 		_race_running = true
+		if _engine_audio:
+			_engine_audio.volume_db = 0.0
 		countdown = 3.0
 		_hud.lights.update_time(countdown)
 		_update_hud()
@@ -254,7 +262,6 @@ func _create_profile() -> void:
 func _create_summary() -> void:
 	_summary = WmcRaceSummary.new()
 	$RaceInterface.add_child(_summary)
-	_summary.main_menu_requested.connect(_leave_results)
 
 func _create_pause_menu() -> void:
 	_pause_menu = WmcPauseMenu.new()
@@ -275,13 +282,9 @@ func _create_pause_menu() -> void:
 
 func _leave_results() -> void:
 	_finish_screen._menu.disabled = true
-	_finish_screen._early_menu.disabled = true
-	_summary._menu_button.disabled = true
 	_fade_music(_results_audio, false)
 	await get_tree().create_timer(0.5).timeout
 	_finish_screen._menu.disabled = false
-	_finish_screen._early_menu.disabled = false
-	_summary._menu_button.disabled = false
 	_go_home()
 
 func _go_home() -> void:
@@ -345,7 +348,25 @@ func _create_ambience() -> void:
 	add_child(_results_audio)
 
 
+func _refresh_after_resize() -> void:
+	if _hud:
+		_hud.refresh_scale()
+		_hud.tower.queue_redraw()
+		_hud.map.queue_redraw()
+	if _summary:
+		_summary.queue_redraw()
+
 func _process(_delta: float) -> void:
+	var now := Time.get_ticks_usec()
+	if _last_frame_usec > 0 and now - _last_frame_usec > 1000000:
+		# Resynchronize UI and camera after the application loop resumes. This
+		# cannot recover a lost graphics device or a stuck GPU presentation.
+		_refresh_after_resize()
+		if _race_running and _player:
+			_update_camera(1.0)
+		if _diagnostics:
+			_diagnostics.note("FRAME STALL recovered after %.2fs; refreshed layout" % (float(now - _last_frame_usec) / 1000000.0))
+	_last_frame_usec = now
 	if not _engine_audio or not _engine_audio.playing:
 		return
 	var playback := _engine_audio.get_stream_playback() as AudioStreamGeneratorPlayback
@@ -353,7 +374,7 @@ func _process(_delta: float) -> void:
 		return
 	var speed := absf(_player.speed_metres_per_second) if _player else 0.0
 	var frequency := 48.0 + minf(150.0, speed * 2.4)
-	var gain := 0.09 * UiScale.master * UiScale.engine if _race_running else 0.0
+	var gain := 0.09 * UiScale.master * UiScale.engine if _race_running and not _summary_started else 0.0
 	for i in playback.get_frames_available():
 		_engine_phase = fmod(_engine_phase + TAU * frequency / 22050.0, TAU)
 		var sample := (sin(_engine_phase) * 0.65 + sin(_engine_phase * 2.0) * 0.25) * gain
@@ -674,7 +695,7 @@ func _update_hud() -> void:
 	)
 	var race_position := ordered.find(_player) + 1
 	var shown_lap := mini(race_laps, _player.laps_completed + 1)
-	_hud.set_race_state(circuit, shown_lap, race_laps, _player.speed_metres_per_second, race_position, _riders.size(), _race_time_seconds)
+	_hud.set_race_state(circuit, shown_lap, race_laps, _player.speed_metres_per_second * speed_factor, race_position, _riders.size(), _race_time_seconds)
 	_hud.tower.update_order(_riders, shown_lap, race_laps)
 	_hud.map.update_riders(_riders)
 

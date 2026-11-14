@@ -71,8 +71,9 @@ func set_race_state(circuit: WmcCircuit, current_lap: int, total_laps: int, spee
 	_speed_label.text = "%03d" % roundi(maxf(0.0, speed_mps) * 3.6)
 	_lap_label.text = "KM/H     LAP %d / %d     %s" % [current_lap, total_laps, _format_time(elapsed_seconds)]
 	_position_label.text = "P%d / %d" % [race_position, rider_count]
-	_track_label.text = circuit.display_name
-	_fit_track_text()
+	if _track_label.text != circuit.display_name:
+		_track_label.text = circuit.display_name
+		_layout()
 
 
 func set_notice(message: String) -> void:
@@ -101,11 +102,13 @@ func _layout() -> void:
 	_timing_panel.position = Vector2(margin, margin)
 	_timing_panel.size = Vector2(timing_width, timing_height)
 	_speed_label.position = Vector2(14.0 * unit, 3.0 * unit)
-	_speed_label.size = Vector2(timing_width * 0.48, timing_height * 0.53)
-	_speed_label.add_theme_font_size_override("font_size", roundi(clampf(shortest_side * 0.072 * unit, 34.0, 76.0)))
-	_lap_label.position = Vector2(16.0 * unit, timing_height * 0.59)
-	_lap_label.size = Vector2(timing_width * 0.96, timing_height * 0.32)
-	_lap_label.add_theme_font_size_override("font_size", roundi(clampf(shortest_side * 0.027 * unit, 15.0, 28.0)))
+	var speed_font := roundi(clampf(timing_height * 0.47, 20.0, 58.0))
+	var lap_font := roundi(clampf(timing_height * 0.19, 10.0, 22.0))
+	_speed_label.size = Vector2(timing_width * 0.48, timing_height * 0.58)
+	_speed_label.add_theme_font_size_override("font_size", speed_font)
+	_lap_label.position = Vector2(14.0 * unit, timing_height * 0.66)
+	_lap_label.size = Vector2(timing_width - 28.0 * unit, timing_height * 0.25)
+	_lap_label.add_theme_font_size_override("font_size", lap_font)
 	_position_label.position = Vector2(timing_width * 0.60, 13.0 * unit)
 	_position_label.size = Vector2(timing_width * 0.35, timing_height * 0.30)
 	_position_label.add_theme_font_size_override("font_size", roundi(clampf(shortest_side * 0.034 * unit, 17.0, 34.0)))
@@ -118,7 +121,10 @@ func _layout() -> void:
 	tower.size = Vector2(155 * unit, minf(shortest_side * 0.46, 330 * unit))
 	map.position = Vector2(viewport_size.x - margin - 180 * unit, margin + 145 * unit)
 	map.size = Vector2(180 * unit, 115 * unit)
-	var track_width := minf(500.0 * unit, maxf(150.0, viewport_size.x - margin - (lights.position.x + lights.size.x) - 12.0))
+	var max_track_width := maxf(150.0, viewport_size.x - margin - (lights.position.x + lights.size.x) - 12.0)
+	var desired_font := roundi(clampf(shortest_side * 0.024 * unit, 11.0, 24.0))
+	var text_width := _display_font.get_string_size(_track_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, desired_font).x
+	var track_width := minf(max_track_width, maxf(90.0 * unit, text_width + 24.0 * unit))
 	var track_height := clampf(shortest_side * 0.070, 42.0 * unit, 78.0 * unit)
 	_track_panel.position = Vector2(viewport_size.x - margin - track_width, margin)
 	_track_panel.size = Vector2(track_width, track_height)
