@@ -5,6 +5,7 @@ signal race_requested(circuit_id: String, laps: int, speed: int, ai: bool)
 signal audio_changed
 signal account_requested
 signal sign_out_requested
+signal settings_closed
 var signed_in := false
 var account_status := ""
 
@@ -55,6 +56,9 @@ func _ready() -> void:
 	_back.pressed.connect(func():
 		var previous := "mode"
 		if _page == "settings":
+			if _settings_return == "pause":
+				settings_closed.emit()
+				return
 			previous = _settings_return
 		elif _page == "mode":
 			previous = "home"

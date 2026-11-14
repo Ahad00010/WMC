@@ -2,6 +2,7 @@ class_name WmcPauseMenu
 extends Control
 signal resume_requested
 signal main_menu_requested
+signal settings_requested
 const FONT = preload("res://assets/fonts/MGPText-Bold.ttf")
 const DISPLAY = preload("res://assets/fonts/MGPDisplay-Bold.otf")
 var _card: Control
@@ -31,7 +32,9 @@ func _ready() -> void:
 	_card.add_child(title)
 	var resume := _button("RESUME", 150)
 	resume.pressed.connect(func(): resume_requested.emit())
-	var home := _button("MAIN MENU", 230)
+	var settings := _button("SETTINGS", 220)
+	settings.pressed.connect(func(): settings_requested.emit())
+	var home := _button("MAIN MENU", 290)
 	home.pressed.connect(func(): main_menu_requested.emit())
 	resized.connect(_fit)
 	_fit()

@@ -106,6 +106,12 @@ func _physics_process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE and paused and _menu.visible:
+			_menu.visible = false
+			_pause_menu.visible = true
+			_hud.refresh_scale()
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode == KEY_ESCAPE and (_race_running or paused):
 			_toggle_pause()
 			get_viewport().set_input_as_handled()
@@ -231,6 +237,17 @@ func _create_pause_menu() -> void:
 	$RaceInterface.add_child(_pause_menu)
 	_pause_menu.resume_requested.connect(_toggle_pause)
 	_pause_menu.main_menu_requested.connect(_go_home)
+	_pause_menu.settings_requested.connect(func():
+		_pause_menu.visible = false
+		_menu.visible = true
+		_menu._settings_return = "pause"
+		_menu._show_page("settings")
+	)
+	_menu.settings_closed.connect(func():
+		_menu.visible = false
+		_pause_menu.visible = true
+		_hud.refresh_scale()
+	)
 
 func _leave_results() -> void:
 	_finish_screen._menu.disabled = true
