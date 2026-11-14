@@ -4,9 +4,9 @@ Separate Godot 4 project, under active development. The older `native-prototype/
 
 ## Current work
 
-The race prototype from the separate rebuild session is the starting point. This project corrects its backwards-facing follow camera and positions riders only after they enter the scene tree. It adds textured asphalt, a new MGP-font home / mode / six-circuit selector, animated page fades, and sensor-landscape sizing. Practice currently starts a fixed three-lap race with nine AI. This is not yet feature parity.
+The race prototype from the separate rebuild session is the starting point. This project corrects its backwards-facing follow camera and positions riders only after they enter the scene tree. It adds textured asphalt, a new MGP-font home / mode / six-circuit selector, animated page fades, and sensor-landscape sizing. Practice exposes lap count, speed and an optional AI grid. The new race flow includes a tower, map, pause, and a first implementation of real viewport-frame capture and winner playback. These integrations are under validation; this is not yet feature parity.
 
-**Not yet implemented:** actual captured race-world replay and winner presentation, full race tower, menus for settings and profile, practice configuration, pause and results flow, start lights and the rest of the original native features. Transform samples present in this prototype are not a real replay and must not be presented as one.
+**Not yet completed:** validation of the captured race-world replay and winner flow, profile/auth, full results presentation, graphical start lights, and the rest of the original native features. The old transform recorder is not used as replay footage.
 
 The earlier Intel crash and frozen-display symptoms are not yet understood or verified fixed. This new project uses Godot's compatibility renderer; it has not been validated on the affected Windows hardware. No claim of an underlying graphics fix is made.
 

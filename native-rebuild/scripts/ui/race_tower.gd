@@ -15,8 +15,8 @@ func update_order(riders: Array[WmcRaceBike], lap: int, total: int) -> void:
 		return a.race_progress_samples > b.race_progress_samples
 	)
 	var rows: Array[String] = []
-	for rider in sorted:
-		var parts := rider.display_name.to_upper().split(" ", false)
+	for rider: WmcRaceBike in sorted:
+		var parts: PackedStringArray = rider.display_name.to_upper().split(" ", false)
 		var initials := str(parts[0]).replace(".", "") if parts.size() > 1 else ""
 		var surname := str(parts[parts.size() - 1]).left(3)
 		rows.append((initials + " " + surname).strip_edges())

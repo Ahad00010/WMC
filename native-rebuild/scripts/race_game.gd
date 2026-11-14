@@ -38,6 +38,8 @@ var _pause_menu: WmcPauseMenu
 var _race_time_seconds := 0.0
 var _ambience: AudioStreamPlayer
 var _engine_audio: AudioStreamPlayer
+var _results_audio: AudioStreamPlayer
+var _music_tweens: Dictionary = {}
 var _engine_phase := 0.0
 var _menu: WmcMainMenu
 var _race_running := false
@@ -86,6 +88,7 @@ func _physics_process(delta: float) -> void:
 			_race_running = false
 			_hud.visible = false
 			_finish_screen.begin(_winner_frames, _winner_name)
+			_fade_music(_results_audio, true)
 	_update_camera(stable_delta)
 	_update_hud()
 
@@ -172,6 +175,7 @@ func _create_menu() -> void:
 		_race_running = true
 		countdown = 3.0
 		_start_capture()
+		_fade_music(_ambience, false)
 	)
 	_menu.audio_changed.connect(_update_audio)
 
@@ -182,7 +186,16 @@ func _create_pause_menu() -> void:
 	_pause_menu.resume_requested.connect(_toggle_pause)
 	_pause_menu.main_menu_requested.connect(_go_home)
 
+func _leave_results() -> void:
+	_finish_screen._menu.disabled = true
+	_fade_music(_results_audio, false)
+	await get_tree().create_timer(0.5).timeout
+	_finish_screen._menu.disabled = false
+	_go_home()
+
 func _go_home() -> void:
+	_fade_music(_ambience, true)
+	_fade_music(_results_audio, false)
 	_race_running = false
 	paused = false
 	_pause_menu.visible = false
@@ -199,7 +212,7 @@ func _go_home() -> void:
 func _create_finish_screen() -> void:
 	_finish_screen = WmcFinishScreen.new()
 	$RaceInterface.add_child(_finish_screen)
-	_finish_screen.main_menu_requested.connect(_go_home)
+	_finish_screen.main_menu_requested.connect(_leave_results)
 
 func _start_capture() -> void:
 	if _footage:
@@ -228,6 +241,10 @@ func _create_ambience() -> void:
 	_engine_audio.stream = generator
 	add_child(_engine_audio)
 	_engine_audio.play()
+	_results_audio = AudioStreamPlayer.new()
+	_results_audio.stream = load("res://assets/audio/results-theme.mp3") as AudioStream
+	_results_audio.volume_db = -80.0
+	add_child(_results_audio)
 
 
 func _process(_delta: float) -> void:
@@ -243,6 +260,21 @@ func _process(_delta: float) -> void:
 		_engine_phase = fmod(_engine_phase + TAU * frequency / 22050.0, TAU)
 		var sample := (sin(_engine_phase) * 0.65 + sin(_engine_phase * 2.0) * 0.25) * gain
 		playback.push_frame(Vector2(sample, sample))
+
+func _fade_music(player: AudioStreamPlayer, play_music: bool) -> void:
+	if not player or not player.stream:
+		return
+	if _music_tweens.has(player) and _music_tweens[player].is_valid():
+		_music_tweens[player].kill()
+	if play_music and not player.playing:
+		player.volume_db = -80.0
+		player.play()
+	var destination := linear_to_db(maxf(0.0001, UiScale.master * UiScale.music)) - 10.0 if play_music else -80.0
+	var fade := create_tween()
+	_music_tweens[player] = fade
+	fade.tween_property(player, "volume_db", destination, 0.5)
+	if not play_music:
+		fade.tween_callback(player.stop)
 
 func _update_audio() -> void:
 	if _ambience:
