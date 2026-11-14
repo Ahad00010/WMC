@@ -251,6 +251,15 @@ func _run() -> void:
  if game.start_lights.visible:
   _fail("GO lights did not disappear after fading")
   return
+ # Identical standings must not regenerate text/draw commands every update.
+ var sample_row = game.race_tower.rows["ai0"]
+ if sample_row.update_entry(sample_row.rank, sample_row.label, sample_row.number, sample_row.is_player, sample_row.finished, sample_row.plate_color):
+  _fail("Unchanged tower row was marked for redraw")
+  return
+ if not sample_row.update_entry(sample_row.rank, sample_row.label, sample_row.number, sample_row.is_player, true, sample_row.plate_color):
+  _fail("Changed tower row was not marked for redraw")
+  return
+ game._update_race_tower(game._standings(), 1)
  # Website-style lap display, progress bar, footer and finished rider indicators.
  game.race_laps = 3
  game.player_progress = game.track.size() * 0.5

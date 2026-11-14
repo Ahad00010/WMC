@@ -8,6 +8,21 @@ var number := "93"
 var is_player := false
 var finished := false
 var plate_color := "red"
+var _has_entry := false
+
+# Redrawing text recreates canvas commands; leave them cached when unchanged.
+func update_entry(new_rank: int, new_label: String, new_number: String, new_is_player: bool, new_finished: bool, new_color: String) -> bool:
+ if _has_entry and rank == new_rank and label == new_label and number == new_number and is_player == new_is_player and finished == new_finished and plate_color == new_color:
+  return false
+ _has_entry = true
+ rank = new_rank
+ label = new_label
+ number = new_number
+ is_player = new_is_player
+ finished = new_finished
+ plate_color = new_color
+ queue_redraw()
+ return true
 
 func _ready() -> void:
  mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -50,13 +50,8 @@ func update_standings(entries: Array, current_lap: int, laps: int, current_progr
    add_child(row)
    rows[id] = row
   var row: Control = rows[id]
-  row.rank = i + 1
-  row.label = abbreviated_name(str(entry.name)).substr(0, 11) if entry.is_player else str(entry.name).substr(0, 11)
-  row.number = str(entry.number)
-  row.is_player = entry.is_player
-  row.finished = bool(entry.get("finished", false))
-  row.plate_color = str(entry.get("color", "red"))
-  row.queue_redraw()
+  var row_label: String = abbreviated_name(str(entry.name)).substr(0, 11) if entry.is_player else str(entry.name).substr(0, 11)
+  row.update_entry(i + 1, row_label, str(entry.number), bool(entry.is_player), bool(entry.get("finished", false)), str(entry.get("color", "red")))
   var target := HEAD_HEIGHT + i * ROW_HEIGHT
   if targets.has(id) and float(targets[id]) != target:
    if animations.has(id) and animations[id].is_valid():
