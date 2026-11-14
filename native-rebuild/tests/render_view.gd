@@ -36,6 +36,7 @@ func _run() -> void:
 		quit(1)
 		return
 	game._finish_screen._clock = 100.0
+	game._finish_screen._process(0.01)
 	await process_frame
 	if not game._finish_screen._card.visible:
 		push_error("Winner card was not shown after playback")
