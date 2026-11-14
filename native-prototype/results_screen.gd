@@ -351,14 +351,15 @@ func _draw_winner() -> void:
  var intro := clampf((clock - reveal_at) / 0.7, 0.0, 1.0)
  intro = 1.0 - pow(1.0 - intro, 3.0)
  draw_set_transform(origin + Vector2(35.0 * (1.0 - intro), 0) * factor, 0.0, Vector2.ONE * factor)
- draw_rect(Rect2(900, 470, 320, 31), Color("050505"))
- draw_string(INLINE, Vector2(900, 493), "RACE WINNER", HORIZONTAL_ALIGNMENT_CENTER, 320, 21, Color(1, 1, 1, intro))
  # Layered diagonal streaks mirror the website's dark red/orange winner graphic.
  draw_rect(Rect2(900, 501, 320, 86), Color("201321"))
  var streaks := [Color("391828"), Color("9b242b"), Color("381727"), Color("af2926"), Color("ee5a24"), Color("7b1d25")]
  for i in range(streaks.size()):
   var y := 505.0 + i * 14.0
   draw_colored_polygon(PackedVector2Array([Vector2(900, y + 18), Vector2(1220, y - 28), Vector2(1220, y - 11), Vector2(900, y + 35)]), streaks[i])
+ # Paint the header after the stripes so diagonal polygons cannot cover it.
+ draw_rect(Rect2(900, 470, 320, 31), Color("050505"))
+ draw_string(INLINE, Vector2(900, 493), "RACE WINNER", HORIZONTAL_ALIGNMENT_CENTER, 320, 21, Color(1, 1, 1, intro))
  draw_string(TEXT, Vector2(912, 535), str(winner.name).to_upper().substr(0, 20), HORIZONTAL_ALIGNMENT_LEFT, 195, 17, Color.WHITE)
  draw_string(TEXT, Vector2(912, 556), "WMC GRAND PRIX TEAM", HORIZONTAL_ALIGNMENT_LEFT, 205, 10, Color.WHITE)
  draw_string(TEXT, Vector2(1140, 559), str(winner.number), HORIZONTAL_ALIGNMENT_CENTER, 68, 43, Color.WHITE)

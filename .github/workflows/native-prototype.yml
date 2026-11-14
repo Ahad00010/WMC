@@ -8,10 +8,11 @@ on:
     paths: ['native-prototype/**', '.github/workflows/native-prototype.yml']
 permissions:
   contents: read
+  actions: read
 jobs:
   export:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -48,6 +49,44 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           SETTINGS
+      # Reuse the exact custom Godot Windows engine the user reported stable.
+      # Only the small stripped EXE is cached/distributed, not debug symbols.
+      - name: Cache Windows engine template
+        id: windows-engine-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/wmc-windows-engine
+          key: wmc-windows-godot-4.4.1-mingw-debug-template-v1
+      - name: Seed template from tested diagnostic build
+        id: seed-template
+        if: steps.windows-engine-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: WMC-Windows-symbolized-diagnostic
+          run-id: 43554812651
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/wmc-diagnostic-seed
+      - name: Prepare tested Windows engine
+        if: steps.windows-engine-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euxo pipefail
+          mkdir -p "$HOME/.cache/wmc-windows-engine"
+          if [ -s /tmp/wmc-diagnostic-seed/WMC.exe ]; then
+            cp /tmp/wmc-diagnostic-seed/WMC.exe "$HOME/.cache/wmc-windows-engine/WMC.exe"
+            rm -rf /tmp/wmc-diagnostic-seed
+          else
+            # Artifact/cache expiry must not silently revert to the old engine.
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq g++-mingw-w64-x86-64-posix scons
+            sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+            sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+            curl -L --retry 3 https://codeload.github.com/godotengine/godot/tar.gz/refs/tags/4.4.1-stable -o /tmp/wmc-godot-source.tar.gz
+            mkdir -p /tmp/wmc-godot-source
+            tar -xf /tmp/wmc-godot-source.tar.gz --strip-components=1 -C /tmp/wmc-godot-source
+            (cd /tmp/wmc-godot-source && scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes -j4)
+            cp /tmp/wmc-godot-source/bin/godot.windows.template_debug.x86_64.exe "$HOME/.cache/wmc-windows-engine/WMC.exe"
+          fi
       - name: Import and test project
         run: |
           set -o pipefail
@@ -89,17 +128,18 @@ jobs:
         run: |
           mkdir -p native-prototype/build
           set -o pipefail
-          for target in Windows Android; do
-            extension=exe; [ "$target" = Android ] && extension=apk
-            if ! godot --headless --path native-prototype --export-debug "$target" "build/WMC.$extension" > /tmp/export.log 2>&1; then
-              echo "::error::EXPORT TARGET $target LOG BASE64 $(base64 -w0 /tmp/export.log)"
-              exit 1
-            fi
-          done
+          cp "$HOME/.cache/wmc-windows-engine/WMC.exe" native-prototype/build/WMC.exe
+          godot --headless --path native-prototype --export-pack Windows "$GITHUB_WORKSPACE/native-prototype/build/WMC.pck"
+          if ! godot --headless --path native-prototype --export-debug Android "build/WMC.apk" > /tmp/export.log 2>&1; then
+            echo "::error::ANDROID EXPORT LOG BASE64 $(base64 -w0 /tmp/export.log)"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: WMC-Windows
-          path: native-prototype/build/WMC.exe
+          path: |
+            native-prototype/build/WMC.exe
+            native-prototype/build/WMC.pck
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
