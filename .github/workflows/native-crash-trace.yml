@@ -41,6 +41,14 @@ jobs:
           "$GODOT" --headless --path native-prototype --export-pack Windows "$GITHUB_WORKSPACE/trace-build/WMC.pck"
           cp /tmp/godot-src/bin/godot.windows.template_debug.x86_64.exe.debugsymbols symbols/WMC.exe.debugsymbols
           sha256sum trace-build/WMC.exe | tee trace-build/BUILD-SHA256.txt symbols/BUILD-SHA256.txt
+      # Preserve the engine for troubleshooting a failed self-test without a rebuild.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-crash-trace-internal-unverified
+          path: |
+            trace-build/
+            symbols/
+          retention-days: 3
       - name: Verify a deliberately induced crash yields offline-symbolizable addresses
         run: |
           set -euxo pipefail
