@@ -105,12 +105,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if not _race_running:
 			return
-		if event.keycode >= KEY_F1 and event.keycode <= KEY_F6:
-			var ids := WmcCircuitData.ids()
-			var requested_id := ids[event.keycode - KEY_F1]
-			_load_circuit(requested_id)
-			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F7:
+		if event.keycode == KEY_F7 and not OS.has_feature("mobile"):
 			var label := UiScale.cycle()
 			_hud.refresh_scale()
 			_hud.set_notice("GUI SCALE %s" % label.to_upper())
