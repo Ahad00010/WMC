@@ -87,8 +87,20 @@ jobs:
           mkdir -p native-prototype/build/windows native-prototype/build/android
           godot --headless --path native-prototype --export-release "Windows Desktop" build/windows/WMC-Race.exe
       - name: Export Android APK
-        run: godot --headless --path native-prototype --export-release "Android" build/android/WMC-Race.apk
-      - name: Upload native prototype builds
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          godot --headless --path native-prototype --export-release "Android" build/android/WMC-Race.apk 2>&1 | tee native-prototype/build/android/export.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ "$status" -ne 0 ]]; then
+            details="$(tail -n 80 native-prototype/build/android/export.log | tr '\n' ' ' | cut -c1-6000)"
+            echo "::error title=Godot Android export failed::$details"
+            exit "$status"
+          fi
+      - name: Upload native prototype builds and export log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: WMC-native-prototype
@@ -96,4 +108,5 @@ jobs:
             native-prototype/build/windows/WMC-Race.exe
             native-prototype/build/windows/WMC-Race.pck
             native-prototype/build/android/WMC-Race.apk
-          if-no-files-found: error
+            native-prototype/build/android/export.log
+          if-no-files-found: warn
