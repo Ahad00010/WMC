@@ -23,7 +23,7 @@ func _run() -> void:
  if not game.active or game.countdown or game.ai_riders.size() != 9:
   _fail("Rendered AI race did not complete start countdown")
   return
- if game.capture_readbacks == 0 or not game.recorder or game.recorder.sequence == 0 or game.recorder.rejected != 0:
+ if game.capture_readbacks < 3 or not game.recorder or game.recorder.sequence < 3 or game.recorder.rejected != 0:
   _fail("Rendered race did not successfully capture real viewport frames")
   return
  game._return_to_menu()

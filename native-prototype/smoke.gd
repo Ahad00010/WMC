@@ -129,8 +129,20 @@ func _run() -> void:
   push_error("Live second camera failed to render")
   quit(1)
   return
+ # A requested viewport is not read until a post-draw notification arrives.
+ game._process(1.0 / 20.0)
+ if not game.replay_pending or game.replay_drawn:
+  push_error("Capture read before its viewport completed rendering")
+  quit(1)
+  return
+ game._on_capture_frame_drawn()
+ if not game.replay_drawn:
+  push_error("Post-draw did not mark viewport frame ready")
+  quit(1)
+  return
  game.replay_enabled = false
  game.replay_pending = false
+ game.replay_drawn = false
  game.racing = false
  game.menu.visible = false
  game.controls.visible = true

@@ -53,6 +53,7 @@ var replay_enabled := false
 var replay_clock := 0.0
 var replay_time := 0.0
 var replay_pending := false
+var replay_drawn := false
 var capture_readback_us := 0
 var capture_readbacks := 0
 var capture_skipped := 0
@@ -116,6 +117,7 @@ func _ready() -> void:
  _load_circuits()
  _read_track("sepang")
  _make_world()
+ RenderingServer.frame_post_draw.connect(_on_capture_frame_drawn)
  _make_ui()
  _reset()
  _make_audio()
@@ -406,6 +408,7 @@ func _reset() -> void:
   recorder.clear()
   recorder = null
  replay_pending = false
+ replay_drawn = false
  replay_time = 0.0
  replay_clock = 0.0
  capture_target_fps = 24.0
@@ -574,7 +577,8 @@ func _process(dt: float) -> void:
   results_screen.muted = music_muted
  if active and replay_enabled and racing:
   replay_time += dt
-  if replay_pending:
+  if replay_pending and replay_drawn:
+   _capture_mark("viewport-draw-observed")
    if recorder and recorder.can_accept():
     _capture_mark("gpu-readback-begin")
     var before_readback := Time.get_ticks_usec()
@@ -591,12 +595,13 @@ func _process(dt: float) -> void:
    else:
     capture_skipped += 1
    replay_pending = false
+   replay_drawn = false
   capture_adjust_clock += dt
   if capture_adjust_clock >= 1.0:
    capture_adjust_clock = 0.0
    capture_target_fps = _capture_rate(capture_target_fps, capture_readback_ema_ms, Engine.get_frames_per_second())
   replay_clock += dt
-  if replay_clock >= 1.0 / capture_target_fps:
+  if not replay_pending and replay_clock >= 1.0 / capture_target_fps:
    replay_clock = fmod(replay_clock, 1.0 / capture_target_fps)
    if recorder and not recorder.can_accept():
     capture_skipped += 1
@@ -650,6 +655,12 @@ func _close_capture_stage() -> void:
   capture_stage.close()
   capture_stage = null
 
+# UPDATE_ONCE is asynchronous. Do not read a viewport until Godot has emitted
+# its post-draw signal for the frame in which that viewport was requested.
+func _on_capture_frame_drawn() -> void:
+ if replay_pending:
+  replay_drawn = true
+
 func _schedule_replay_frame() -> void:
  var target: Node3D = bike
  var leading := player_progress
@@ -660,8 +671,10 @@ func _schedule_replay_frame() -> void:
  var forward := Vector3(sin(target.rotation.y), 0, cos(target.rotation.y))
  replay_camera.position = target.position + forward.rotated(Vector3.UP, 1.5) * 9.0 + Vector3.UP * 3.5
  replay_camera.look_at(target.position + Vector3.UP, Vector3.UP)
- replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
+ replay_drawn = false
  replay_pending = true
+ _capture_mark("viewport-scheduled")
+ replay_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 func _update_map_markers() -> void:
  if not mini_map:
@@ -915,6 +928,8 @@ func _pause_game() -> void:
  paused = true
  _clear_touch()
  replay_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+ replay_pending = false
+ replay_drawn = false
  pause_panel.visible = true
 
 func _resume_game() -> void:
@@ -1400,6 +1415,8 @@ func _open_profile_editor() -> void:
  profile_panel.visible = true
 
 func _exit_tree() -> void:
+ if RenderingServer.frame_post_draw.is_connected(_on_capture_frame_drawn):
+  RenderingServer.frame_post_draw.disconnect(_on_capture_frame_drawn)
  _close_capture_stage()
  if recorder:
   recorder.clear()
