@@ -27,4 +27,5 @@ func _run() -> void:
 		assert((card.position + card.size * card.scale).x <= dimensions.x + 1)
 		assert((card.position + card.size * card.scale).y <= dimensions.y + 1)
 	game.queue_free()
+	await process_frame
 	quit(0)
