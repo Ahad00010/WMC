@@ -26,11 +26,11 @@ func _run() -> void:
 	game._summary.advance(3.0)
 	await process_frame
 	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-results.png")
+	_save_preview("results")
 	game._summary.advance(game._summary.RESULTS_DURATION)
 	await process_frame
 	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-championship.png")
+	_save_preview("championship")
 	if frames.size() < 3:
 		push_error("Real world capture failed: %d frames" % frames.size())
 		quit(1)
@@ -65,7 +65,7 @@ func _run() -> void:
 	game._finish_screen._process(1.0)
 	await process_frame
 	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png("/tmp/wmc-rebuild-winner.png")
+	_save_preview("winner")
 	if game._ambience:
 		game._ambience.stop()
 	if game._engine_audio:
@@ -76,3 +76,9 @@ func _run() -> void:
 	game.queue_free()
 	await process_frame
 	quit(0)
+
+func _save_preview(name: String) -> void:
+	var image := root.get_texture().get_image()
+	image.save_png("/tmp/wmc-rebuild-%s.png" % name)
+	image.resize(160, 90, Image.INTERPOLATE_BILINEAR)
+	image.save_jpg("/tmp/wmc-preview-%s.jpg" % name, 0.25)

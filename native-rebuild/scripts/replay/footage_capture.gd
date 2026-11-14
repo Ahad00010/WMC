@@ -18,6 +18,10 @@ var pending := false
 var accumulator := 0.0
 var interval := 1.0 / 30.0
 var last_readback_ms := 0.0
+var average_readback_ms := 0.0
+var readback_count := 0
+var skipped_count := 0
+var slow_readbacks := 0
 
 func begin(shared_world: World3D) -> void:
 	view = SubViewport.new()
@@ -46,6 +50,7 @@ func capture(delta: float, time: float, leader: Node3D, heading: float) -> void:
 	var capacity := queue.size() < 2
 	mutex.unlock()
 	if not capacity:
+		skipped_count += 1
 		return
 	var forward := Vector3(sin(heading), 0, cos(heading))
 	camera.global_position = leader.global_position + forward.rotated(Vector3.UP, 1.3) * 9.0 + Vector3.UP * 3.2
@@ -62,9 +67,16 @@ func _after_draw() -> void:
 	var start := Time.get_ticks_usec()
 	var image := view.get_texture().get_image()
 	last_readback_ms = float(Time.get_ticks_usec() - start) / 1000.0
-	# Reduce readback pressure if it becomes costly; recover gradually.
-	var target_rate := clampf(1000.0 / maxf(16.7, last_readback_ms * 4.0), 8.0, 60.0)
-	interval = lerpf(interval, 1.0 / target_rate, 0.12)
+	readback_count += 1
+	average_readback_ms = last_readback_ms if readback_count == 1 else lerpf(average_readback_ms, last_readback_ms, 0.18)
+	# A large blocking readback is a warning sign, not proof of the earlier
+	# display freeze's cause. Back off rapidly; resume smoothly on recovery.
+	if last_readback_ms >= 100.0:
+		slow_readbacks += 1
+		interval = maxf(interval, 0.5)
+	else:
+		var target_rate := clampf(1000.0 / maxf(16.7, average_readback_ms * 4.0), 8.0, 60.0)
+		interval = lerpf(interval, 1.0 / target_rate, 0.12)
 	if not image or image.is_empty():
 		return
 	mutex.lock()

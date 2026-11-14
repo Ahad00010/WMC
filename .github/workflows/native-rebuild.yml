@@ -49,6 +49,9 @@ jobs:
           fi
           cat /tmp/render.log
           echo "::notice::Race preview base64 $(base64 -w0 /tmp/wmc-rebuild-preview.jpg)"
+          for view in results championship winner; do
+            echo "::notice::${view} preview base64 $(base64 -w0 /tmp/wmc-preview-${view}.jpg)"
+          done
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|ERROR:' /tmp/render.log; then
             echo "::error::Render test log base64 $(head -100 /tmp/render.log | base64 -w0)"
             exit 1
@@ -65,7 +68,7 @@ jobs:
   export-windows:
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - name: Install Godot and templates
@@ -79,12 +82,70 @@ jobs:
           mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
           unzip -q /tmp/templates.zip -d /tmp/templates
           cp -a /tmp/templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+      # Retain the earlier Windows-only canvas upload mitigation and static
+      # ANGLE fallback. This addresses the observed crash site, not a proven
+      # fix for the separate frozen-display symptom.
+      - name: Cache ANGLE-enabled Windows engine
+        id: windows-engine-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/wmc-windows-engine-angle
+          key: wmc-windows-godot-4.4.1-mingw-debug-angle-canvas-subdata-trace-v1
+      - name: Build ANGLE-enabled Windows engine on cache miss
+        if: steps.windows-engine-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-mingw-w64-x86-64-posix scons
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+          curl -L --retry 3 https://codeload.github.com/godotengine/godot/tar.gz/refs/tags/4.4.1-stable -o /tmp/wmc-godot-source.tar.gz
+          mkdir -p /tmp/wmc-godot-source /tmp/wmc-angle "$HOME/.cache/wmc-windows-engine-angle"
+          tar -xf /tmp/wmc-godot-source.tar.gz --strip-components=1 -C /tmp/wmc-godot-source
+          wget -q 'https://github.com/godotengine/godot-angle-static/releases/download/chromium/6601.2/godot-angle-static-x86_64-gcc-release.zip' -O /tmp/wmc-angle.zip
+          unzip -q /tmp/wmc-angle.zip -d /tmp/wmc-angle
+          python3 native-rebuild/tools/patch_canvas_upload.py /tmp/wmc-godot-source
+          python3 native-rebuild/tools/patch_crash_trace.py /tmp/wmc-godot-source
+          (cd /tmp/wmc-godot-source && scons platform=windows target=template_debug arch=x86_64 use_mingw=yes use_static_cpp=yes debug_symbols=yes separate_debug_symbols=yes angle_libs=/tmp/wmc-angle -j4)
+          cp /tmp/wmc-godot-source/bin/godot.windows.template_debug.x86_64.exe "$HOME/.cache/wmc-windows-engine-angle/WMC.exe"
+          cp /tmp/wmc-godot-source/bin/godot.windows.template_debug.x86_64.exe.debugsymbols "$HOME/.cache/wmc-windows-engine-angle/WMC.exe.debugsymbols"
       - name: Export Windows test build
         run: |
           set -euo pipefail
           godot --headless --editor --path native-rebuild --import
           mkdir -p native-rebuild/build/windows
           godot --headless --path native-rebuild --export-debug 'Windows Desktop' "$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.exe"
+          test -f native-rebuild/build/windows/WMC.pck
+          cp "$HOME/.cache/wmc-windows-engine-angle/WMC.exe" native-rebuild/build/windows/WMC.exe
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          data = Path('native-rebuild/build/windows/WMC.exe').read_bytes()
+          assert b'drivers seem not to support GLES3 / ANGLE, switching to native OpenGL' in data
+          assert b'ANGLE dynamic libraries (libEGL.dll and libGLESv2.dll) are missing' not in data
+          PYCODE
+          mkdir -p /tmp/wmc-rebuild-symbols
+          cp "$HOME/.cache/wmc-windows-engine-angle/WMC.exe.debugsymbols" /tmp/wmc-rebuild-symbols/
+          sha256sum native-rebuild/build/windows/WMC.exe > /tmp/wmc-rebuild-symbols/BUILD-SHA256.txt
+      - name: Test patched Windows engine under Wine
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wine64 xvfb libgl1-mesa-dri
+          export WINEDEBUG=-all LIBGL_ALWAYS_SOFTWARE=1 WINEPREFIX="$HOME/.wmc-rebuild-wine"
+          if ! timeout 120s xvfb-run -a wine "$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.exe" --main-pack "Z:$GITHUB_WORKSPACE/native-rebuild/build/windows/WMC.pck" --script res://tests/race_view.gd --audio-driver Dummy > /tmp/windows.log 2>&1; then
+            echo "::error::Windows test base64 $(head -60 /tmp/windows.log | base64 -w0)"
+            exit 1
+          fi
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|CrashHandlerException|Assertion failed' /tmp/windows.log; then
+            echo "::error::Windows test base64 $(head -60 /tmp/windows.log | base64 -w0)"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WMC-rebuild-Windows-symbols
+          path: /tmp/wmc-rebuild-symbols/
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: WMC-rebuild-Windows-test

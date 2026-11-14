@@ -29,6 +29,10 @@ func _process(delta: float) -> void:
 	if _game._footage:
 		capture_ms = _game._footage.last_readback_ms
 	note("STATE fps=%d running=%s paused=%s riders=%d readback_ms=%.2f" % [Engine.get_frames_per_second(), _game._race_running, _game.paused, _game._riders.size(), capture_ms])
+	note("GRAPHICS buffer_mb=%.1f texture_mb=%.1f video_mb=%.1f" % [float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_BUFFER_MEM_USED)) / 1048576.0, float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED)) / 1048576.0, float(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED)) / 1048576.0])
+	if _game._footage:
+		var capture = _game._footage
+		note("CAPTURE reads=%d skipped=%d slow=%d average_ms=%.2f target_fps=%.1f" % [capture.readback_count, capture.skipped_count, capture.slow_readbacks, capture.average_readback_ms, 1.0 / capture.interval])
 
 func _exit_tree() -> void:
 	note("STOP")
