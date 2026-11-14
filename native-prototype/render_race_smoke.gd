@@ -36,7 +36,25 @@ func _run() -> void:
  if game.capture_readbacks < 3 or not game.recorder or game.recorder.sequence < 3 or game.recorder.rejected != 0:
   _fail("Rendered race did not successfully capture real viewport frames")
   return
+ # Verify that the real rendered viewport survives the JPEG capture path.
+ var original := game.replay_view.get_texture().get_image()
  game._return_to_menu()
+ var recorder = load("res://replay_recorder.gd").new()
+ recorder.start()
+ recorder.submit(original, 1.0)
+ var frames: Array = recorder.finish()
+ if frames.is_empty():
+  _fail("Rendered viewport image was rejected by encoder")
+  return
+ var replay_image := Image.new()
+ if replay_image.load(frames[0].path) != OK:
+  _fail("Recorded viewport image could not be decoded")
+  return
+ var errors := original.compute_image_metrics(replay_image, true)
+ if float(errors.get("mean", INF)) > 15.0:
+  _fail("Replay image differs excessively from the rendered frame")
+  return
+ recorder.clear()
  game.capture_setting = false
  game._start_race("sepang", 1, 1, false)
  await create_timer(5.0).timeout
@@ -50,6 +68,20 @@ func _run() -> void:
   return
  _set_w(false)
  game._return_to_menu()
+ # Regression: the diagonal card graphic must not paint over its black heading.
+ game.results_screen.begin([{"name":"Rider", "number":"93", "color":"red"}], "TEST", "#TEST")
+ game.results_screen.advance(70.0)
+ await process_frame
+ await RenderingServer.frame_post_draw
+ var screen := root.get_texture().get_image()
+ var viewport_size := Vector2(screen.get_width(), screen.get_height())
+ var factor := minf(viewport_size.x / 1280.0, viewport_size.y / 720.0)
+ var origin := (viewport_size - Vector2(1280, 720) * factor) * 0.5
+ var point := origin + Vector2(1205, 480) * factor
+ if screen.get_pixel(clampi(int(point.x), 0, screen.get_width() - 1), clampi(int(point.y), 0, screen.get_height() - 1)).r > 0.08:
+  _fail("Winner graphic painted over heading")
+  return
+ game.results_screen.cancel()
  game.queue_free()
  await process_frame
  quit(0)
