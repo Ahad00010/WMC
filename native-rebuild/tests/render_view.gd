@@ -18,8 +18,8 @@ func _run() -> void:
 	await RenderingServer.frame_post_draw
 	var screenshot := root.get_texture().get_image()
 	screenshot.save_png("/tmp/wmc-rebuild-race.png")
-	screenshot.resize(320, 180, Image.INTERPOLATE_BILINEAR)
-	screenshot.save_jpg("/tmp/wmc-rebuild-preview.jpg", 0.35)
+	screenshot.resize(160, 90, Image.INTERPOLATE_BILINEAR)
+	screenshot.save_jpg("/tmp/wmc-rebuild-preview.jpg", 0.25)
 	game._player.laps_completed = game.race_laps
 	game._finish_completed_riders()
 	var frames: Array = game._winner_frames
@@ -58,6 +58,8 @@ func _run() -> void:
 		game._ambience.stop()
 	if game._engine_audio:
 		game._engine_audio.stop()
+	if game._results_audio:
+		game._results_audio.stop()
 	await create_timer(0.15).timeout
 	game.queue_free()
 	await process_frame
