@@ -223,7 +223,7 @@ func _start_capture() -> void:
 		_footage.queue_free()
 	_footage = WmcFootageCapture.new()
 	add_child(_footage)
-	_footage.begin(get_viewport().world_3d)
+	_footage.begin(_world.get_world_3d())
 	_winner_frames.clear()
 	_winner_name = ""
 	_finish_delay = -1.0
