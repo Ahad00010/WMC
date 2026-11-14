@@ -53,6 +53,7 @@ func _ready() -> void:
 	var cancel := _button("CANCEL", Vector2(310, 425))
 	cancel.pressed.connect(func(): visible = false; closed.emit())
 	resized.connect(_fit)
+	UiScale.changed.connect(_fit)
 	_fit()
 
 func open(profile: Dictionary) -> void:
@@ -70,6 +71,7 @@ func _fit() -> void:
 	if not _card:
 		return
 	var factor := minf((size.x - 32.0) / _card.size.x, (size.y - 32.0) / _card.size.y)
+	factor = minf(factor, UiScale.panel_scale()) if not OS.has_feature("mobile") else factor
 	_card.scale = Vector2.ONE * maxf(0.1, factor)
 	_card.position = (size - _card.size * factor) * 0.5
 

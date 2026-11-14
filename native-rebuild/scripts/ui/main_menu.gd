@@ -67,6 +67,7 @@ func _ready() -> void:
 		_show_page(previous)
 	)
 	resized.connect(_fit)
+	UiScale.changed.connect(_fit)
 	_fit()
 	_show_page("home")
 
@@ -74,6 +75,7 @@ func _fit() -> void:
 	if not _card or size.x <= 0 or size.y <= 0:
 		return
 	var factor := minf((size.x - 32.0) / DESIGN_SIZE.x, (size.y - 32.0) / DESIGN_SIZE.y)
+	factor = minf(factor, UiScale.panel_scale()) if not OS.has_feature("mobile") else factor
 	_card.scale = Vector2.ONE * maxf(0.1, factor)
 	_card.position = (size - DESIGN_SIZE * factor) * 0.5
 
@@ -187,6 +189,7 @@ func _button(parent: Control, text: String, pos: Vector2, dimensions: Vector2, p
 	button.size = dimensions
 	button.focus_mode = Control.FOCUS_NONE
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.clip_text = true
 	button.add_theme_font_override("font", TEXT)
 	button.add_theme_font_size_override("font_size", 22)
 	var normal := StyleBoxFlat.new()

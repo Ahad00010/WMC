@@ -2,6 +2,8 @@ extends Node
 
 ## Shared setting retained for the PC GUI Scale choices that will appear in the
 ## settings screen: Default, 1, 2, and 3. Mobile keeps responsive sizing.
+signal changed
+
 const SETTING_PATH := "user://wmc-native-settings.cfg"
 const NAMES := ["Default", "1", "2", "3"]
 var selected_mode := 0
@@ -35,12 +37,14 @@ func save_settings() -> void:
 func cycle() -> String:
 	selected_mode = (selected_mode + 1) % NAMES.size()
 	save_settings()
+	changed.emit()
 	return NAMES[selected_mode]
 
 
 func set_mode(mode: int) -> void:
 	selected_mode = clampi(mode, 0, 3)
 	save_settings()
+	changed.emit()
 
 
 func mode_name() -> String:
@@ -58,3 +62,9 @@ func hud_scale(_shortest_side: float) -> float:
 		_:
 			# Default and explicit 1 preserve the base responsive desktop scale.
 			return 1.0
+
+
+func panel_scale() -> float:
+	if OS.has_feature("mobile"):
+		return 1.0
+	return [0.82, 0.72, 0.92, 1.08][selected_mode]

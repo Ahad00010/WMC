@@ -15,6 +15,21 @@ func _run() -> void:
 	var road: MeshInstance3D = game._track_root.get_node("Asphalt")
 	assert(road.material_override.albedo_texture != null)
 	assert(road.material_override.cull_mode == BaseMaterial3D.CULL_DISABLED)
+	game._menu._show_page("circuit")
+	var tiles: Array[Button] = []
+	for child in game._menu._content.get_children():
+		if child is Button:
+			tiles.append(child)
+	assert(tiles.size() == 6)
+	for i in tiles.size():
+		for j in range(i + 1, tiles.size()):
+			assert(not Rect2(tiles[i].position, tiles[i].size).intersects(Rect2(tiles[j].position, tiles[j].size)), "Circuit tiles overlap")
+	var old_scale: int = UiScale.selected_mode
+	UiScale.set_mode(1)
+	var small_card: float = game._menu._card.scale.x
+	UiScale.set_mode(3)
+	assert(game._menu._card.scale.x > small_card, "GUI Scale must resize the menu immediately")
+	UiScale.set_mode(old_scale)
 	game._menu.race_requested.emit("assen", 2, 1, true)
 	await process_frame
 	assert(game._race_running and game._hud.visible and game.circuit.id == "assen")
@@ -33,6 +48,22 @@ func _run() -> void:
 		for surface in player_mesh.mesh.get_surface_count():
 			assert(player_mesh.get_active_material(surface) == ai_mesh.get_active_material(surface), "AI duplicated bike material resources")
 	assert(game.race_laps == 2 and game.countdown > 0.0)
+	assert(not game._hud._speed_label.text.is_empty() and game._hud.tower._rows.size() == 10, "HUD must be populated during countdown")
+	assert(game._hud._display_font.get_string_size(game._hud._track_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, game._hud._track_label.get_theme_font_size("font_size")).x <= game._hud._track_label.size.x + 1.0, "Circuit name is clipped")
+	var left_key := InputEventKey.new()
+	left_key.keycode = KEY_A
+	left_key.pressed = true
+	Input.parse_input_event(left_key)
+	assert(game._player_command().z > 0.0, "A must turn left in the chase camera")
+	left_key.pressed = false
+	Input.parse_input_event(left_key)
+	var right_key := InputEventKey.new()
+	right_key.keycode = KEY_D
+	right_key.pressed = true
+	Input.parse_input_event(right_key)
+	assert(game._player_command().z < 0.0, "D must turn right in the chase camera")
+	right_key.pressed = false
+	Input.parse_input_event(right_key)
 	game._toggle_pause()
 	assert(game.paused and game._pause_menu.visible and not game._race_running)
 	game._pause_menu.settings_requested.emit()

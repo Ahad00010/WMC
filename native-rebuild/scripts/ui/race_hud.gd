@@ -61,6 +61,7 @@ func _ready() -> void:
 	add_child(touch_controls)
 	touch_controls.visible = OS.has_feature("mobile")
 	resized.connect(_layout)
+	UiScale.changed.connect(_layout)
 	call_deferred("_layout")
 
 
@@ -71,6 +72,7 @@ func set_race_state(circuit: WmcCircuit, current_lap: int, total_laps: int, spee
 	_lap_label.text = "KM/H     LAP %d / %d     %s" % [current_lap, total_laps, _format_time(elapsed_seconds)]
 	_position_label.text = "P%d / %d" % [race_position, rider_count]
 	_track_label.text = circuit.display_name
+	_fit_track_text()
 
 
 func set_notice(message: String) -> void:
@@ -94,8 +96,8 @@ func _layout() -> void:
 	var shortest_side := minf(viewport_size.x, viewport_size.y)
 	var margin := clampf(shortest_side * 0.030, 14.0, 42.0)
 	var unit := UiScale.hud_scale(shortest_side)
-	var timing_width := clampf(viewport_size.x * 0.31, 250.0 * unit, 420.0 * unit)
-	var timing_height := clampf(shortest_side * 0.135, 76.0 * unit, 142.0 * unit)
+	var timing_width := minf(minf(viewport_size.x * 0.28, 360.0) * unit, (viewport_size.x - 220.0 * unit) * 0.5 - margin - 12.0)
+	var timing_height := clampf(shortest_side * 0.115, 70.0, 110.0) * unit
 	_timing_panel.position = Vector2(margin, margin)
 	_timing_panel.size = Vector2(timing_width, timing_height)
 	_speed_label.position = Vector2(14.0 * unit, 3.0 * unit)
@@ -116,16 +118,25 @@ func _layout() -> void:
 	tower.size = Vector2(155 * unit, minf(shortest_side * 0.46, 330 * unit))
 	map.position = Vector2(viewport_size.x - margin - 180 * unit, margin + 145 * unit)
 	map.size = Vector2(180 * unit, 115 * unit)
-	var track_width := clampf(viewport_size.x * 0.42, 300.0 * unit, 680.0 * unit)
+	var track_width := minf(500.0 * unit, maxf(150.0, viewport_size.x - margin - (lights.position.x + lights.size.x) - 12.0))
 	var track_height := clampf(shortest_side * 0.070, 42.0 * unit, 78.0 * unit)
 	_track_panel.position = Vector2(viewport_size.x - margin - track_width, margin)
 	_track_panel.size = Vector2(track_width, track_height)
 	_track_label.position = Vector2(12.0 * unit, 0.0)
 	_track_label.size = Vector2(track_width - 24.0 * unit, track_height)
-	_track_label.add_theme_font_size_override("font_size", roundi(clampf(shortest_side * 0.026 * unit, 14.0, 27.0)))
+	_fit_track_text()
 	_notice_label.position = Vector2(viewport_size.x * 0.21, margin + timing_height + 9.0 * unit)
 	_notice_label.size = Vector2(viewport_size.x * 0.58, 28.0 * unit)
 	_notice_label.add_theme_font_size_override("font_size", roundi(clampf(shortest_side * 0.021 * unit, 13.0, 22.0)))
+
+
+func _fit_track_text() -> void:
+	if not _track_label or not _display_font:
+		return
+	var font_size := roundi(clampf(minf(size.x, size.y) * 0.024 * UiScale.hud_scale(minf(size.x, size.y)), 11.0, 24.0))
+	while font_size > 8 and _display_font.get_string_size(_track_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > _track_label.size.x:
+		font_size -= 1
+	_track_label.add_theme_font_size_override("font_size", font_size)
 
 
 func _make_panel(colour: Color) -> Panel:

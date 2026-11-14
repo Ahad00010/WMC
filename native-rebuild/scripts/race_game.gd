@@ -203,6 +203,7 @@ func _create_menu() -> void:
 		_race_running = true
 		countdown = 3.0
 		_hud.lights.update_time(countdown)
+		_update_hud()
 		_start_capture()
 		_diagnostics.note("RACE START circuit=%s laps=%d speed=%d ai=%s" % [id, laps, speed, ai])
 		_fade_music(_ambience, false)
@@ -614,7 +615,7 @@ func _player_command() -> Vector3:
 	return Vector3(
 		maxf(1.0 if keyboard_throttle else 0.0, touch_command.x),
 		maxf(1.0 if keyboard_brake else 0.0, touch_command.y),
-		clampf(float(int(keyboard_right) - int(keyboard_left)) + touch_command.z, -1.0, 1.0)
+		-clampf(float(int(keyboard_right) - int(keyboard_left)) + touch_command.z, -1.0, 1.0)
 	)
 
 

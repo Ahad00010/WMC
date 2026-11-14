@@ -37,6 +37,7 @@ func _ready() -> void:
 	var home := _button("MAIN MENU", 290)
 	home.pressed.connect(func(): main_menu_requested.emit())
 	resized.connect(_fit)
+	UiScale.changed.connect(_fit)
 	_fit()
 
 func _button(text: String, y: float) -> Button:
@@ -54,5 +55,6 @@ func _fit() -> void:
 	if not _card:
 		return
 	var factor := minf((size.x - 32.0) / 560.0, (size.y - 32.0) / 400.0)
+	factor = minf(factor, UiScale.panel_scale()) if not OS.has_feature("mobile") else factor
 	_card.scale = Vector2.ONE * maxf(0.1, factor)
 	_card.position = (size - _card.size * factor) * 0.5
