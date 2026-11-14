@@ -48,7 +48,7 @@ jobs:
           cp trace-build/WMC.exe trace-build/WMC.pck /tmp/crash-test/
           # No symbols beside the executable: test the small download configuration.
           set +e
-          WMC_INTERNAL_TEST_CRASH=1 WINEDEBUG=-all WINEPREFIX=/tmp/wmc-wine timeout 90s xvfb-run -a wine /tmp/crash-test/WMC.exe --headless --main-pack Z:/tmp/crash-test/WMC.pck >/tmp/crash-test/output.log 2>&1
+          WMC_INTERNAL_TEST_CRASH=1 WINEDEBUG=-all WINEPREFIX="$HOME/.wmc-wine" timeout 90s xvfb-run -a wine /tmp/crash-test/WMC.exe --headless --main-pack Z:/tmp/crash-test/WMC.pck >/tmp/crash-test/output.log 2>&1
           set -e
           cat /tmp/crash-test/output.log
           grep 'WMC_PC module=.*WMC.exe rva=0x' /tmp/crash-test/output.log > /tmp/crash-test/frames.txt
